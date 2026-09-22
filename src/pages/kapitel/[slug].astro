@@ -1,0 +1,36 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const kapitel = await getCollection('kapitel', (k) => !k.data.draft);
+  return kapitel.map((k) => ({ params: { slug: k.id }, props: { entry: k } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const alle = (await getCollection('kapitel', (k) => !k.data.draft)).sort((a, b) => a.data.order - b.data.order);
+const idx = alle.findIndex((k) => k.id === entry.id);
+const prev = idx > 0 ? alle[idx - 1] : undefined;
+const next = idx < alle.length - 1 ? alle[idx + 1] : undefined;
+---
+
+<Base title={entry.data.title} description={entry.data.summary}>
+  <article>
+    <p class="kicker">Kapitel {idx + 1}</p>
+    <h1>{entry.data.title}</h1>
+    <p class="summary">{entry.data.summary}</p>
+    <Content />
+  </article>
+  <nav class="pager" aria-label="Kapitelnavigation">
+    {prev ? <a href={`/kapitel/${prev.id}/`}>← {prev.data.title}</a> : <span />}
+    {next ? <a href={`/kapitel/${next.id}/`}>{next.data.title} →</a> : <span />}
+  </nav>
+</Base>
+
+<style>
+  article { max-width: 50rem; }
+  .kicker { color: var(--accent-strong); font-weight: 600; margin: 0.5rem 0 0; }
+  .summary { font-size: 1.1rem; color: var(--fg-muted); }
+  .pager { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+</style>
