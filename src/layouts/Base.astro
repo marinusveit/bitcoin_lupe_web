@@ -1,4 +1,8 @@
 ---
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/700.css';
 import '../styles/global.css';
 import 'katex/dist/katex.min.css';
 import { getCollection } from 'astro:content';
@@ -29,18 +33,20 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
   <body>
     <header class="site-header">
       <div class="container bar">
-        <a href="/" class="brand">
+        <a href="/" class="brand" aria-label="Bitcoin unter der Lupe, Startseite">
           <span class="coin" aria-hidden="true">₿</span>
-          <span>Bitcoin unter der Lupe</span>
+          <span class="brand-text">Bitcoin unter der Lupe</span>
         </a>
         <button class="menu-toggle" aria-expanded="false" aria-controls="site-nav" id="menu-toggle">Menü</button>
         <nav id="site-nav" class="site-nav" aria-label="Hauptnavigation">
           <ol>
-            {kapitel.map((k) => (
+            {kapitel.map((k, i) => (
               <li>
-                <a href={`/kapitel/${k.id}/`} aria-current={isActive(`/kapitel/${k.id}/`) ? 'page' : undefined}>
-                  {k.data.title}
-                </a>
+                <a
+                  href={`/kapitel/${k.id}/`}
+                  title={k.data.title}
+                  aria-current={isActive(`/kapitel/${k.id}/`) ? 'page' : undefined}
+                ><span class="num">{i + 1}</span> {k.data.navTitle ?? k.data.title}</a>
               </li>
             ))}
           </ol>
@@ -78,37 +84,46 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
 <style>
   .site-header {
     position: sticky; top: 0; z-index: 20;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    backdrop-filter: blur(8px);
+    background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
-  .bar { display: flex; align-items: center; gap: 1rem; min-height: 3.4rem; flex-wrap: wrap; }
-  .brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--fg); text-decoration: none; }
+  .bar { display: flex; align-items: center; gap: 1.25rem; min-height: 3.4rem; }
+  .brand {
+    display: inline-flex; align-items: center; gap: 0.5rem; flex: none;
+    font-weight: 600; color: var(--fg); text-decoration: none; white-space: nowrap;
+  }
   .coin {
-    display: inline-grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%;
-    background: var(--accent); color: #1d1d1b; font-weight: 800;
+    display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); font-weight: 700;
   }
   .menu-toggle { margin-left: auto; display: none; }
-  .site-nav { margin-left: auto; display: flex; gap: 1rem; align-items: center; }
-  .site-nav ol, .site-nav ul { list-style: none; display: flex; gap: 0.2rem; margin: 0; padding: 0; flex-wrap: wrap; }
-  .site-nav ol { counter-reset: kap; }
-  .site-nav ol li { counter-increment: kap; }
+  .site-nav { flex: 1; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; min-width: 0; }
+  .site-nav ol, .site-nav ul { list-style: none; display: flex; gap: 0.1rem; margin: 0; padding: 0; }
   .site-nav a {
-    display: inline-block; padding: 0.35rem 0.55rem; border-radius: 6px; color: var(--fg-muted);
-    text-decoration: none; font-size: 0.92rem;
+    display: inline-block; padding: 0.4rem 0.45rem 0.3rem; color: var(--fg-muted);
+    text-decoration: none; font-size: 0.9rem; white-space: nowrap;
+    border-bottom: 2px solid transparent;
   }
-  .site-nav ol a::before { content: counter(kap) " "; color: var(--accent); font-weight: 700; }
-  .site-nav a:hover { background: var(--bg-muted); color: var(--fg); }
-  .site-nav a[aria-current="page"] { background: var(--accent-soft); color: var(--fg); }
-  .site-nav ul a { border: 1px solid var(--border); }
+  .num { font-family: var(--font-mono); font-size: 0.85em; }
+  .site-nav a:hover { color: var(--fg); border-bottom-color: var(--border); }
+  .site-nav a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); }
 
   main { padding: 1.5rem var(--gutter) 4rem; }
   .site-footer { border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 0.88rem; padding: 1.5rem 0 2.5rem; }
 
+  /* Zwischen Menügrenze und voller Breite nur die Münze als Marke, damit die Zeile nicht umbricht. */
+  @media (max-width: 1100px) and (min-width: 901px) {
+    .brand-text { display: none; }
+  }
+
   @media (max-width: 900px) {
+    .bar { flex-wrap: wrap; }
     .menu-toggle { display: inline-block; }
-    .site-nav { display: none; width: 100%; flex-direction: column; align-items: stretch; padding-bottom: 0.8rem; }
+    .site-nav { display: none; flex: none; width: 100%; flex-direction: column; align-items: stretch; padding-bottom: 0.8rem; }
     .site-nav.open { display: flex; }
     .site-nav ol, .site-nav ul { flex-direction: column; }
+    .site-nav a { display: block; border-bottom: 0; border-left: 2px solid transparent; padding: 0.45rem 0.6rem; }
+    .site-nav a:hover { border-left-color: var(--border); }
+    .site-nav a[aria-current="page"] { border-left-color: var(--accent); }
   }
 </style>

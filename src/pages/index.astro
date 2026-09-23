@@ -1,37 +1,72 @@
 ---
 import Base from '../layouts/Base.astro';
+import HashHero from '../components/HashHero.svelte';
 import { getCollection } from 'astro:content';
 const kapitel = (await getCollection('kapitel', (k) => !k.data.draft)).sort((a, b) => a.data.order - b.data.order);
+const erstes = kapitel[0];
 ---
 
 <Base title="Start">
-  <section class="hero">
-    <h1>Wie funktioniert Bitcoin wirklich?</h1>
+  <section class="hero" aria-labelledby="start-titel">
+    <h1 id="start-titel">Bitcoin unter der Lupe</h1>
     <p class="lead">
-      Ohne Bank, ohne Chef, ohne Vertrauen in Fremde: Bitcoin hält seit 2009 ein digitales Kassenbuch,
-      das niemand allein kontrolliert. Hier siehst du Schritt für Schritt, welche Technik das möglich macht,
-      und kannst jeden Baustein selbst ausprobieren.
+      Jeder Baustein von Bitcoin zum Ausprobieren. Der erste ist ein Hashwert: ein Fingerabdruck für beliebige Daten.
     </p>
-    <p><a class="btn primary" href="/simulator/">Zum Netzwerk-Simulator</a></p>
+    <HashHero client:load />
   </section>
 
-  <section>
-    <h2>Kapitel</h2>
-    <ol class="grid">
+  <section class="prose" aria-labelledby="problem-titel">
+    <h2 id="problem-titel">Das Problem, das Bitcoin löst</h2>
+    <p>
+      Eine digitale Münze ist nur eine Datei. Eine Datei kannst du kopieren, so oft du willst. Ein Foto bleibt ein
+      Foto, auch wenn du es zehnmal verschickst. Bei Geld darf das nicht passieren.
+    </p>
+    <p>
+      Wer eine Münze kopieren kann, kann sie zweimal ausgeben: einmal an Anna, einmal an Ben. Das heißt doppelte
+      Ausgabe. Eine Bank verhindert das, weil sie jede Zahlung in ihrem Kassenbuch prüft. Dann musst du aber der Bank
+      vertrauen.
+    </p>
+    <p>
+      Bitcoin geht einen anderen Weg. Das Kassenbuch führen tausende Rechner gemeinsam. Jeder hat eine Kopie und prüft
+      jede Zahlung selbst. Niemand kann das Buch allein ändern. Wie das gelingt, zeigen die acht Kapitel.
+    </p>
+  </section>
+
+  <section class="prose" aria-labelledby="weg-titel">
+    <h2 id="weg-titel">Der Weg durch die Seite</h2>
+    <ol class="weg">
       {kapitel.map((k) => (
-        <li class="card">
-          <a href={`/kapitel/${k.id}/`}><strong>{k.data.title}</strong></a>
+        <li>
+          <a href={`/kapitel/${k.id}/`}>{k.data.title}</a>
           <p>{k.data.summary}</p>
         </li>
       ))}
     </ol>
+    <p class="aktionen">
+      {erstes && <a class="btn primary" href={`/kapitel/${erstes.id}/`}>Mit Kapitel 1 beginnen</a>}
+      <a class="nebenlink" href="/simulator/">Oder gleich den Netzwerk-Simulator öffnen</a>
+    </p>
   </section>
 </Base>
 
 <style>
-  .hero { max-width: 46rem; padding: 2rem 0 1rem; }
-  .lead { font-size: 1.15rem; color: var(--fg-muted); }
-  .grid { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
-  .grid li p { margin: 0.4rem 0 0; color: var(--fg-muted); font-size: 0.95rem; }
-  .grid a { text-decoration: none; color: var(--fg); }
+  .hero { max-width: 46rem; padding: 1rem 0 1.5rem; }
+  .lead { font-size: 1.15rem; color: var(--fg-muted); margin-bottom: 1.6rem; }
+  .weg { list-style: none; counter-reset: weg; padding: 0; margin: 0 0 2rem; }
+  .weg li {
+    counter-increment: weg;
+    display: grid; grid-template-columns: 2rem 1fr; column-gap: 0.6rem;
+    padding: 0.8rem 0; border-top: 1px solid var(--border);
+  }
+  .weg li:last-child { border-bottom: 1px solid var(--border); }
+  .weg li::before {
+    content: counter(weg);
+    grid-row: span 2;
+    font-family: var(--font-mono); font-weight: 700; color: var(--fg-muted); padding-top: 0.05rem;
+  }
+  .weg a { font-weight: 600; }
+  .weg p { margin: 0.2rem 0 0; color: var(--fg-muted); font-size: 0.95rem; }
+  .aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; }
+  .btn.primary { padding: 0.6rem 1.1rem; }
+  .nebenlink { color: var(--fg-muted); }
 </style>

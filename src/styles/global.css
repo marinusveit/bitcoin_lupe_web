@@ -1,61 +1,72 @@
+/*
+ * Tokens und Basistypografie. Gestaltungsleitlinie: kühles Papier, IBM Plex Sans/Mono,
+ * Bitcoin-Orange nur für führende Nullen, Marker gefundener Blöcke und den Primärknopf.
+ * Hierarchie über Rahmen und Flächen, keine Schatten. Schriften werden in Base.astro
+ * über @fontsource gebündelt (offline, keine externen Requests).
+ */
 :root {
-  --font-sans: "Segoe UI", "Helvetica Neue", Arial, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Mono", Consolas, "Liberation Mono", monospace;
-  --bg: #fbfaf7;
+  --font-sans: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+  --bg: #f8f8f6;
   --bg-elevated: #ffffff;
-  --bg-muted: #f1eee7;
-  --fg: #1d1d1b;
-  --fg-muted: #5d5b55;
-  --border: #d9d5cb;
-  --accent: #e8850e;        /* Bitcoin-Orange, abgedunkelt für Kontrast auf hell */
-  --accent-strong: #b8640a;
-  --accent-soft: #fdebd4;
+  --bg-muted: #eeeeea;
+  --fg: #1b1c1f;
+  --fg-muted: #5b5e66;
+  --border: #d6d7d2;
+  --accent: #f7931a;        /* Bitcoin-Orange: Nullen, Blockmarker, Primärknopf. Nie als Textfarbe auf hell. */
+  --accent-strong: #9a5306; /* Orange als Text auf hell, Kontrast >= 4,5:1 */
+  --accent-soft: #fdefdc;
+  --on-accent: #1b1c1f;     /* Text auf --accent-Fläche */
   --ok: #2f7d4a;
   --warn: #b7791f;
   --danger: #b3261e;
   --info: #2b6cb0;
-  --radius: 10px;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 14px rgb(0 0 0 / 0.05);
+  --radius: 6px;
+  --shadow: none;
   --maxw: 72rem;
+  --measure: 46rem;         /* Textspalte */
+  --bench: 56rem;           /* Werkbank-Rahmen */
   --gutter: 16px;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #15161a;
-    --bg-elevated: #1e2026;
-    --bg-muted: #262932;
-    --fg: #ececea;
-    --fg-muted: #a5a7ad;
-    --border: #3a3d47;
+    --bg: #121316;
+    --bg-elevated: #1a1c21;
+    --bg-muted: #23262d;
+    --fg: #ebebe7;
+    --fg-muted: #a4a6ad;
+    --border: #363942;
     --accent: #f7a23b;
     --accent-strong: #ffbd6b;
     --accent-soft: #3a2a14;
+    --on-accent: #121316;
     --ok: #5cbf7a;
     --warn: #e0a83e;
     --danger: #ef6f66;
     --info: #6fa8e6;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.35);
+    --shadow: none;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #15161a;
-  --bg-elevated: #1e2026;
-  --bg-muted: #262932;
-  --fg: #ececea;
-  --fg-muted: #a5a7ad;
-  --border: #3a3d47;
+  --bg: #121316;
+  --bg-elevated: #1a1c21;
+  --bg-muted: #23262d;
+  --fg: #ebebe7;
+  --fg-muted: #a4a6ad;
+  --border: #363942;
   --accent: #f7a23b;
   --accent-strong: #ffbd6b;
   --accent-soft: #3a2a14;
+  --on-accent: #121316;
   --ok: #5cbf7a;
   --warn: #e0a83e;
   --danger: #ef6f66;
   --info: #6fa8e6;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.35);
+  --shadow: none;
   color-scheme: dark;
 }
 
@@ -66,22 +77,34 @@ html { font-size: 17px; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-weight: 400;
   line-height: 1.6;
   color: var(--fg);
   background: var(--bg);
 }
 
-h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -0.01em; margin: 2.2em 0 0.6em; }
-h1 { font-size: 2.1rem; margin-top: 0.5em; }
-h2 { font-size: 1.55rem; }
-h3 { font-size: 1.2rem; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.2; letter-spacing: -0.015em; margin: 2.2em 0 0.6em; }
+h1 { font-size: 2rem; margin-top: 0.5em; }
+h2 { font-size: 1.45rem; }
+h3 { font-size: 1.15rem; }
+h4 { font-size: 1rem; }
+strong, b, th { font-weight: 600; }
 p, ul, ol { margin: 0 0 1em; }
-a { color: var(--accent-strong); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-a:hover { color: var(--accent); }
+
+/* Links: Textfarbe, Unterstreichung in Orange (Orange als Textfarbe hat auf hell zu wenig Kontrast). */
+a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 
 code, kbd, pre, .mono {
   font-family: var(--font-mono);
-  font-size: 0.92em;
+  font-size: 0.9em;
 }
 code { background: var(--bg-muted); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
 pre {
@@ -95,7 +118,7 @@ pre code { background: none; padding: 0; }
 
 table { border-collapse: collapse; width: 100%; margin: 1rem 0 1.5rem; font-size: 0.95rem; }
 th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { color: var(--fg-muted); font-weight: 600; }
+th { color: var(--fg-muted); }
 
 figure { margin: 1.5rem 0; }
 figure img, figure svg { max-width: 100%; height: auto; }
@@ -104,7 +127,7 @@ figcaption { color: var(--fg-muted); font-size: 0.9rem; margin-top: 0.4rem; }
 blockquote {
   margin: 1.2rem 0;
   padding: 0.2rem 1rem;
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--border);
   color: var(--fg-muted);
 }
 
@@ -112,7 +135,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
 
 /* Layout-Bausteine */
 .container { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
-.prose { max-width: 46rem; }
+.prose { max-width: var(--measure); }
 
 .card {
   background: var(--bg-elevated);
@@ -123,7 +146,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
 }
 
 .callout {
-  border-left: 4px solid var(--info);
+  border-left: 3px solid var(--info);
   background: var(--bg-elevated);
   border-radius: 0 var(--radius) var(--radius) 0;
   padding: 0.8rem 1rem;
@@ -133,6 +156,52 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
 .callout.achtung { border-color: var(--danger); }
 .callout > :last-child { margin-bottom: 0; }
 
+/* Aufklappbare Vertiefung in MDX: <details class="vertiefung"><summary>Vertiefung: …</summary> … </details>.
+   Das Wort „Vertiefung“ steht im Summary-Text; die Marke davor zeigt nur auf/zu (+/−). */
+details.vertiefung {
+  margin: 1.4rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+details.vertiefung > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+details.vertiefung > summary::-webkit-details-marker { display: none; }
+details.vertiefung > summary::before {
+  content: "+";
+  width: 0.8rem;
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--fg-muted);
+}
+details.vertiefung[open] > summary::before { content: "−"; }
+details.vertiefung[open] > summary { border-bottom: 1px solid var(--border); }
+details.vertiefung > summary:hover { background: var(--bg-muted); }
+details.vertiefung > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+details.vertiefung > :not(summary) { margin-left: 1rem; margin-right: 1rem; }
+details.vertiefung > summary + * { margin-top: 0.9rem; }
+details.vertiefung > :last-child { margin-bottom: 1rem; }
+
+/* Kasten am Kapitelende: <div class="mitnehmen"> **Das nimmst du mit:** … </div> (Überschrift steht im MDX) */
+.mitnehmen {
+  margin: 2.5rem 0 1.5rem;
+  padding: 0.9rem 1.1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-muted);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.mitnehmen > :last-child { margin-bottom: 0; }
+.mitnehmen ul, .mitnehmen ol { padding-left: 1.2rem; }
+.mitnehmen > h2:first-child, .mitnehmen > h3:first-child { margin-top: 0; }
+
 /* Formulare und Knöpfe (für Svelte-Inseln) */
 button, .btn {
   font: inherit;
@@ -140,36 +209,61 @@ button, .btn {
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   color: var(--fg);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 0.45rem 0.9rem;
+  text-decoration: none;
+  display: inline-block;
 }
-button:hover, .btn:hover { border-color: var(--accent); }
-button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: #1d1d1b; font-weight: 600; }
-button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+button:hover, .btn:hover { border-color: var(--fg-muted); }
+button.primary, .btn.primary {
+  background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600;
+}
+button.primary:hover, .btn.primary:hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--fg));
+  border-color: color-mix(in srgb, var(--accent) 85%, var(--fg));
+}
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+button[aria-pressed="true"] { background: var(--bg-muted); border-color: var(--fg-muted); }
 
-input[type="text"], input[type="number"], textarea, select {
+input[type="text"], input[type="number"], input[type="search"], textarea, select {
   font: inherit;
   color: var(--fg);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 0.45rem 0.6rem;
   max-width: 100%;
 }
-input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+input[type="range"] { accent-color: var(--accent); }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, .btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 label { font-size: 0.92rem; color: var(--fg-muted); }
 
 .hash { font-family: var(--font-mono); font-size: 0.85rem; overflow-wrap: anywhere; }
+/* Führende Nullen eines Hashwerts (Leitmotiv) */
+.nullen { background: var(--accent); color: var(--on-accent); font-weight: 700; border-radius: 2px; }
 .badge {
   display: inline-block; font-size: 0.78rem; padding: 0.1em 0.55em; border-radius: 999px;
   background: var(--bg-muted); color: var(--fg-muted); border: 1px solid var(--border);
 }
 
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 @media (max-width: 640px) {
   html { font-size: 16px; }

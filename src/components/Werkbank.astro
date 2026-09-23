@@ -1,0 +1,64 @@
+---
+/**
+ * Rahmen für eine interaktive Demo: oben die Aufgabe („Probiere“), in der Mitte die Demo (Slot),
+ * unten die Deutung („Was du siehst“). Nutzung in MDX:
+ *   <Werkbank aufgabe="Ändere …" deutung="Der Hash …"><KettenDemo client:visible /></Werkbank>
+ */
+interface Props {
+  aufgabe?: string;
+  deutung?: string;
+  titel?: string;
+}
+const { aufgabe, deutung, titel } = Astro.props;
+---
+
+<section class="werkbank">
+  {aufgabe && (
+    <p class="aufgabe">
+      <span class="marke">Probiere</span>
+      <span>{aufgabe}</span>
+    </p>
+  )}
+  {titel && <p class="titel">{titel}</p>}
+  <div class="inhalt"><slot /></div>
+  {deutung && (
+    <p class="deutung">
+      <span class="marke">Was du siehst</span>
+      <span>{deutung}</span>
+    </p>
+  )}
+</section>
+
+<style>
+  .werkbank {
+    margin: 1.6rem 0 2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+    overflow: hidden;
+  }
+  .aufgabe, .deutung {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem 0.9rem;
+    align-items: baseline;
+    margin: 0;
+    padding: 0.7rem 1rem;
+    font-size: 0.95rem;
+  }
+  .aufgabe { background: var(--bg-muted); border-bottom: 1px solid var(--border); color: var(--fg); }
+  .deutung { background: var(--bg-muted); border-top: 1px solid var(--border); color: var(--fg); }
+  .marke {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--fg-muted);
+    white-space: nowrap;
+  }
+  .titel { margin: 0; padding: 0.6rem 1rem 0; font-weight: 600; }
+  .inhalt { padding: 1rem; }
+  @media (max-width: 560px) {
+    .aufgabe, .deutung { grid-template-columns: 1fr; gap: 0.15rem; }
+    .inhalt { padding: 0.7rem; }
+  }
+</style>
