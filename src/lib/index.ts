@@ -7,3 +7,4 @@ export * from './transaction';
 export * from './script';
 export * from './block';
 export * from './mining-client';
+export * from './nakamoto';

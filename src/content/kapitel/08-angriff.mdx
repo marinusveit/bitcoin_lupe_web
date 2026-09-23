@@ -6,6 +6,7 @@ summary: Wer mehr Rechenleistung hat als alle anderen, kann eigene Zahlungen rü
 ---
 
 import AngriffsDiagramm from '../../components/AngriffsDiagramm.svelte';
+import AngriffsRennen from '../../components/AngriffsRennen.svelte';
 import Werkbank from '../../components/Werkbank.astro';
 
 Die Blockchain ist durch Rechenarbeit geschützt. Was passiert, wenn ein Angreifer sehr viel Rechenleistung besitzt? Dieses Kapitel rechnet das Szenario aus dem Bitcoin-Whitepaper durch.
@@ -43,6 +44,12 @@ Der Angreifer ist an dieselben Konsensregeln gebunden wie alle anderen. Er kann 
 ## Die Aufholjagd
 
 Stell dir ein Wettrennen vor. Die ehrlichen Miner laufen vorne, der Angreifer liegt $z$ Blöcke zurück. Mit jedem Block kann er einen Schritt aufholen oder weiter zurückfallen. Wie wahrscheinlich ist es, dass er irgendwann gleichzieht?
+
+Bevor wir rechnen, kannst du das Rennen laufen lassen. Jeder neue Block ist ein Würfelwurf: Mit der Wahrscheinlichkeit $q$ findet ihn der Angreifer, sonst ein ehrlicher Miner. Der Händler liefert, sobald die ehrliche Kette $z$ Blöcke nach der Zahlung hat.
+
+<Werkbank aufgabe="Starte ein Rennen mit 30 % und 3 Bestätigungen. Sag vorher: Holt der Angreifer auf? Lass dann „100 Rennen“ laufen und vergleiche die Quote mit der Formel. Stelle zum Schluss 60 % ein." deutung="Ein einzelnes Rennen ist Zufall, aber über viele Rennen zeigt sich eine feste Quote. Genau diese Quote berechnet die Formel unten. Mit mehr als der Hälfte der Rechenleistung gewinnt der Angreifer jedes Rennen irgendwann.">
+  <AngriffsRennen client:visible />
+</Werkbank>
 
 Dafür definieren wir drei Wahrscheinlichkeiten:
 
