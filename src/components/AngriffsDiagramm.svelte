@@ -1,0 +1,170 @@
+<script lang="ts">
+  /**
+   * Wahrscheinlichkeit, dass ein Angreifer mit Rechenanteil q einen Rückstand von z Blöcken
+   * aufholt (Nakamoto 2008): 1 − Σ_{k=0}^{z} Poisson(λ, k) · (1 − (q/p)^{z−k}) mit λ = z·q/p.
+   */
+  function catchUp(q: number, z: number): number {
+    if (z === 0) return 1;
+    const p = 1 - q;
+    const lambda = (z * q) / p;
+    const logLambda = Math.log(lambda);
+    const logRatio = Math.log(q / p);
+    let sum = 0;
+    let logFact = 0;
+    for (let k = 0; k <= z; k++) {
+      if (k > 0) logFact += Math.log(k);
+      const poisson = Math.exp(k * logLambda - lambda - logFact);
+      sum += poisson * (1 - Math.exp((z - k) * logRatio));
+    }
+    return Math.min(1, Math.max(0, 1 - sum));
+  }
+
+  function confirmationsFor(q: number, limit = 0.001): number {
+    let z = 0;
+    while (catchUp(q, z) >= limit && z < 5000) z++;
+    return z;
+  }
+
+  const FIXED = [0.1, 0.2, 0.3, 0.4, 0.45];
+  // Geordnete Anteile: ein Farbton, von blass (kleines q) nach kräftig (großes q).
+  const SHADE = [45, 58, 72, 86, 100];
+  const Z_MAX = 12;
+  const START_Q = 0.25;
+
+  let width = $state(720);
+  let ownQ = $state(START_Q);
+  let hoverZ: number | null = $state(null);
+  let pinnedZ = $state(6);
+
+  const W = $derived(Math.max(300, width));
+  const M = { left: 48, right: 16, top: 16, bottom: 44 };
+  const H = 320;
+  const x = (z: number) => M.left + (z / Z_MAX) * (W - M.left - M.right);
+  const y = (p: number) => M.top + (1 - p) * (H - M.top - M.bottom);
+  const zs = Array.from({ length: Z_MAX + 1 }, (_, z) => z);
+
+  const path = (q: number) => 'M' + zs.map((z) => `${x(z)},${y(catchUp(q, z))}`).join('L');
+  const fixedPaths = $derived(FIXED.map((q) => path(q)));
+  const ownPath = $derived(path(ownQ));
+  const ownPoints = $derived(zs.map((z) => ({ z, p: catchUp(ownQ, z) })));
+
+  const activeZ = $derived(hoverZ ?? pinnedZ);
+
+  const pct = (v: number, d = 1) =>
+    `${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: v < 0.001 && v > 0 ? 4 : d })} %`;
+  const qLabel = (q: number) => `${Math.round(q * 100)} %`;
+
+  const table = $derived(
+    [...FIXED.map((q) => ({ q, own: false })), { q: ownQ, own: true }]
+      .sort((a, b) => a.q - b.q || Number(a.own) - Number(b.own))
+      .map((r) => ({ ...r, z: confirmationsFor(r.q) })),
+  );
+
+  function toZ(event: PointerEvent): number {
+    const svg = event.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) / rect.width) * W;
+    return Math.round(Math.min(Z_MAX, Math.max(0, ((px - M.left) / (W - M.left - M.right)) * Z_MAX)));
+  }
+
+  function reset() {
+    ownQ = START_Q;
+    hoverZ = null;
+    pinnedZ = 6;
+  }
+</script>
+
+<div class="demo">
+  <div class="controls">
+    <label class="slider">
+      <span>Dein Angreifer besitzt <strong>{qLabel(ownQ)}</strong> der Rechenleistung</span>
+      <input type="range" min="0.01" max="0.49" step="0.01" bind:value={ownQ} />
+    </label>
+    <button onclick={reset}>Zurücksetzen</button>
+  </div>
+
+  <div class="legend" aria-live="polite">
+    <span class="lbl">Erfolgschance bei z = {activeZ} Bestätigung{activeZ === 1 ? '' : 'en'}</span>
+    <ul>
+      {#each FIXED as q, i (q)}
+        <li><span class="key" style="--mix: {SHADE[i]}%"></span>q = {qLabel(q)}: <strong>{pct(catchUp(q, activeZ))}</strong></li>
+      {/each}
+      <li class="own"><span class="key own"></span>dein q = {qLabel(ownQ)}: <strong>{pct(catchUp(ownQ, activeZ))}</strong></li>
+    </ul>
+  </div>
+
+  <div class="chart" bind:clientWidth={width}>
+    <svg
+      viewBox="0 0 {W} {H}"
+      width={W}
+      height={H}
+      role="img"
+      aria-label="Erfolgswahrscheinlichkeit eines Angreifers über der Anzahl der Bestätigungen"
+      onpointermove={(e) => (hoverZ = toZ(e))}
+      onpointerdown={(e) => (pinnedZ = toZ(e))}
+      onpointerleave={() => (hoverZ = null)}
+    >
+      {#each [0, 0.25, 0.5, 0.75, 1] as t (t)}
+        <line class="grid" x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} />
+        <text class="tick" x={M.left - 8} y={y(t) + 4} text-anchor="end">{t * 100} %</text>
+      {/each}
+      {#each zs as z (z)}
+        {#if W >= 480 || z % 2 === 0}
+          <text class="tick" x={x(z)} y={H - M.bottom + 18} text-anchor="middle">{z}</text>
+        {/if}
+      {/each}
+      <text class="tick" x={W - M.right} y={H - 4} text-anchor="end">Bestätigungen z (Blöcke nach der Zahlung)</text>
+
+      <line class="cross" x1={x(activeZ)} x2={x(activeZ)} y1={M.top} y2={H - M.bottom} />
+
+      {#each fixedPaths as d, i (i)}
+        <path class="line" d={d} style="--mix: {SHADE[i]}%" />
+      {/each}
+      <path class="line own" d={ownPath} />
+      {#each ownPoints as pt (pt.z)}
+        <circle class="dot" cx={x(pt.z)} cy={y(pt.p)} r={pt.z === activeZ ? 5.5 : 4} />
+      {/each}
+    </svg>
+  </div>
+  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte bei einer bestimmten Zahl von Bestätigungen zu sehen.</p>
+
+  <table>
+    <caption>Wie viele Bestätigungen für unter 0,1 % Risiko?</caption>
+    <thead><tr><th>Anteil des Angreifers q</th><th class="num">nötige Bestätigungen</th><th class="num">Wartezeit etwa</th></tr></thead>
+    <tbody>
+      {#each table as r (r.q + ':' + r.own)}
+        <tr class:own={r.own}>
+          <td>{qLabel(r.q)}{r.own ? ' (dein Wert)' : ''}</td>
+          <td class="num">{r.z}</td>
+          <td class="num">{r.z * 10 < 120 ? `${r.z * 10} min` : `${(r.z / 6).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`}</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+  <p class="hint">Ein Block kommt im Mittel alle zehn Minuten. Viele Händler warten sechs Bestätigungen, also etwa eine Stunde.</p>
+</div>
+
+<style>
+  .demo { display: grid; gap: 0.8rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: end; justify-content: space-between; }
+  .slider { display: grid; gap: 0.3rem; flex: 1 1 18rem; color: var(--fg); }
+  .slider input { width: 100%; accent-color: var(--info); }
+  .lbl { font-size: 0.85rem; color: var(--fg-muted); }
+  .legend ul { list-style: none; padding: 0; margin: 0.3rem 0 0; display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; font-size: 0.92rem; }
+  .legend li { display: flex; align-items: center; gap: 0.4rem; font-variant-numeric: tabular-nums; }
+  .key { width: 1.3rem; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--accent) var(--mix), var(--bg)); }
+  .key.own { height: 4px; background: var(--info); }
+  .chart { width: 100%; touch-action: pan-y; }
+  svg { display: block; width: 100%; height: auto; user-select: none; }
+  .grid { stroke: var(--border); stroke-width: 1; }
+  .tick { fill: var(--fg-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .cross { stroke: var(--fg); stroke-width: 1; opacity: 0.45; }
+  .line { fill: none; stroke: color-mix(in srgb, var(--accent) var(--mix), var(--bg)); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .line.own { stroke: var(--info); stroke-width: 3; }
+  .dot { fill: var(--info); stroke: var(--bg); stroke-width: 2; }
+  .hint { font-size: 0.88rem; color: var(--fg-muted); margin: 0; }
+  table { margin: 0.4rem 0 0; }
+  caption { text-align: left; font-weight: 600; padding-bottom: 0.3rem; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.own td { font-weight: 600; background: var(--bg-muted); }
+</style>

@@ -1,0 +1,90 @@
+---
+import Base from '../../layouts/Base.astro';
+import TransaktionsDemo from '../../components/TransaktionsDemo.svelte';
+import SkriptDemo from '../../components/SkriptDemo.svelte';
+import BlockDemo from '../../components/BlockDemo.svelte';
+import MiningDemo from '../../components/MiningDemo.svelte';
+import KettenDemo from '../../components/KettenDemo.svelte';
+import HalvingDiagramm from '../../components/HalvingDiagramm.svelte';
+import AngriffsDiagramm from '../../components/AngriffsDiagramm.svelte';
+---
+
+<Base title="Werkstatt Blockchain" description="Transaktionen, Skripte, Blöcke, Mining und Angriffe zum Ausprobieren.">
+  <h1>Werkstatt: Transaktionen und Blockchain</h1>
+  <p class="prose">
+    Hier baust du Transaktionen, prüfst Skripte, minst Blöcke und siehst, warum eine Blockchain schwer zu
+    fälschen ist. Alles wird direkt in deinem Browser berechnet, es werden keine Daten übertragen.
+  </p>
+
+  <section>
+    <h2>Transaktionen</h2>
+    <p class="prose">
+      Eine Transaktion gibt alte Outputs aus und erzeugt neue. Ein Output ist ein Betrag, der mit einem
+      Schloss versehen ist: Nur wer den passenden Private Key besitzt, kann ihn später ausgeben. Was übrig
+      bleibt, geht als Wechselgeld an den Absender zurück.
+    </p>
+    <TransaktionsDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Bitcoin Script</h2>
+    <p class="prose">
+      Das Schloss eines Outputs ist ein kleines Programm, das Sperr-Skript. Wer den Output ausgeben will,
+      liefert ein Entsperr-Skript dazu. Beide laufen nacheinander auf einem Stapel, einem Speicher, bei dem
+      man immer nur an das oberste Element kommt. Liegt am Ende „wahr“ oben, ist die Ausgabe erlaubt.
+    </p>
+    <SkriptDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Blockheader</h2>
+    <p class="prose">
+      Jeder Block beginnt mit einem Kopf aus sechs Feldern, dem Blockheader. Sein Hash muss kleiner sein als
+      eine Zielzahl, das Target. Die Werte unten stammen vom allerersten Bitcoin-Block, dem Genesis-Block.
+      Ändere ein Feld und beobachte den Hash.
+    </p>
+    <BlockDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Mining</h2>
+    <p class="prose">
+      Mining heißt: so lange eine Zahl im Header ändern, die Nonce, bis der Hash klein genug ist. Es gibt
+      keinen Trick, man muss raten. Stelle die Schwierigkeit ein und starte die Suche.
+    </p>
+    <MiningDemo client:only="svelte" />
+  </section>
+
+  <section>
+    <h2>Die Kette</h2>
+    <p class="prose">
+      Jeder Block enthält den Hash seines Vorgängers. Wer einen alten Block verändert, macht damit auch alle
+      folgenden Blöcke ungültig und muss sie alle neu minen.
+    </p>
+    <KettenDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Halbierung der Belohnung</h2>
+    <p class="prose">
+      Wer einen Block findet, bekommt neue Bitcoin als Belohnung. Alle 210 000 Blöcke halbiert sich diese
+      Belohnung. Deshalb wird es nie mehr als 21 Millionen Bitcoin geben.
+    </p>
+    <HalvingDiagramm client:visible />
+  </section>
+
+  <section>
+    <h2>Der 51-%-Angriff</h2>
+    <p class="prose">
+      Ein Angreifer könnte heimlich eine eigene Kette bauen, in der seine Zahlung fehlt. Das gelingt nur, wenn
+      er die ehrliche Kette einholt. Jede Bestätigung, also jeder weitere Block nach der Zahlung, macht das
+      unwahrscheinlicher, solange der Angreifer weniger als die Hälfte der Rechenleistung besitzt.
+    </p>
+    <AngriffsDiagramm client:visible />
+  </section>
+</Base>
+
+<style>
+  section { margin-bottom: 3.5rem; }
+  section > h2 { margin-top: 2.5rem; }
+</style>
