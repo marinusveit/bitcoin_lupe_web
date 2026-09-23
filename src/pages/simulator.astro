@@ -1,8 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
+import Simulator from '../components/sim/Simulator.svelte';
 ---
 
-<Base title="Netzwerk-Simulator" description="Ein vereinfachtes Bitcoin-Netzwerk zum Ausprobieren.">
+<Base title="Netzwerk-Simulator" description="Ein vereinfachtes Bitcoin-Netzwerk zum Ausprobieren: Transaktionen, Miner, Gabelungen und ein Double-Spend-Angriff.">
   <h1>Netzwerk-Simulator</h1>
-  <p class="prose">Hier entsteht der interaktive Nachbau eines Bitcoin-Netzwerks mit Nutzern, Knoten und Minern.</p>
+  <p class="prose">
+    Hier arbeitet ein kleines Bitcoin-Netz direkt in deinem Browser. Wallets schicken Coins, Knoten reichen die
+    Nachrichten weiter, und Miner suchen um die Wette nach dem nächsten Block. Die Zeit läuft in Ticks: Ein Tick ist
+    der kleinste Zeitschritt der Simulation. Drücke Start und schau zu, oder greif selbst ein.
+  </p>
+  <Simulator client:only="svelte" />
 </Base>
