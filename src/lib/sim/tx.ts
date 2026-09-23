@@ -1,13 +1,11 @@
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { SATOSHI_PER_BTC } from '../block';
+import { sha256dHex } from '../hash';
 import type { Tx, TxInput, TxOutput, UtxoSet } from './types';
 
-export const SATS_PER_BTC = 100_000_000;
+export { sha256dHex };
 
-export function sha256dHex(data: string | Uint8Array): string {
-  const bytes = typeof data === 'string' ? utf8ToBytes(data) : data;
-  return bytesToHex(sha256(sha256(bytes)));
-}
+/** Alter Name für `SATOSHI_PER_BTC` aus `src/lib/block.ts`. */
+export const SATS_PER_BTC = SATOSHI_PER_BTC;
 
 /** Kanonische Serialisierung: feste Feldreihenfolge, ohne `txid`. */
 export function serializeTx(tx: Omit<Tx, 'txid'>): string {
