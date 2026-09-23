@@ -5,8 +5,10 @@
   interface Props {
     world: World;
     version: number;
+    /** Kapitel-Modus: nur Höhe, Mempool und Einigkeit. */
+    compact?: boolean;
   }
-  let { world, version }: Props = $props();
+  let { world, version, compact = false }: Props = $props();
 
   const s = $derived.by(() => {
     void version;
@@ -29,15 +31,17 @@
 </script>
 
 <dl class="kennzahlen" aria-label="Kennzahlen des Netzes">
-  <div><dt>Höhe</dt><dd>{s.height}</dd></div>
-  <div><dt>Difficulty</dt><dd>{formatDifficulty(s.difficulty)}</dd></div>
-  <div><dt>Gesamt-Hashrate</dt><dd>{fmtNumber(s.totalHashrate)}</dd></div>
-  <div>
-    <dt>Mittlerer Blockabstand</dt>
-    <dd>{s.meanBlockInterval === null ? 'noch kein Block' : `${fmtNumber(s.meanBlockInterval, 0)} ${Math.round(s.meanBlockInterval) === 1 ? 'Tick' : 'Ticks'}`}</dd>
-  </div>
-  <div><dt>Coins im Umlauf</dt><dd>{formatBtc(s.coinsInCirculation)}</dd></div>
-  <div><dt>Tx im Mempool</dt><dd>{s.mempoolSize}</dd></div>
+  <div><dt>{compact ? 'Länge der Kette' : 'Höhe'}</dt><dd>{s.height}</dd></div>
+  {#if !compact}
+    <div><dt>Difficulty</dt><dd>{formatDifficulty(s.difficulty)}</dd></div>
+    <div><dt>Gesamt-Hashrate</dt><dd>{fmtNumber(s.totalHashrate)}</dd></div>
+    <div>
+      <dt>Mittlerer Blockabstand</dt>
+      <dd>{s.meanBlockInterval === null ? 'noch kein Block' : `${fmtNumber(s.meanBlockInterval, 0)} ${Math.round(s.meanBlockInterval) === 1 ? 'Tick' : 'Ticks'}`}</dd>
+    </div>
+    <div><dt>Coins im Umlauf</dt><dd>{formatBtc(s.coinsInCirculation)}</dd></div>
+  {/if}
+  <div><dt>{compact ? 'Wartende Transaktionen' : 'Tx im Mempool'}</dt><dd>{s.mempoolSize}</dd></div>
   <div>
     <dt>Einigkeit</dt>
     <dd class:split={s.distinctTips > 1}>{s.distinctTips === 1 ? 'alle Knoten gleich' : `${s.distinctTips} verschiedene Spitzen`}</dd>

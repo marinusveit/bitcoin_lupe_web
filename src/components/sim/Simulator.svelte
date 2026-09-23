@@ -142,9 +142,7 @@
     onpreset={loadPreset}
   />
 
-  {#if !compact}
-    <Kennzahlen {world} {version} />
-  {/if}
+  <Kennzahlen {world} {version} {compact} />
 
   <div class="main">
     <div class="karte-spalte">
