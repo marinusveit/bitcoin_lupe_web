@@ -47,6 +47,29 @@
   /** Im Block-Header eingefrorene Wurzel; `null`, solange nichts eingetragen ist. */
   let headerRoot = $state<string | null>(START_ROOT);
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Beim schrittweisen Beweis: bis zu welcher Ebene die Rechnung schon gezeigt wird (null = alles). */
+  let revealed = $state<number | null>(null);
+  let revealTimer: ReturnType<typeof setInterval> | undefined;
+
+  function stopReveal() {
+    clearInterval(revealTimer);
+    revealTimer = undefined;
+  }
+
+  /** Zeigt den Beweis Ebene für Ebene: erst das Blatt, dann jedes Paar bis zur Wurzel. */
+  function playProof() {
+    stopReveal();
+    revealed = 0;
+    revealTimer = setInterval(() => {
+      if (revealed === null || revealed >= proofSteps.length) return stopReveal();
+      revealed += 1;
+    }, 900);
+  }
+
+  $effect(() => () => {
+    stopReveal();
+    clearTimeout(flashTimer);
+  });
 
   const txids = $derived(txs.map((t) => sha256dHex(t)));
   const tree = $derived(buildMerkleTree(txids));
@@ -112,12 +135,14 @@
 
   function isSibling(level: number, index: number): boolean {
     if (selected === null || level >= layout.top) return false;
+    if (revealed !== null && level >= revealed) return false;
     const p = Math.floor(selected / 2 ** level);
     return index === (p ^ 1);
   }
 
   function isPath(level: number, index: number): boolean {
     if (selected === null) return false;
+    if (revealed !== null && level > revealed) return false;
     return index === Math.floor(selected / 2 ** level);
   }
 
@@ -161,6 +186,8 @@
   }
 
   function select(i: number) {
+    stopReveal();
+    revealed = null;
     selected = selected === i ? null : i;
   }
 
@@ -180,6 +207,8 @@
   }
 
   function reset() {
+    stopReveal();
+    revealed = null;
     txs = [...START_TXS];
     selected = null;
     flashLeaf = null;
@@ -312,12 +341,25 @@
     {:else if proofSteps.length === 0}
       <p class="hint">Bei nur einer Transaktion ist ihre TxID selbst schon die Merkle-Wurzel.</p>
     {:else}
-      <p class="proof-title">
-        Merkle-Beweis für Tx {selected + 1}: {proofSteps.length}
-        {proofSteps.length === 1 ? 'Hash' : 'Hashes'} statt {txs.length} TxIDs
-      </p>
+      <div class="proof-head">
+        <p class="proof-title">
+          Merkle-Beweis für Tx {selected + 1}: {proofSteps.length}
+          {proofSteps.length === 1 ? 'Hash' : 'Hashes'} statt {txs.length} TxIDs
+        </p>
+        <button type="button" onclick={playProof}>Schritt für Schritt zeigen</button>
+      </div>
+      {#if revealed !== null && revealed < proofSteps.length}
+        <p class="hint">
+          {#if revealed === 0}
+            Start: die TxID von Tx {selected + 1} (orange). Als Nächstes kommt der blaue Geschwister-Hash dazu.
+          {:else}
+            Ebene {revealed}: Eigener Hash und Geschwister-Hash werden aneinandergehängt und gehasht. Das Ergebnis
+            ist der nächste orange Knoten.
+          {/if}
+        </p>
+      {/if}
       <ol class="steps">
-        {#each proofSteps as s (s.level)}
+        {#each proofSteps.slice(0, revealed ?? proofSteps.length) as s (s.level)}
           <li>
             <span class="hash">
               {#if s.position === 'left'}
@@ -332,7 +374,7 @@
         {/each}
       </ol>
     {/if}
-    {#if selected !== null}
+    {#if selected !== null && (revealed === null || revealed >= proofSteps.length)}
       {#if headerRoot === null}
         <p class="verdict" class:ok={proofOk}>
           {proofOk ? 'Ergebnis stimmt mit der aktuellen Merkle-Wurzel überein.' : 'Ergebnis weicht von der Wurzel ab.'}
@@ -447,7 +489,8 @@
 
   .proof { border-top: 1px solid var(--border); padding-top: 0.9rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
-  .proof-title { margin: 0 0 0.5rem; font-weight: 600; }
+  .proof-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.4rem 1rem; margin-bottom: 0.5rem; }
+  .proof-title { margin: 0; font-weight: 600; }
   .steps { margin: 0 0 0.6rem; padding-left: 1.4rem; display: grid; gap: 0.35rem; }
   .steps li { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; align-items: baseline; }
   .own { color: var(--accent-strong); font-weight: 600; }
