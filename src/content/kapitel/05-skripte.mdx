@@ -4,7 +4,7 @@ order: 5
 summary: Kleine Programme legen fest, wer einen Output öffnen darf, und eine Adresse ist nur eine lesbare Form eines solchen Programms.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import SkriptDemo from '../../components/SkriptDemo.svelte';
 
 Im letzten Kapitel war ein Output eine Kiste mit Schloss und der Input der passende Schlüssel. Technisch sind beide kleine Programme, sogenannte Skripte (scripts).
 
@@ -71,7 +71,7 @@ PKH ist der gespeicherte Schlüssel-Hash. Das oberste Stack-Element steht rechts
 
 Alle Befehle wurden ausgeführt und auf dem Stack liegt nur eine 1. Das Skript war erfolgreich.
 
-<Platzhalter name="SkriptDemo" hinweis="P2PKH-Skript Schritt für Schritt ausführen" />
+<SkriptDemo client:visible />
 
 <div class="callout merke">
 

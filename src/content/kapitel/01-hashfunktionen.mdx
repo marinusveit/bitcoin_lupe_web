@@ -4,7 +4,8 @@ order: 1
 summary: Eine Hashfunktion macht aus beliebigen Daten einen kurzen digitalen Fingerabdruck, und auf diesem Baustein beruht fast alles in Bitcoin.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import HashDemo from '../../components/HashDemo.svelte';
+import LawinenDemo from '../../components/LawinenDemo.svelte';
 
 Fast jeder Teil von Bitcoin nutzt Hashfunktionen. Transaktionen, Blöcke und Adressen beruhen auf ihnen. Deshalb stehen sie am Anfang.
 
@@ -28,7 +29,7 @@ Ein Beispiel mit der Hashfunktion SHA-256: Aus dem Text „Hochschule München�
 
 Hashwerte werden meist hexadezimal geschrieben. Das Hexadezimalsystem hat 16 Ziffern, nämlich 0 bis 9 und a bis f. Jede Ziffer steht für genau 4 Bit. Die 64 Zeichen oben sind also 256 Nullen und Einsen in kurzer Schreibweise.
 
-<Platzhalter name="HashDemo" hinweis="Text eingeben, Hash live sehen" />
+<HashDemo client:visible />
 
 ## Wie groß ist 2 hoch 256?
 
@@ -68,7 +69,7 @@ Jede brauchbare Hashfunktion muss fünf Eigenschaften haben:
 
 Der Lawineneffekt (avalanche effect) ist besonders auffällig. Ändert man „Hochschule München“ zu „Hochschule Munchen“, fehlen nur zwei Punkte über dem u. Der neue Hashwert lautet aber `885bc1d5f370ea770b69fed36d6db76a05d859a65fe7291ced3a8422d2f1ceee`. Etwa die Hälfte der 256 Bits hat sich verändert.
 
-<Platzhalter name="LawinenDemo" hinweis="Ein Zeichen ändern und sehen, welche Bits umkippen" />
+<LawinenDemo client:visible />
 
 ### Kryptografische Hashfunktionen
 

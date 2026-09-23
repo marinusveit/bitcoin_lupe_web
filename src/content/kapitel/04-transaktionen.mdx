@@ -4,7 +4,7 @@ order: 4
 summary: Eine Bitcoin-Transaktion öffnet alte Schatzkisten mit Bitcoins und verschließt den Inhalt in neuen Kisten für die Empfänger.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import TransaktionsDemo from '../../components/TransaktionsDemo.svelte';
 
 Bei Bitcoin gibt es keine Kontostände, die eine Bank verwaltet. Es gibt nur Transaktionen. Eine Transaktion (transaction) überträgt Bitcoins von einem Besitzer zum nächsten. Wie sie aufgebaut ist, zeigt dieses Kapitel.
 
@@ -35,7 +35,7 @@ Die Kiste ist aber verschlossen. Deshalb enthält der Input auch einen Schlüsse
 
 Man kann mehrere Inputs kombinieren, um einen größeren Betrag zu bezahlen.
 
-<Platzhalter name="TransaktionsDemo" hinweis="Inputs auswählen, Outputs verteilen und die Gebühr ablesen" />
+<TransaktionsDemo client:visible />
 
 ## Die UTXO-Menge
 

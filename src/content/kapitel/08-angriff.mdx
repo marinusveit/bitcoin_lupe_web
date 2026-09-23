@@ -4,7 +4,7 @@ order: 8
 summary: Wer mehr Rechenleistung hat als alle anderen, kann eigene Zahlungen rückgängig machen, aber mit jedem neuen Block sinkt die Chance dafür rasant.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import AngriffsDiagramm from '../../components/AngriffsDiagramm.svelte';
 
 Die Blockchain ist durch Rechenarbeit geschützt. Was passiert, wenn ein Angreifer sehr viel Rechenleistung besitzt? Dieses Kapitel rechnet das Szenario aus dem Bitcoin-Whitepaper durch.
 
@@ -105,7 +105,7 @@ Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), 
 
 {/* KORRIGIERT gegenüber der Arbeit: Dort stehen für q = 0,1 und z = 3 „0,35 %“. Die Formel ergibt 1,32 % (so auch die Tabelle im Whitepaper, Abschnitt 11); 0,35 % ist der Wert für z = 4. Auch die Kurvendaten in der Abbildung der Arbeit sind um einen Block verschoben. ERGÄNZT: Der Wert für z = 5 (0,09 %) ist nachgerechnet und steht nicht in der Arbeit. */}
 
-<Platzhalter name="AngriffsDiagramm" hinweis="Rechenleistung des Angreifers und Wartezeit wählen, Erfolgschance ablesen" />
+<AngriffsDiagramm client:visible />
 
 ## Warum es trotzdem kaum passiert
 

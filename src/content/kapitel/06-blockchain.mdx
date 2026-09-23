@@ -4,7 +4,10 @@ order: 6
 summary: Miner bündeln Transaktionen in Blöcke, verketten sie über Hashwerte und sichern sie mit Rechenarbeit, sodass sich alle auf dieselbe Geschichte einigen.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import BlockDemo from '../../components/BlockDemo.svelte';
+import KettenDemo from '../../components/KettenDemo.svelte';
+import MiningDemo from '../../components/MiningDemo.svelte';
+import HalvingDiagramm from '../../components/HalvingDiagramm.svelte';
 
 Doppelte Ausgaben lassen sich verhindern, wenn alle Transaktionen in einer festen zeitlichen Reihenfolge vorliegen. Dann sieht jeder, welche Ausgabe zuerst kam. Aber wer legt die Reihenfolge fest, wenn es keine Bank gibt? Bitcoin löst das mit der Blockchain.
 
@@ -28,7 +31,7 @@ Ein Block (block) speichert eine begrenzte Anzahl von Transaktionen. Er besteht 
 
 Die Block-ID ist der HASH256-Wert des Headers. Sie kennzeichnet den Block eindeutig.
 
-<Platzhalter name="BlockDemo" hinweis="Felder im Header ändern und die Block-ID beobachten" />
+<BlockDemo client:visible />
 
 ## Verkettung
 
@@ -36,7 +39,7 @@ Jeder Block enthält die Block-ID seines Vorgängers. So entsteht eine Kette mit
 
 Was passiert, wenn jemand eine alte Transaktion fälscht? Dann ändert sich die Merkle-Wurzel und damit die Block-ID. Der nächste Block zeigt aber noch auf die alte ID. Passt man ihn an, ändert sich auch seine ID. So pflanzt sich eine einzige Änderung bis zum Ende der Kette fort.
 
-<Platzhalter name="KettenDemo" hinweis="Einen alten Block ändern und sehen, welche Blöcke ungültig werden" />
+<KettenDemo client:visible />
 
 ## Mining
 
@@ -70,7 +73,7 @@ Wer mehr Rechenleistung hat, schafft mehr Versuche pro Sekunde. Er findet deshal
 
 Das Finden ist schwer, das Prüfen dagegen leicht. Jeder kann mit einer einzigen Hash-Berechnung sehen, dass der Miner die Arbeit erbracht hat. Deshalb heißt das Verfahren Arbeitsnachweis (proof of work).
 
-<Platzhalter name="MiningDemo" hinweis="Nonce hochzählen, bis die Block-ID unter dem Target liegt" />
+<MiningDemo client:only="svelte" />
 
 <div class="callout merke">
 
@@ -113,12 +116,8 @@ $$
 
 Ganz erreicht wird diese Zahl nie. Die kleinste Einheit ist ein Satoshi, benannt nach dem Erfinder: $1 \text{ sat} = 10^{-8}$ BTC. Kleiner lässt sich der Zuschuss nicht teilen. Deshalb wird es höchstens 20.999.999,9769 BTC geben.
 
-<figure>
-  <img src="/img/blockzuschuss.svg" alt="Diagramm: Der Blockzuschuss fällt stufenweise von 50 BTC, die Menge der Bitcoins steigt gegen 21 Millionen" />
-  <figcaption>Blockzuschuss (orange) und Bitcoins im Umlauf (blau) abhängig von der Blockhöhe.</figcaption>
-</figure>
 
-<Platzhalter name="HalvingDiagramm" hinweis="Blockhöhe wählen und Zuschuss sowie Gesamtmenge ablesen" />
+<HalvingDiagramm client:visible />
 
 Miner nehmen meist die Transaktionen mit den höchsten Gebühren zuerst. Wer zu wenig Gebühr zahlt, muss lange warten. Irgendwann verwerfen die Knoten die Transaktion. Sinkt der Zuschuss gegen null, bleiben die Gebühren der wichtigste Anreiz für Miner.
 

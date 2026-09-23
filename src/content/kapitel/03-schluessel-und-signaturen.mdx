@@ -4,7 +4,8 @@ order: 3
 summary: Mit einem geheimen Schlüssel und einer elliptischen Kurve beweist man in Bitcoin, dass einem die Coins gehören, ohne das Geheimnis zu verraten.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import KurvenDemo from '../../components/KurvenDemo.svelte';
+import SignaturDemo from '../../components/SignaturDemo.svelte';
 
 Wer darf Bitcoins ausgeben? Bei einer Bank prüft die Bank. Bei Bitcoin gibt es keine Bank. Stattdessen beweist man mit Mathematik, dass man einen geheimen Schlüssel besitzt. Grundlage dafür ist eine elliptische Kurve.
 
@@ -66,7 +67,7 @@ $$
 
 Statt 25 Additionen braucht man nur sechs Schritte. Bei 256-Bit-Zahlen sind es höchstens 512 Schritte.
 
-<Platzhalter name="KurvenDemo" hinweis="Punkte auf der Kurve addieren und verdoppeln" />
+<KurvenDemo client:visible />
 
 ## Die Einwegfunktion
 
@@ -121,7 +122,7 @@ $$
 
 Stimmt die x-Koordinate von $R'$ modulo $n$ mit $r$ überein, ist die Signatur gültig. Sonst ist sie ungültig.
 
-<Platzhalter name="SignaturDemo" hinweis="Nachricht signieren, ändern und erneut prüfen" />
+<SignaturDemo client:visible />
 
 ## Vom Schlüssel zur Adresse
 

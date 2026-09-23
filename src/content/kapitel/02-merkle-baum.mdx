@@ -4,7 +4,7 @@ order: 2
 summary: Ein Merkle-Baum fasst tausende Transaktionen in einem einzigen Hashwert zusammen und erlaubt trotzdem, eine einzelne Transaktion mit wenigen Hashwerten nachzuweisen.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import MerkleDemo from '../../components/MerkleDemo.svelte';
 
 Ein Bitcoin-Block enthält oft mehrere tausend Transaktionen. Wie kann ein einziger Hashwert sie alle absichern? Und wie prüft man eine einzelne davon, ohne alle anderen herunterzuladen? Die Antwort ist der Merkle-Baum.
 
@@ -38,7 +38,7 @@ Was passiert, wenn auf einer Ebene eine ungerade Zahl von Knoten steht? Dann wir
      TxID1          TxID2                    TxID3
 ```
 
-<Platzhalter name="MerkleDemo" hinweis="Transaktionen ändern und zusehen, wie sich die Wurzel ändert" />
+<MerkleDemo client:visible />
 
 ## Warum die Wurzel alles absichert
 
