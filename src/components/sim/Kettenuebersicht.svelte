@@ -112,7 +112,7 @@
     display: inline-block;
     width: 14px;
     height: 14px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
   }
   .sw.best {
     border: 2.5px solid var(--fg);

@@ -151,7 +151,7 @@
     font-size: 0.75rem;
     padding: 0 0.4em;
     margin-left: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: var(--bg-muted);
   }
   .kuerzel.aktiv {

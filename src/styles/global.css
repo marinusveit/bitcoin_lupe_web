@@ -22,6 +22,7 @@
   --danger: #b3261e;
   --info: #2b6cb0;
   --radius: 6px;
+  --radius-sm: 3px;       /* Chips, Farbmarker, kleine Tags */
   --shadow: none;
   --maxw: 72rem;
   --measure: 46rem;         /* Textspalte */

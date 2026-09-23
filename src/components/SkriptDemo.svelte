@@ -200,7 +200,7 @@
   .free textarea { width: 100%; font-family: var(--font-mono); font-size: 0.9rem; }
   .tokens { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; padding: 0.8rem; background: var(--bg-muted); border-radius: var(--radius); }
   .chip {
-    font-family: var(--font-mono); font-size: 0.82rem; padding: 0.25rem 0.55rem; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 0.82rem; padding: 0.25rem 0.55rem; border-radius: var(--radius);
     background: var(--bg-elevated); border: 1px solid var(--border); border-bottom-width: 3px; max-width: 100%;
     overflow-wrap: anywhere; transition: opacity 0.15s;
   }
@@ -219,11 +219,11 @@
   .machine { display: grid; grid-template-columns: minmax(12rem, 18rem) 1fr; gap: 1.5rem; }
   h4 { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--fg-muted); }
   .stack { display: flex; flex-direction: column; gap: 0.35rem; min-height: 8rem; justify-content: flex-end; padding: 0.5rem; border: 2px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); }
-  .slot { display: grid; padding: 0.4rem 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; }
+  .slot { display: grid; padding: 0.4rem 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); }
   .slot.top { border-color: var(--accent); background: var(--accent-soft); }
   .empty { text-align: center; padding: 0.5rem; }
   .note { font-size: 1.05rem; margin: 0 0 0.8rem; }
-  .verdict { font-weight: 600; padding: 0.6rem 0.8rem; border-radius: 8px; border-left: 4px solid; margin: 0; }
+  .verdict { font-weight: 600; padding: 0.6rem 0.8rem; border-radius: var(--radius); border-left: 4px solid; margin: 0; }
   .verdict.ok { border-color: var(--ok); color: var(--ok); background: var(--bg-elevated); }
   .verdict.bad { border-color: var(--danger); color: var(--danger); background: var(--bg-elevated); }
   .muted { color: var(--fg-muted); }

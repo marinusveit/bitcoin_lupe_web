@@ -194,7 +194,7 @@
     font-weight: 700;
     font-size: 1.1rem;
     padding: 0.45rem 0.8rem;
-    border-radius: 8px;
+    border-radius: var(--radius);
     border: 2px solid var(--danger);
     color: var(--danger);
   }

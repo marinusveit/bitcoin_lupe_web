@@ -155,7 +155,7 @@
   .txrow { display: flex; gap: 0.5rem; }
   .txrow input { flex: 1; min-width: 0; }
   .small-btn { font-size: 0.85rem; padding: 0.25rem 0.6rem; justify-self: start; }
-  .derived .hash { padding: 0.45rem 0.6rem; background: var(--bg-muted); border-radius: 8px; }
+  .derived .hash { padding: 0.45rem 0.6rem; background: var(--bg-muted); border-radius: var(--radius); }
   .hint { font-size: 0.85rem; color: var(--fg-muted); }
   .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .errors { color: var(--danger); margin: 0; }

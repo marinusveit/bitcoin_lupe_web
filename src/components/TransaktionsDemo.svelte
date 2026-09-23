@@ -329,7 +329,7 @@
   .fields input, .fields select { width: 100%; }
   .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.9rem; }
   .error { color: var(--danger); margin: 0.7rem 0 0; font-weight: 600; }
-  .rejected { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border: 1px solid var(--danger); border-left-width: 4px; border-radius: 8px; background: var(--bg-elevated); }
+  .rejected { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--radius); background: var(--bg-elevated); }
   .rejected p { margin: 0 0 0.3rem; }
   .rejected p:last-child { margin: 0; }
   .rejected .verdict { color: var(--danger); font-weight: 600; overflow-wrap: anywhere; }
@@ -338,7 +338,7 @@
   .flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.8rem; align-items: start; }
   .arrow { align-self: center; }
   .side { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
-  .io { display: grid; gap: 0.1rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); min-width: 0; }
+  .io { display: grid; gap: 0.1rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); min-width: 0; }
   .io.coinbase { color: var(--fg-muted); font-style: italic; }
   .arrow svg { display: block; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .amount { font-variant-numeric: tabular-nums; font-weight: 600; }

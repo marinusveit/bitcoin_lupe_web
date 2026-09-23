@@ -227,7 +227,7 @@
   .sw {
     width: 14px;
     height: 14px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     display: inline-block;
   }
   .saldo {
@@ -294,7 +294,7 @@
     font-size: 0.75rem;
     padding: 0 0.4em;
     margin-right: 0.3rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: var(--bg-muted);
   }
   .kuerzel.aktiv {

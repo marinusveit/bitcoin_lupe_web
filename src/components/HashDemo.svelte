@@ -78,7 +78,7 @@
   .result { border-top: 1px solid var(--border); padding-top: 0.9rem; }
   .result-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
   .note { color: var(--fg-muted); font-size: 0.88rem; }
-  .switch { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .switch { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .switch button { border: 0; border-radius: 0; padding: 0.25rem 0.8rem; background: transparent; color: var(--fg-muted); }
   .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
   .hex-out { margin: 0; font-size: 0.95rem; line-height: 1.5; }
