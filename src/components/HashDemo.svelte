@@ -13,6 +13,12 @@
   });
   const hex160 = $derived(hash160Hex(text));
 
+  /** Byte-Länge der Eingabe (UTF-8): ein Umlaut braucht zwei Byte. */
+  const inputBytes = $derived(new TextEncoder().encode(text).length);
+  const MAX_SQUARES = 96;
+  const inputSquares = $derived(Math.min(inputBytes, MAX_SQUARES));
+  const OUTPUT_BYTES = 32;
+
   function reset() {
     text = START_TEXT;
     view = 'hex';
@@ -24,6 +30,24 @@
     <span>Eingabe (beliebiger Text)</span>
     <input type="text" bind:value={text} spellcheck="false" autocomplete="off" />
   </label>
+
+  <div class="funnel" aria-label="Eingabelänge im Vergleich zur Ausgabelänge">
+    <div class="funnel-row">
+      <span class="funnel-lbl">Eingabe<br /><strong>{inputBytes} Byte</strong></span>
+      <div class="squares">
+        {#each { length: inputSquares } as _, i (i)}<i class="sq in"></i>{/each}
+        {#if inputBytes > MAX_SQUARES}<span class="more">+{inputBytes - MAX_SQUARES}</span>{/if}
+        {#if inputBytes === 0}<span class="more">leer</span>{/if}
+      </div>
+    </div>
+    <div class="funnel-mid" aria-hidden="true"><span>SHA-256</span><span class="arrow">↓</span></div>
+    <div class="funnel-row">
+      <span class="funnel-lbl">Ausgabe<br /><strong>immer {OUTPUT_BYTES} Byte</strong></span>
+      <div class="squares">
+        {#each { length: OUTPUT_BYTES } as _, i (i)}<i class="sq out"></i>{/each}
+      </div>
+    </div>
+  </div>
 
   <div class="result">
     <div class="result-head">
@@ -55,8 +79,8 @@
   </div>
 
   <p class="hint">
-    Die Ausgabe hat immer dieselbe Länge, egal ob du ein Wort oder einen ganzen Roman eingibst.
-    Leer lassen geht auch: Auch der leere Text hat einen Hash.
+    Die Ausgabe hat immer dieselbe Länge, egal ob du ein Wort oder einen ganzen Roman eingibst: 32 Byte,
+    also 256 Bit. Leer lassen geht auch: Auch der leere Text hat einen Hash.
   </p>
 
   <div class="actions">
@@ -75,6 +99,17 @@
   }
   .field { display: grid; gap: 0.3rem; }
   .field input { width: 100%; font-size: 1.05rem; }
+  .funnel { display: grid; gap: 0.35rem; }
+  .funnel-row { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.6rem; align-items: center; }
+  .funnel-lbl { font-size: 0.82rem; color: var(--fg-muted); line-height: 1.3; }
+  .funnel-lbl strong { color: var(--fg); }
+  .squares { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; min-height: 0.7rem; }
+  .sq { display: block; width: 0.55rem; height: 0.7rem; border-radius: 1px; }
+  .sq.in { background: var(--fg-muted); opacity: 0.55; }
+  .sq.out { background: var(--accent); }
+  .more { font-size: 0.78rem; color: var(--fg-muted); margin-left: 0.3rem; }
+  .funnel-mid { display: grid; grid-template-columns: 6.5rem auto; gap: 0.6rem; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-muted); }
+  .funnel-mid .arrow { font-weight: 700; color: var(--fg); }
   .result { border-top: 1px solid var(--border); padding-top: 0.9rem; }
   .result-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
   .note { color: var(--fg-muted); font-size: 0.88rem; }

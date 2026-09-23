@@ -33,6 +33,27 @@
   let p = $state<number>(START_P);
   let G = $state<AffinePoint>(defaultGenerator(START_P));
   let k = $state(START_K);
+  /** Abspielen: k zählt automatisch hoch, bis k·G wieder bei O ankommt. */
+  let playing = $state(false);
+  let playTimer: ReturnType<typeof setInterval> | undefined;
+
+  function stopPlay() {
+    clearInterval(playTimer);
+    playTimer = undefined;
+    playing = false;
+  }
+
+  function togglePlay() {
+    if (playing) return stopPlay();
+    if (k >= order) k = 1;
+    playing = true;
+    playTimer = setInterval(() => {
+      if (k >= order) return stopPlay();
+      k += 1;
+    }, 450);
+  }
+
+  $effect(() => stopPlay);
 
   /** Startgenerator: der erste Punkt mit der größten Ordnung. */
   function defaultGenerator(prime: number): AffinePoint {
@@ -62,6 +83,7 @@
   const axisTicks = $derived(p === 17 ? [0, 4, 8, 12, 16] : p === 37 ? [0, 9, 18, 27, 36] : [0, 24, 48, 72, 96]);
 
   function changePrime(next: number) {
+    stopPlay();
     p = next;
     G = defaultGenerator(next);
     k = Math.min(START_K, pointOrder(G, next));
@@ -88,6 +110,7 @@
   }
 
   function pickGenerator(pt: AffinePoint) {
+    stopPlay();
     G = pt;
     k = Math.min(k, pointOrder(pt, p));
   }
@@ -264,6 +287,7 @@
   const fmtReal = (pt: RealPoint) => `(${r2(pt.x)} | ${r2(pt.y)})`;
 
   function reset() {
+    stopPlay();
     tab = 'finite';
     p = START_P;
     G = defaultGenerator(START_P);
@@ -305,8 +329,11 @@
         </label>
         <label class="slider">
           <span>k = <strong>{k}</strong> (1 bis {order})</span>
-          <input type="range" min="1" max={order} bind:value={k} />
+          <input type="range" min="1" max={order} bind:value={k} oninput={stopPlay} />
         </label>
+        <button type="button" aria-pressed={playing} onclick={togglePlay}>
+          {playing ? 'Anhalten' : 'Abspielen: G, 2·G, 3·G …'}
+        </button>
       </div>
 
       <div class="split">
@@ -361,6 +388,15 @@
             <dt>k</dt><dd>{k}</dd>
             <dt>k·G</dt><dd class="hash result">{fmt(mul.result)}</dd>
           </dl>
+          {#if k > 1 && !isInfinity(mul.result)}
+            {@const prev = mul.steps[k - 2]!}
+            <p class="hint small step">
+              Letzter Schritt: {fmt(prev)} + G = {fmt(mul.result)}. Ein Schritt weiter, und der Punkt liegt
+              ganz woanders.
+            </p>
+          {:else if isInfinity(mul.result)}
+            <p class="hint small step">{order}·G ist der Punkt im Unendlichen O. Danach beginnt die Reihe von vorn.</p>
+          {/if}
           <p class="claim">
             Aus k und G ist k·G leicht zu berechnen, aus G und k·G ist k schwer zu finden.
           </p>
@@ -545,6 +581,7 @@
   .claim { border-left: 3px solid var(--accent); padding: 0.2rem 0 0.2rem 0.8rem; font-weight: 600; }
   .hint { color: var(--fg-muted); font-size: 0.92rem; margin: 0 0 0.6rem; }
   .hint.small { font-size: 0.85rem; margin: 0; }
+  .hint.step { margin-bottom: 0.6rem; }
 
   .switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .switch button { border: 0; border-radius: 0; padding: 0.3rem 0.8rem; background: transparent; color: var(--fg-muted); }
