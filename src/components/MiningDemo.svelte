@@ -275,5 +275,7 @@
   @media (max-width: 480px) {
     .stats { grid-template-columns: 1fr 1fr; }
     .stats dd { font-size: 1.1rem; }
+    /* Ab etwa sechs Balken passen die Zählerstände nicht mehr nebeneinander: Balken scrollen dann seitlich. */
+    .bars { grid-template-columns: repeat(var(--n), minmax(3.8rem, 1fr)); overflow-x: auto; padding-bottom: 0.2rem; }
   }
 </style>

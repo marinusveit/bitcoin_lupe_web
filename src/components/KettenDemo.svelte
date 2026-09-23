@@ -137,7 +137,7 @@
         </div>
         <div class="field prev" class:bad={!c.linked}>
           <span class="lbl">Zeigt auf (Hash des Vorgängers)</span>
-          <span class="hash" class:broken={!c.linked}>{i === 0 ? 'kein Vorgänger (Genesis)' : block.prev}</span>
+          <span class="hash" class:broken={!c.linked}>{i === 0 ? 'kein Vorgänger (Genesis, der erste Block)' : block.prev}</span>
           {#if !c.linked}
             <span class="why">Block {i} hat inzwischen einen anderen Hash. Der Zeiger ist veraltet.</span>
           {/if}
@@ -149,7 +149,7 @@
           <input type="number" bind:value={block.nonce} min="0" disabled={mining !== null} />
         </label>
         <div class="field own">
-          <span class="lbl">Eigener Hash (aus Zeiger, Daten und Nonce)</span>
+          <span class="lbl">Eigener Hash (aus Höhe, Zeiger, Daten und Nonce)</span>
           <span class="hash"><span class="z" class:ok={c.pow}>{c.hash.slice(0, z)}</span>{c.hash.slice(z)}</span>
           {#if !c.pow}
             <span class="why">Beginnt nicht mit {ZEROS}. Die Nonce passt nicht mehr.</span>
