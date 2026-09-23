@@ -38,6 +38,12 @@
 
   const SAT = 100_000_000;
 
+  // Kleine Symbole für die Kisten-Metapher: Schloss (verschlossener Output) und Schlüssel (Input).
+  const LOCK =
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg>';
+  const KEY =
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3m-3 3 3 3m-6 0 2.5 2.5"/></svg>';
+
   interface Shown {
     tx: Transaction;
     id: string;
@@ -85,6 +91,29 @@
   let doubleSpend: { attempt: string; verdict: string } | null = $state(null);
 
   const latest = $derived(history[history.length - 1]!);
+
+  /** Segmente des Betragsbalkens: oben die Inputs, unten Outputs plus Gebühr, gleiche Gesamtbreite. */
+  const MIN_SEG = 8; // Prozent, damit auch eine winzige Gebühr sichtbar bleibt
+  function segments(parts: { label: string; value: number; kind: 'in' | 'out' | 'change' | 'fee' }[]) {
+    const total = parts.reduce((s, p) => s + p.value, 0);
+    if (total <= 0) return [];
+    const raw = parts.map((p) => (p.value / total) * 100);
+    const small = raw.map((w) => w > 0 && w < MIN_SEG);
+    const reserved = small.filter(Boolean).length * MIN_SEG;
+    const bigSum = raw.reduce((s, w, i) => (small[i] ? s : s + w), 0);
+    return parts.map((p, i) => ({ ...p, width: small[i] ? MIN_SEG : (raw[i]! / bigSum) * (100 - reserved), stretched: small[i] }));
+  }
+  const bar = $derived.by(() => {
+    if (!latest.from) return null;
+    const ins = latest.prevOuts.map((o) => ({ label: ownerOf(o), value: o.value, kind: 'in' as const }));
+    const outs = latest.tx.outputs.map((o, i) => ({
+      label: i === 1 ? 'Wechselgeld' : ownerOf(o),
+      value: o.value,
+      kind: i === 1 ? ('change' as const) : ('out' as const),
+    }));
+    if (latest.fee > 0) outs.push({ label: 'Gebühr', value: latest.fee, kind: 'fee' as const });
+    return { ins: segments(ins), outs: segments(outs), total: ins.reduce((s, p) => s + p.value, 0) };
+  });
   const canDoubleSpend = $derived(
     latest.from !== null && latest.tx.inputs.some((i) => !utxos.has(outpointKey(i.txid, i.vout))),
   );
@@ -251,10 +280,12 @@
           <div class="io coinbase">Neue Coins (Coinbase)</div>
         {:else}
           {#each latest.tx.inputs as input, i (outpointKey(input.txid, input.vout))}
-            <div class="io">
-              <strong>{ownerOf(latest.prevOuts[i]!)}</strong>
+            <div class="io opened">
+              <span class="icon key" aria-hidden="true">{@html KEY}</span>
+              <strong>Kiste von {ownerOf(latest.prevOuts[i]!)}</strong>
               <span class="amount">{btc(latest.prevOuts[i]!.value)}</span>
               <span class="hash muted" title={outpointKey(input.txid, input.vout)}>aus {short(input.txid)}:{input.vout}</span>
+              <span class="muted small">geöffnet mit {latest.from}s Signatur</span>
             </div>
           {/each}
         {/if}
@@ -265,14 +296,50 @@
       <div class="side">
         <h4>Outputs</h4>
         {#each latest.tx.outputs as out, i (i)}
-          <div class="io">
-            <strong>{ownerOf(out)}</strong>
+          <div class="io locked" class:change={latest.from && i === 1}>
+            <span class="icon lock" aria-hidden="true">{@html LOCK}</span>
+            <strong>Neue Kiste für {ownerOf(out)}</strong>
             <span class="amount">{btc(out.value)}</span>
-            <span class="muted">Output {i}{#if latest.from && i === 1}, Wechselgeld{/if}</span>
+            <span class="muted">Output {i}{#if latest.from && i === 1}, Wechselgeld an den Absender{/if}</span>
+            <span class="muted small">Schloss: nur {ownerOf(out)}s Schlüssel passt</span>
           </div>
         {/each}
       </div>
     </div>
+    {#if bar}
+      <div class="bar" aria-label="Betragsbalken: Inputs oben, Outputs und Gebühr unten">
+        <div class="bar-row">
+          <span class="bar-lbl">Inputs</span>
+          <div class="bar-track">
+            {#each bar.ins as seg, i (i)}
+              <div class="seg {seg.kind}" style="width: {seg.width.toFixed(2)}%" title="{seg.label}: {btc(seg.value)}">
+                <span>{seg.label} {btc(seg.value)}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl">Outputs</span>
+          <div class="bar-track">
+            {#each bar.outs as seg, i (i)}
+              <div class="seg {seg.kind}" class:stretched={seg.stretched} style="width: {seg.width.toFixed(2)}%" title="{seg.label}: {btc(seg.value)}">
+                <span>{seg.label} {btc(seg.value)}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+        <p class="legend small">
+          <span><i class="sw in"></i>Input (alte Kiste)</span>
+          <span><i class="sw out"></i>Output an den Empfänger</span>
+          <span><i class="sw change"></i>Wechselgeld</span>
+          <span><i class="sw fee"></i>Gebühr an den Miner</span>
+        </p>
+        <p class="muted small bar-note">
+          Beide Reihen sind gleich lang: Was oben hineingeht, kommt unten vollständig wieder heraus. Die Gebühr ist
+          in Wirklichkeit viel schmaler, hier zum Erkennen verbreitert.
+        </p>
+      </div>
+    {/if}
     <dl class="meta">
       <dt>TxID</dt>
       <dd class="hash">{latest.id}</dd>
@@ -283,21 +350,23 @@
 
   <section class="utxos">
     <h3>Unverbrauchte Outputs (UTXOs)</h3>
-    <p class="muted small">Ein UTXO ist ein Output, der noch nicht ausgegeben wurde. Das Guthaben einer Person ist die Summe ihrer UTXOs.</p>
+    <p class="muted small">Jede Kiste ist ein UTXO: ein Output, der noch nicht ausgegeben wurde. Das Guthaben einer Person ist die Summe ihrer Kisten.</p>
     <div class="people">
       {#each byPerson as p (p.name)}
         <div class="person">
           <div class="head"><strong>{p.name}</strong><span class="amount">{btc(p.total)}</span></div>
           {#if p.rows.length === 0}
-            <p class="muted small">keine UTXOs</p>
+            <p class="muted small">keine Kisten</p>
           {:else}
-            <table>
-              <tbody>
-                {#each p.rows as r (r.key)}
-                  <tr><td class="hash" title={r.key}>{short(r.key.split(':')[0]!)}:{r.key.split(':')[1]}</td><td class="num">{btc(r.value)}</td></tr>
-                {/each}
-              </tbody>
-            </table>
+            <ul class="kisten">
+              {#each p.rows as r (r.key)}
+                <li class="kiste" title={r.key}>
+                  <span class="icon lock" aria-hidden="true">{@html LOCK}</span>
+                  <span class="amount">{btc(r.value)}</span>
+                  <span class="hash muted">{short(r.key.split(':')[0]!)}:{r.key.split(':')[1]}</span>
+                </li>
+              {/each}
+            </ul>
           {/if}
         </div>
       {/each}
@@ -340,6 +409,36 @@
   .side { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
   .io { display: grid; gap: 0.1rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); min-width: 0; }
   .io.coinbase { color: var(--fg-muted); font-style: italic; }
+  .io.opened { border-style: dashed; }
+  .io.locked { border-color: var(--fg-muted); }
+  .io.change { background: var(--bg-muted); }
+  .icon { display: inline-flex; width: 18px; height: 18px; margin-bottom: 0.15rem; }
+  .icon.lock { color: var(--fg); }
+  .icon.key { color: var(--accent-strong); }
+  .bar { display: grid; gap: 0.35rem; margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
+  .bar-row { display: grid; grid-template-columns: 4.2rem 1fr; gap: 0.5rem; align-items: center; }
+  .bar-lbl { font-size: 0.85rem; color: var(--fg-muted); }
+  .bar-track { display: flex; width: 100%; height: 1.9rem; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-muted); }
+  .seg { display: flex; align-items: center; padding: 0 0.4rem; font-size: 0.8rem; white-space: nowrap; overflow: hidden; min-width: 0; border-right: 2px solid var(--bg-elevated); }
+  .seg:last-child { border-right: 0; }
+  .seg span { overflow: hidden; text-overflow: ellipsis; }
+  .seg.in { background: color-mix(in srgb, var(--info) 28%, var(--bg-elevated)); }
+  .seg.out { background: color-mix(in srgb, var(--ok) 30%, var(--bg-elevated)); }
+  .seg.change { background: color-mix(in srgb, var(--info) 16%, var(--bg-elevated)); }
+  .seg.fee { background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 0 0.2rem; justify-content: center; }
+  .seg.fee span { font-size: 0.72rem; }
+  .bar-note { margin: 0; }
+  .legend { margin: 0.2rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; color: var(--fg-muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .sw { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: var(--radius-sm); }
+  .sw.in { background: color-mix(in srgb, var(--info) 28%, var(--bg-elevated)); }
+  .sw.out { background: color-mix(in srgb, var(--ok) 30%, var(--bg-elevated)); }
+  .sw.change { background: color-mix(in srgb, var(--info) 16%, var(--bg-elevated)); border: 1px solid var(--border); }
+  .sw.fee { background: var(--accent); }
+  .kisten { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+  .kiste { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 0.5rem; align-items: center; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated); }
+  .kiste .icon { grid-row: span 2; margin: 0; }
+  .kiste .hash { font-size: 0.78rem; }
   .arrow svg { display: block; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
   .muted { color: var(--fg-muted); }
@@ -349,8 +448,6 @@
   .meta dd { margin: 0; min-width: 0; }
   .people { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
   .person .head { display: flex; justify-content: space-between; gap: 0.5rem; border-bottom: 2px solid var(--fg); padding-bottom: 0.3rem; }
-  .person table { margin: 0.3rem 0 0; }
-  .person td { padding: 0.3rem 0.2rem; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .history ol { margin: 0.5rem 0 0; padding-left: 1.4rem; }
   .history li { margin-bottom: 0.2rem; }
