@@ -35,6 +35,26 @@ export interface MineResult {
   nextNonce: number;
   /** true, wenn alle 2^32 Nonces durchprobiert sind. */
   exhausted: boolean;
+  /**
+   * Verteilung der probierten Hashes nach führenden Null-Hexzeichen: `zeroHist[z]` ist die
+   * Zahl der Hashes mit genau z Nullen vorne (z von 0 bis 16). Für Diagramme in Demos.
+   */
+  zeroHist: number[];
+}
+
+/** Zählt die führenden Null-Hexzeichen eines Hashes (Anzeige-Reihenfolge), höchstens 16. */
+export function leadingZeroNibbles(hash: Uint8Array): number {
+  let n = 0;
+  for (let i = 0; i < 8; i++) {
+    const b = hash[i]!;
+    if (b === 0) {
+      n += 2;
+      continue;
+    }
+    if (b < 16) n += 1;
+    break;
+  }
+  return n;
 }
 
 /** Satoshi pro Bitcoin. */
@@ -152,6 +172,7 @@ export function mineHeader(header: BlockHeader, options: MineOptions): MineResul
   let lastNonce = nonce;
   let lastHash = new Uint8Array(32);
   let iterations = 0;
+  const zeroHist = new Array<number>(17).fill(0);
   while (iterations < options.maxIterations && nonce <= 0xffffffff) {
     view.setUint32(76, nonce, true);
     const hash = sha256(sha256(bytes)).reverse();
@@ -159,6 +180,7 @@ export function mineHeader(header: BlockHeader, options: MineOptions): MineResul
     lastNonce = nonce;
     lastHash = hash;
     nonce++;
+    zeroHist[leadingZeroNibbles(hash)]!++;
     let below = true;
     for (let i = 0; i < 32; i++) {
       if (hash[i] !== targetBe[i]) {
@@ -167,7 +189,7 @@ export function mineHeader(header: BlockHeader, options: MineOptions): MineResul
       }
     }
     if (below) {
-      return { found: true, nonce: lastNonce, hash: bytesToHex(hash), iterations, nextNonce: nonce, exhausted: false };
+      return { found: true, nonce: lastNonce, hash: bytesToHex(hash), iterations, nextNonce: nonce, exhausted: false, zeroHist };
     }
   }
   return {
@@ -177,6 +199,7 @@ export function mineHeader(header: BlockHeader, options: MineOptions): MineResul
     iterations,
     nextNonce: nonce,
     exhausted: nonce > 0xffffffff,
+    zeroHist,
   };
 }
 

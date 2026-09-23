@@ -14,17 +14,20 @@ let runId = 0;
 function mine(header: BlockHeader, chunkSize: number, startNonce: number, target: bigint | undefined, id: number): void {
   let nonce = startNonce;
   let total = 0;
+  const zeroHist = new Array<number>(17).fill(0);
   const step = (): void => {
     if (id !== runId) return;
     const r = mineHeader(header, { maxIterations: chunkSize, startNonce: nonce, target });
     total += r.iterations;
     nonce = r.nextNonce;
+    r.zeroHist.forEach((c, z) => (zeroHist[z]! += c));
+    const hist = [...zeroHist];
     if (r.found) {
-      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce });
+      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce, zeroHist: hist });
     } else if (r.exhausted) {
-      scope.postMessage({ type: 'exhausted', iterations: total, hash: r.hash, nonce: r.nonce });
+      scope.postMessage({ type: 'exhausted', iterations: total, hash: r.hash, nonce: r.nonce, zeroHist: hist });
     } else {
-      scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce });
+      scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce, zeroHist: hist });
       setTimeout(step, 0);
     }
   };

@@ -6,6 +6,7 @@ import {
   blockSubsidy,
   difficulty,
   headerHash,
+  leadingZeroNibbles,
   meetsTarget,
   mineHeader,
   mineText,
@@ -16,6 +17,8 @@ import {
   totalSupply,
   type BlockHeader,
 } from './block';
+
+const hexPairs = (hex: string) => hex.match(/../g)!.map((h) => parseInt(h, 16));
 
 const genesis: BlockHeader = {
   version: 1,
@@ -65,6 +68,20 @@ describe('block', () => {
     expect(second).toMatchObject({ found: true, nonce: genesis.nonce, hash: GENESIS_HASH, iterations: 3 });
     const end = mineHeader(genesis, { maxIterations: 10, startNonce: 0xfffffffe, target: 0n });
     expect(end).toMatchObject({ found: false, iterations: 2, exhausted: true });
+  });
+
+  it('zählt führende Null-Hexzeichen und sammelt sie beim Mining', () => {
+    expect(leadingZeroNibbles(new Uint8Array(32))).toBe(16);
+    expect(leadingZeroNibbles(new Uint8Array([0, 0x0f, 1]))).toBe(3);
+    expect(leadingZeroNibbles(new Uint8Array([0x10]))).toBe(0);
+    const r = mineHeader(genesis, { maxIterations: 1000, startNonce: 0, target: 0n });
+    expect(r.zeroHist).toHaveLength(17);
+    expect(r.zeroHist.reduce((a, b) => a + b, 0)).toBe(1000);
+    // Etwa 15/16 aller Hashes beginnen nicht mit einer Null.
+    expect(r.zeroHist[0]).toBeGreaterThan(850);
+    const hit = mineHeader(genesis, { maxIterations: 10, startNonce: genesis.nonce - 2 });
+    expect(hit.found).toBe(true);
+    expect(hit.zeroHist[leadingZeroNibbles(new Uint8Array(hexPairs(GENESIS_HASH)))]).toBe(1);
   });
 
   it('Blockbelohnung halbiert sich', () => {
