@@ -21,6 +21,9 @@
   });
   const total = $derived(miners.reduce((s, m) => s + m.hashrate, 0));
 
+  function anteil(hashrate: number): number {
+    return total > 0 ? Math.round((hashrate / total) * 100) : 0;
+  }
   function rate(id: string, value: number) {
     if (!(value >= 0)) return;
     setHashrate(world, id, value);
@@ -48,7 +51,7 @@
   <div class="tabelle">
     <table>
       <thead>
-        <tr><th scope="col">Name</th><th scope="col">Hashrate</th><th scope="col">Anteil</th><th scope="col">Unehrlich</th><th scope="col"><span class="sr">Entfernen</span></th></tr>
+        <tr><th scope="col">Name</th><th scope="col">Hashrate</th><th scope="col" class="anteil-spalte">Anteil</th><th scope="col">Unehrlich</th><th scope="col"><span class="sr">Entfernen</span></th></tr>
       </thead>
       <tbody>
         {#each miners as m (m.id)}
@@ -57,6 +60,7 @@
               <button type="button" class="name" onclick={() => onselect(m.id)} title="Details zu {m.name} zeigen">
                 <span class="sw" style="background: {minerColor(m.id)}"></span>{m.name}
               </button>
+              <span class="anteil-klein">{anteil(m.hashrate)} % Anteil</span>
             </td>
             <td>
               <label class="sr" for="rate-{uid}-{m.id}">Hashrate von {m.name}</label>
@@ -70,7 +74,7 @@
                 onchange={(e) => rate(m.id, e.currentTarget.valueAsNumber)}
               />
             </td>
-            <td class="anteil">{total > 0 ? Math.round((m.hashrate / total) * 100) : 0} %</td>
+            <td class="anteil anteil-spalte">{anteil(m.hashrate)} %</td>
             <td>
               <input
                 type="checkbox"
@@ -79,7 +83,7 @@
                 onchange={(e) => dishonest(m.id, e.currentTarget.checked)}
               />
             </td>
-            <td><button type="button" class="entfernen" onclick={() => remove(m.id)} aria-label="{m.name} entfernen">Entfernen</button></td>
+            <td><button type="button" class="entfernen" onclick={() => remove(m.id)} aria-label="{m.name} entfernen"><span class="lang">Entfernen</span><span class="kurz" aria-hidden="true">×</span></button></td>
           </tr>
         {/each}
       </tbody>
@@ -128,7 +132,7 @@
   .sw {
     width: 12px;
     height: 12px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     display: inline-block;
   }
   .anteil {
@@ -138,6 +142,38 @@
   .entfernen {
     font-size: 0.8rem;
     padding: 0.2rem 0.5rem;
+  }
+  .anteil-klein,
+  .kurz {
+    display: none;
+  }
+  .anteil-klein {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Schmal: Anteil unter den Namen, Entfernen als ×, damit die Tabelle nicht seitlich scrollt. */
+  @container (max-width: 479.98px) {
+    th,
+    td {
+      padding: 0.25rem 0.2rem;
+    }
+    input[type='number'] {
+      width: 3.6rem;
+    }
+    .anteil-spalte,
+    .lang {
+      display: none;
+    }
+    .anteil-klein {
+      display: block;
+    }
+    .kurz {
+      display: inline;
+    }
+    .entfernen {
+      padding: 0.2rem 0.45rem;
+    }
   }
   .fehler {
     color: var(--danger);

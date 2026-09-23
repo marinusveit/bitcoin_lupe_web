@@ -256,6 +256,16 @@
       align-items: start;
     }
   }
+  /* Mobil (Karte einspaltig): Karte vor die Steuerung ziehen, Erklärkasten bleibt oben (Pflichtenheft Layout/Mobil).
+     Nur visuell per order, die DOM- und Tab-Reihenfolge bleibt Steuerung vor Karte. compact bleibt unverändert. */
+  @container (max-width: 859.98px) {
+    .sim:not(.compact) .erklaerung {
+      order: -2;
+    }
+    .sim:not(.compact) .main {
+      order: -1;
+    }
+  }
   @container (min-width: 620px) {
     .compact .unten {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);

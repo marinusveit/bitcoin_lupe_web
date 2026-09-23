@@ -144,6 +144,13 @@
   );
   const headerMatches = $derived(headerRoot === tree.root);
 
+  // Schmale Bildschirme: ab 5 Blättern bekommt der Baum eine Mindestbreite und wird seitlich scrollbar
+  // (CSS-Media-Query unten). Der Hinweis erscheint nur, wenn er tatsächlich überläuft.
+  const wideTree = $derived(txs.length > 4);
+  let scrollW = $state(0);
+  let innerW = $state(0);
+  const treeOverflows = $derived(wideTree && innerW > scrollW + 1);
+
   const short = (h: string) => h.slice(0, 8);
 
   function edit(i: number, value: string) {
@@ -219,6 +226,12 @@
   </div>
 
   <figure class="tree">
+    <div class="tree-scroll" class:wide={wideTree} bind:clientWidth={scrollW}>
+    <div
+      class="tree-inner"
+      style={wideTree ? `--tree-min: ${Math.round(layout.width * 0.8)}px` : undefined}
+      bind:offsetWidth={innerW}
+    >
     <svg
       viewBox={`0 0 ${layout.width} ${layout.height}`}
       style={`max-width: ${Math.max(layout.width, 320) * 1.15}px`}
@@ -277,6 +290,11 @@
         {/if}
       {/each}
     </svg>
+    </div>
+    </div>
+    {#if treeOverflows}
+      <p class="scroll-hint">Baum seitlich verschiebbar ↔</p>
+    {/if}
     <figcaption class="legend">
       <span><i class="sw path"></i>Pfad zur Wurzel</span>
       <span><i class="sw sibling"></i>Beweis-Hashes</span>
@@ -359,7 +377,7 @@
     align-items: center;
     gap: 0.6rem;
     padding: 0.15rem 0.3rem;
-    border-radius: 8px;
+    border-radius: var(--radius);
   }
   .tx-list li.active { background: var(--accent-soft); }
   .tx-label { font-weight: 600; font-size: 0.9rem; color: var(--fg-muted); }
@@ -370,8 +388,13 @@
     .txid { grid-column: 2; }
   }
 
-  .tree { margin: 0; }
+  .tree { margin: 0; min-width: 0; } /* Grid-Kind: sonst wächst es mit dem scrollbaren Baum */
   .tree svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+  .scroll-hint { margin: 0.3rem 0 0.2rem; text-align: center; font-size: 0.85rem; color: var(--fg-muted); }
+  @media (max-width: 560px) {
+    .tree-scroll.wide { overflow-x: auto; overscroll-behavior-x: contain; }
+    .tree-scroll.wide .tree-inner { min-width: var(--tree-min); }
+  }
   .edge { stroke: var(--border); stroke-width: 1.5; transition: stroke 0.3s; }
   .edge.ghost { stroke-dasharray: 4 4; }
   .edge.path { stroke: var(--accent); stroke-width: 2.5; }
@@ -400,7 +423,7 @@
 
   .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; justify-content: center; font-size: 0.85rem; }
   .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
-  .sw { display: inline-block; width: 1.1rem; height: 0.75rem; border-radius: 3px; border: 2px solid; }
+  .sw { display: inline-block; width: 1.1rem; height: 0.75rem; border-radius: var(--radius-sm); border: 2px solid; }
   .sw.path { background: var(--accent-soft); border-color: var(--accent); }
   .sw.sibling { background: var(--bg-muted); border-color: var(--info); }
   .sw.ghost { background: var(--bg-muted); border: 1.5px dashed var(--fg-muted); }
@@ -413,7 +436,7 @@
     padding: 0.6rem 0.8rem;
     border: 1px solid var(--border);
     border-left: 4px solid var(--ok);
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--bg-muted);
   }
   .header-box.mismatch { border-left-color: var(--danger); }

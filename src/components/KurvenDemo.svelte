@@ -12,7 +12,24 @@
   const START_K = 5;
 
   // ---------- Reiter „Endlicher Körper“ ----------
+  const uid = $props.id();
+  const TABS = ['finite', 'real'] as const;
   let tab = $state<'finite' | 'real'>('finite');
+  const tabEls: Record<'finite' | 'real', HTMLButtonElement | undefined> = $state({ finite: undefined, real: undefined });
+
+  /** Pfeil links/rechts, Home/End wechseln den Reiter (roving tabindex). */
+  function onTabKey(ev: KeyboardEvent) {
+    const i = TABS.indexOf(tab);
+    let next: number;
+    if (ev.key === 'ArrowRight') next = (i + 1) % TABS.length;
+    else if (ev.key === 'ArrowLeft') next = (i - 1 + TABS.length) % TABS.length;
+    else if (ev.key === 'Home') next = 0;
+    else if (ev.key === 'End') next = TABS.length - 1;
+    else return;
+    ev.preventDefault();
+    tab = TABS[next]!;
+    tabEls[tab]?.focus();
+  }
   let p = $state<number>(START_P);
   let G = $state<AffinePoint>(defaultGenerator(START_P));
   let k = $state(START_K);
@@ -48,6 +65,26 @@
     p = next;
     G = defaultGenerator(next);
     k = Math.min(START_K, pointOrder(G, next));
+  }
+
+  // Trefferfläche: Klick auf das Gitter wählt den nächsten Punkt im Umkreis HIT_R
+  // (Einheiten der viewBox; bei 360 px Bildschirmbreite etwa 14 px Radius).
+  const HIT_R = 22;
+  let gridSvgEl = $state<SVGSVGElement | undefined>();
+
+  function onGridClick(ev: MouseEvent) {
+    const c = svgCoords(ev, gridSvgEl);
+    if (!c) return;
+    let best: AffinePoint | null = null;
+    let bestD = HIT_R * HIT_R;
+    for (const pt of points) {
+      const d = (gx(pt.x) - c.px) ** 2 + (gy(pt.y) - c.py) ** 2;
+      if (d <= bestD) {
+        bestD = d;
+        best = pt;
+      }
+    }
+    if (best) pickGenerator(best);
   }
 
   function pickGenerator(pt: AffinePoint) {
@@ -116,9 +153,9 @@
     return { x: best.x, y: best.y };
   }
 
-  function svgCoords(ev: PointerEvent | MouseEvent): { px: number; py: number } | null {
-    if (!svgEl) return null;
-    const ctm = svgEl.getScreenCTM();
+  function svgCoords(ev: PointerEvent | MouseEvent, el = svgEl): { px: number; py: number } | null {
+    if (!el) return null;
+    const ctm = el.getScreenCTM();
     if (!ctm) return null;
     const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
     return { px: pt.x, py: pt.y };
@@ -152,6 +189,39 @@
     svgEl?.releasePointerCapture(ev.pointerId);
     // Klick-Ereignis nach dem Ziehen nicht als neuen Punkt werten
     setTimeout(() => (dragging = null), 0);
+  }
+
+  // Tastatur für die Griffe: Index in samples, beschränkt auf den sichtbaren Ausschnitt.
+  const KB_MIN = samples.findIndex((s) => Math.abs(s.y) <= Y_MAX);
+  const KB_MAX = samples.findLastIndex((s) => Math.abs(s.y) <= Y_MAX);
+
+  function sampleIndex(pt: RealPoint): number {
+    let best = KB_MIN;
+    let bestD = Infinity;
+    for (let i = KB_MIN; i <= KB_MAX; i++) {
+      const s = samples[i]!;
+      const d = (s.x - pt.x) ** 2 + (s.y - pt.y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  function onHandleKey(which: 'P' | 'Q', ev: KeyboardEvent) {
+    const i = sampleIndex(which === 'P' ? rP : rQ);
+    const step = ev.shiftKey ? 20 : 4;
+    let next: number;
+    if (ev.key === 'ArrowRight' || ev.key === 'ArrowUp') next = i + step;
+    else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowDown') next = i - step;
+    else if (ev.key === 'Home') next = KB_MIN;
+    else if (ev.key === 'End') next = KB_MAX;
+    else return;
+    ev.preventDefault();
+    const s = samples[Math.min(KB_MAX, Math.max(KB_MIN, next))]!;
+    if (which === 'P') rP = { x: s.x, y: s.y };
+    else rQ = { x: s.x, y: s.y };
   }
 
   interface RealSum {
@@ -207,16 +277,25 @@
 
 <div class="demo">
   <div class="tabs" role="tablist" aria-label="Ansicht wählen">
-    <button type="button" role="tab" aria-selected={tab === 'finite'} onclick={() => (tab = 'finite')}>
-      Endlicher Körper (Rechnen modulo p)
-    </button>
-    <button type="button" role="tab" aria-selected={tab === 'real'} onclick={() => (tab = 'real')}>
-      Reelle Kurve
-    </button>
+    {#each TABS as t (t)}
+      <button
+        type="button"
+        role="tab"
+        id={`${uid}-tab-${t}`}
+        aria-controls={`${uid}-panel-${t}`}
+        aria-selected={tab === t}
+        tabindex={tab === t ? 0 : -1}
+        bind:this={tabEls[t]}
+        onclick={() => (tab = t)}
+        onkeydown={onTabKey}
+      >
+        {t === 'finite' ? 'Endlicher Körper (Rechnen modulo p)' : 'Reelle Kurve'}
+      </button>
+    {/each}
   </div>
 
   {#if tab === 'finite'}
-    <div class="finite">
+    <div class="finite" role="tabpanel" id={`${uid}-panel-finite`} aria-labelledby={`${uid}-tab-finite`}>
       <div class="controls">
         <label class="inline">
           <span>Primzahl p</span>
@@ -232,6 +311,7 @@
 
       <div class="split">
         <svg
+          bind:this={gridSvgEl}
           class="grid-svg"
           viewBox={`0 0 ${GRID + PAD * 2} ${GRID + PAD * 2}`}
           role="group"
@@ -242,6 +322,9 @@
             <text x={gx(t)} y={PAD + GRID + 17} class="tick">{t}</text>
             <text x={PAD - 6} y={gy(t) + 4} class="tick end">{t}</text>
           {/each}
+          <!-- Trefferfläche für Maus und Touch; Tastatur bedient die Punkte selbst. -->
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <rect x={PAD} y={PAD} width={GRID} height={GRID} class="hit" onclick={onGridClick} />
           <polyline points={pathPoints.map((pt) => `${gx(pt.x)},${gy(pt.y)}`).join(' ')} class="walk" />
           {#each points as pt (`${pt.x}-${pt.y}`)}
             {@const isG = pt.x === G.x && pt.y === G.y}
@@ -290,7 +373,7 @@
       </div>
     </div>
   {:else}
-    <div class="real">
+    <div class="real" role="tabpanel" id={`${uid}-panel-real`} aria-labelledby={`${uid}-tab-real`}>
       <div class="controls">
         <div class="switch" role="group" aria-label="Rechenart wählen">
           <button type="button" aria-pressed={mode === 'add'} onclick={() => (mode = 'add')}>P + Q (Sekante)</button>
@@ -306,6 +389,8 @@
       </div>
 
       <div class="split">
+        <!-- Klick auf die Kurve ergänzt die Griffe P und Q, die per Tastatur bedienbar sind. -->
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
         <svg
           bind:this={svgEl}
           class="real-svg"
@@ -348,10 +433,14 @@
               r="9"
               class="handle q"
               role="slider"
-              tabindex="-1"
-              aria-label="Punkt Q ziehen"
-              aria-valuenow={rQ.x}
+              tabindex="0"
+              aria-label="Punkt Q auf der Kurve verschieben"
+              aria-valuemin={KB_MIN}
+              aria-valuemax={KB_MAX}
+              aria-valuenow={sampleIndex(rQ)}
+              aria-valuetext={`Q = ${fmtReal(rQ)}`}
               onpointerdown={(e) => startDrag('Q', e)}
+              onkeydown={(e) => onHandleKey('Q', e)}
             />
             <text x={sx(rQ.x) - 12} y={sy(rQ.y) - 10} class="plbl">Q</text>
           {/if}
@@ -361,10 +450,14 @@
             r="9"
             class="handle p"
             role="slider"
-            tabindex="-1"
-            aria-label="Punkt P ziehen"
-            aria-valuenow={rP.x}
+            tabindex="0"
+            aria-label="Punkt P auf der Kurve verschieben"
+            aria-valuemin={KB_MIN}
+            aria-valuemax={KB_MAX}
+            aria-valuenow={sampleIndex(rP)}
+            aria-valuetext={`P = ${fmtReal(rP)}`}
             onpointerdown={(e) => startDrag('P', e)}
+            onkeydown={(e) => onHandleKey('P', e)}
           />
           <text x={sx(rP.x) - 12} y={sy(rP.y) - 10} class="plbl">P</text>
         </svg>
@@ -439,7 +532,8 @@
   .pt:hover, .pt:focus-visible { opacity: 1; fill: var(--accent); outline: none; }
   .pt.visited { fill: var(--info); opacity: 0.9; }
   .pt.g { fill: var(--accent-strong); opacity: 1; }
-  .walk { fill: none; stroke: var(--info); stroke-width: 1; stroke-opacity: 0.45; stroke-linejoin: round; }
+  .hit { fill: transparent; }
+  .walk { pointer-events: none; fill: none; stroke: var(--info); stroke-width: 1; stroke-opacity: 0.45; stroke-linejoin: round; }
   .kg { fill: none; stroke: var(--accent); stroke-width: 3; pointer-events: none; }
   .kg-lbl, .g-lbl { font-size: 14px; font-weight: 700; text-anchor: middle; fill: var(--fg); pointer-events: none; }
   .g-lbl { fill: var(--accent-strong); }
@@ -452,7 +546,7 @@
   .hint { color: var(--fg-muted); font-size: 0.92rem; margin: 0 0 0.6rem; }
   .hint.small { font-size: 0.85rem; margin: 0; }
 
-  .switch { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .switch button { border: 0; border-radius: 0; padding: 0.3rem 0.8rem; background: transparent; color: var(--fg-muted); }
   .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
 
@@ -464,6 +558,8 @@
   .third { fill: var(--bg-elevated); stroke: var(--fg-muted); stroke-width: 2; }
   .sum { fill: var(--accent); stroke: var(--accent-strong); stroke-width: 2; }
   .handle { cursor: grab; stroke-width: 2.5; stroke: var(--bg-elevated); }
+  .handle:focus { outline: none; }
+  .handle:focus-visible { stroke: var(--accent-strong); stroke-width: 4; }
   .handle.p { fill: var(--info); }
   .handle.q { fill: var(--ok); }
   .plbl { font-size: 15px; font-weight: 700; fill: var(--fg); pointer-events: none; }
