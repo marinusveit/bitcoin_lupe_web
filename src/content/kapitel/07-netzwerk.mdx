@@ -4,7 +4,7 @@ order: 7
 summary: Tausende gleichberechtigte Rechner tauschen Transaktionen und Blöcke aus, prüfen sie nach denselben Regeln und brauchen dafür keine Zentrale.
 ---
 
-import Platzhalter from '../../components/Platzhalter.astro';
+import NetzwerkDemo from '../../components/NetzwerkDemo.svelte';
 
 Satoshi Nakamoto wollte Geld ohne eine Stelle, der alle vertrauen müssen. Im Februar 2009 beschrieb er das Ergebnis so:
 
@@ -85,7 +85,7 @@ Will er wissen, ob eine Transaktion in einem Block steht, fragt er einen Full No
 
 Ein Miner versucht, neue Blöcke zu finden, und schickt sie an die anderen Knoten. Meist ist ein Miner auch ein Full Node, zwingend ist das aber nicht.
 
-<Platzhalter name="NetzwerkDemo" hinweis="Transaktion senden und zusehen, wie sie sich über die Knoten ausbreitet" />
+<NetzwerkDemo client:only="svelte" />
 
 ## Der Weg einer Transaktion
 
