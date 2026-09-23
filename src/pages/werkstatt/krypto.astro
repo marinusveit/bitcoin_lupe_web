@@ -1,0 +1,65 @@
+---
+import Base from '../../layouts/Base.astro';
+import HashDemo from '../../components/HashDemo.svelte';
+import LawinenDemo from '../../components/LawinenDemo.svelte';
+import MerkleDemo from '../../components/MerkleDemo.svelte';
+import KurvenDemo from '../../components/KurvenDemo.svelte';
+import SignaturDemo from '../../components/SignaturDemo.svelte';
+---
+
+<Base title="Werkstatt Kryptografie" description="Hashfunktionen, Merkle-Baum, elliptische Kurven und Signaturen zum Ausprobieren.">
+  <h1>Werkstatt: Kryptografie</h1>
+  <p class="prose">
+    Hier kannst du die Bausteine ausprobieren, auf denen Bitcoin aufbaut. Alles wird direkt in deinem
+    Browser berechnet, es werden keine Daten übertragen.
+  </p>
+
+  <section>
+    <h2>Hashfunktion SHA-256</h2>
+    <p class="prose">
+      Eine Hashfunktion macht aus einem beliebigen Text eine Zahl fester Länge, den Hash. Tippe etwas ein
+      und beobachte, wie sich der Hash verändert.
+    </p>
+    <HashDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Lawineneffekt</h2>
+    <p class="prose">
+      Zwei fast gleiche Texte ergeben völlig verschiedene Hashes. Deshalb kann man aus dem Hash nicht
+      erraten, wie der Text aussah.
+    </p>
+    <LawinenDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Merkle-Baum</h2>
+    <p class="prose">
+      Ein Merkle-Baum fasst viele Transaktionen zu einem einzigen Hash zusammen, der Merkle-Wurzel. Je zwei
+      Hashes werden immer wieder zusammen gehasht, bis nur noch einer übrig ist.
+    </p>
+    <MerkleDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Elliptische Kurven</h2>
+    <p class="prose">
+      Bitcoin rechnet mit Punkten auf der Kurve y² = x³ + 7. Hier siehst du dieselbe Gleichung mit sehr
+      kleinen Zahlen, damit alle Punkte auf den Bildschirm passen.
+    </p>
+    <KurvenDemo client:visible />
+  </section>
+
+  <section>
+    <h2>Digitale Signatur</h2>
+    <p class="prose">
+      Mit einer Signatur beweist man, dass eine Nachricht vom Besitzer eines Schlüssels stammt und
+      unterwegs nicht verändert wurde.
+    </p>
+    <SignaturDemo client:visible />
+  </section>
+</Base>
+
+<style>
+  section { margin-bottom: 3rem; }
+</style>
