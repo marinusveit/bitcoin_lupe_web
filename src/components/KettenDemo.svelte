@@ -110,15 +110,37 @@
     <button onclick={reset}>Zurücksetzen</button>
   </div>
 
-  <ol class="chain">
+  <div class="chain" role="list" aria-label="Blockkette">
     {#each blocks as block, i (i)}
       {@const c = chain[i]!}
       {@const z = leadingZeros(c.hash)}
       {@const behind = c.valid && firstInvalid >= 0 && i > firstInvalid}
-      <li class="block" class:valid={c.valid && !behind} class:invalid={!c.valid} class:behind>
+      {#if i > 0}
+        <!-- Verbinder: der Hash des Vorgängers fließt in das Feld „Zeigt auf“ dieses Blocks. -->
+        <div class="link" class:broken={!c.linked} aria-hidden="true">
+          <svg viewBox="0 0 60 40">
+            <path class="line" d="M2 20 H44" />
+            {#if c.linked}
+              <path class="head" d="M40 12 L52 20 L40 28 Z" />
+            {:else}
+              <path class="head" d="M40 12 L52 20 L40 28 Z" />
+              <path class="cross" d="M20 8 L36 32 M36 8 L20 32" />
+            {/if}
+          </svg>
+          <span class="link-lbl">{c.linked ? 'Hash passt' : 'Hash passt nicht'}</span>
+        </div>
+      {/if}
+      <div class="block" class:valid={c.valid && !behind} class:invalid={!c.valid} class:behind role="listitem">
         <div class="top">
           <strong>Block {i + 1}</strong>
           <span class="state">{c.valid ? (behind ? 'Kette davor gebrochen' : 'gültig') : 'ungültig'}</span>
+        </div>
+        <div class="field prev" class:bad={!c.linked}>
+          <span class="lbl">Zeigt auf (Hash des Vorgängers)</span>
+          <span class="hash" class:broken={!c.linked}>{i === 0 ? 'kein Vorgänger (Genesis)' : block.prev}</span>
+          {#if !c.linked}
+            <span class="why">Block {i} hat inzwischen einen anderen Hash. Der Zeiger ist veraltet.</span>
+          {/if}
         </div>
         <label>Daten (Transaktionen)
           <textarea rows="2" bind:value={block.data} disabled={mining !== null}></textarea>
@@ -126,15 +148,8 @@
         <label>Nonce
           <input type="number" bind:value={block.nonce} min="0" disabled={mining !== null} />
         </label>
-        <div class="field">
-          <span class="lbl">Zeigt auf (Hash des Vorgängers)</span>
-          <span class="hash" class:broken={!c.linked}>{block.prev}</span>
-          {#if !c.linked}
-            <span class="why">Block {i} hat inzwischen einen anderen Hash. Der Zeiger ist veraltet.</span>
-          {/if}
-        </div>
-        <div class="field">
-          <span class="lbl">Eigener Hash</span>
+        <div class="field own">
+          <span class="lbl">Eigener Hash (aus Zeiger, Daten und Nonce)</span>
           <span class="hash"><span class="z" class:ok={c.pow}>{c.hash.slice(0, z)}</span>{c.hash.slice(z)}</span>
           {#if !c.pow}
             <span class="why">Beginnt nicht mit {ZEROS}. Die Nonce passt nicht mehr.</span>
@@ -147,9 +162,9 @@
         >
           {mining === i ? `Suche … ${tries.toLocaleString('de-DE')} Versuche` : 'Block neu minen'}
         </button>
-      </li>
+      </div>
     {/each}
-  </ol>
+  </div>
   <p class="note">
     Jeder Hash wird aus Blockhöhe, dem Zeiger auf den Vorgänger, den Daten und der Nonce berechnet. Gültig ist
     ein Block, wenn sein Hash mit vier Nullen beginnt und sein Zeiger zum aktuellen Hash des Vorgängers passt.
@@ -161,14 +176,28 @@
   .status { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .count { margin: 0; font-size: 1.05rem; color: var(--danger); }
   .count.ok { color: var(--ok); }
-  .chain { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.9rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Vier Blöcke und drei Verbinder in einer Reihe; schmal: untereinander mit gedrehten Pfeilen. */
+  .chain { display: grid; gap: 0.3rem; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
+  .link { display: grid; place-items: center; align-content: center; gap: 0.2rem; width: 2.6rem; color: var(--ok); }
+  .link svg { width: 2.6rem; height: auto; display: block; }
+  .link .line { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+  .link .head { fill: currentColor; }
+  .link .cross { fill: none; stroke: var(--danger); stroke-width: 3.5; stroke-linecap: round; }
+  .link.broken { color: var(--danger); }
+  .link.broken .line { stroke-dasharray: 5 5; }
+  .link-lbl { font-size: 0.7rem; text-align: center; line-height: 1.15; }
   .block { display: grid; gap: 0.55rem; align-content: start; padding: 0.8rem; border: 1px solid var(--border); border-top: 4px solid; border-radius: var(--radius); background: var(--bg-elevated); min-width: 0; }
+  .field.prev, .field.own { padding: 0.4rem 0.5rem; border-radius: var(--radius-sm); background: var(--bg-muted); }
+  .field.own { border-left: 3px solid var(--accent); }
+  .field.prev { border-left: 3px solid var(--ok); }
+  .field.prev.bad { border-left-color: var(--danger); }
   .block.valid { border-top-color: var(--ok); }
   .block.invalid { border-top-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, var(--bg-elevated)); }
   .block.behind { border-top-color: var(--warn); }
   .behind .state { color: var(--warn); }
-  .top { display: flex; justify-content: space-between; align-items: baseline; }
-  .state { font-size: 0.85rem; font-weight: 600; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0 0.5rem; }
+  .top strong { white-space: nowrap; }
+  .state { font-size: 0.85rem; font-weight: 600; text-align: right; }
   .valid .state { color: var(--ok); }
   .invalid .state { color: var(--danger); }
   label, .field { display: grid; gap: 0.2rem; min-width: 0; }
@@ -181,6 +210,9 @@
   .z.ok { color: var(--accent-strong); }
   .why { font-size: 0.8rem; color: var(--danger); }
   .note { font-size: 0.92rem; color: var(--fg-muted); margin: 0; }
-  @media (max-width: 1000px) { .chain { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 560px) { .chain { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .chain { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+    .link { width: auto; grid-auto-flow: column; justify-content: center; }
+    .link svg { transform: rotate(90deg); width: 2.2rem; }
+  }
 </style>
