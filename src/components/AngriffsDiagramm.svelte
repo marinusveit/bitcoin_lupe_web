@@ -1,34 +1,5 @@
 <script lang="ts">
-  /**
-   * Wahrscheinlichkeit, dass ein Angreifer mit Rechenanteil q einen Rückstand von z Blöcken
-   * aufholt (Nakamoto 2008): 1 − Σ_{k=0}^{z} Poisson(λ, k) · (1 − (q/p)^{z−k}) mit λ = z·q/p.
-   */
-  /** Ab der Hälfte der Rechenleistung holt der Angreifer immer auf (Toleranz für Reglerwerte wie 0,5000001). */
-  const atLeastHalf = (q: number) => q >= 0.5 - 1e-9;
-
-  function catchUp(q: number, z: number): number {
-    if (z === 0 || atLeastHalf(q)) return 1;
-    const p = 1 - q;
-    const lambda = (z * q) / p;
-    const logLambda = Math.log(lambda);
-    const logRatio = Math.log(q / p);
-    let sum = 0;
-    let logFact = 0;
-    for (let k = 0; k <= z; k++) {
-      if (k > 0) logFact += Math.log(k);
-      const poisson = Math.exp(k * logLambda - lambda - logFact);
-      sum += poisson * (1 - Math.exp((z - k) * logRatio));
-    }
-    return Math.min(1, Math.max(0, 1 - sum));
-  }
-
-  /** Nötige Bestätigungen für ein Risiko unter `limit`; `null`, wenn kein Warten hilft (q ab 50 %). */
-  function confirmationsFor(q: number, limit = 0.001): number | null {
-    if (atLeastHalf(q)) return null;
-    let z = 0;
-    while (catchUp(q, z) >= limit && z < 5000) z++;
-    return z;
-  }
+  import { atLeastHalf, attackerSuccessProbability as catchUp, confirmationsFor } from '../lib/nakamoto';
 
   const FIXED = [0.1, 0.2, 0.3, 0.4, 0.45];
   // Geordnete Anteile: ein Farbton, von blass (kleines q) nach kräftig (großes q).
