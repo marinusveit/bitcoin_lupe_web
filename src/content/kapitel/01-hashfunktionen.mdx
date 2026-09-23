@@ -1,9 +1,137 @@
 ---
 title: Hashfunktionen
 order: 1
-summary: Der digitale Fingerabdruck, auf dem alles Weitere aufbaut.
+summary: Eine Hashfunktion macht aus beliebigen Daten einen kurzen digitalen Fingerabdruck, und auf diesem Baustein beruht fast alles in Bitcoin.
 ---
 
-Platzhalter. Dieses Kapitel wird aus der Arbeit übertragen.
+import Platzhalter from '../../components/Platzhalter.astro';
 
-Eine Formel zum Test des Satzes: $h = \operatorname{SHA256}(m)$.
+Fast jeder Teil von Bitcoin nutzt Hashfunktionen. Transaktionen, Blöcke und Adressen beruhen auf ihnen. Deshalb stehen sie am Anfang.
+
+## Ein Fingerabdruck für Daten
+
+Eine Hashfunktion (hash function) ist ein Rechenverfahren. Sie nimmt beliebige Daten entgegen, etwa einen Text oder eine Datei, und berechnet daraus einen Wert mit fester Länge. Diesen Wert nennt man Hashwert oder kurz Hash (englisch auch digest). Die Eingabe heißt Nachricht oder Urbild (preimage).
+
+Der Hashwert funktioniert wie ein Fingerabdruck. Ein Fingerabdruck ist klein und gehört eindeutig zu einem Menschen. Trotzdem kann man aus ihm nicht den ganzen Menschen nachbauen. Genauso ist es mit Daten und ihrem Hashwert.
+
+In Worten: Die Hashfunktion bekommt ein Datum und gibt seinen Fingerabdruck zurück.
+
+$$
+\text{Hashfunktion}(\text{Datum}) = \text{Fingerabdruck}
+$$
+
+Das Urbild darf beliebig lang sein. Der Hashwert hat dagegen immer dieselbe Länge. In Bitcoin sind das 160, 256 oder 512 Bit. Ein Bit ist die kleinste Informationseinheit, also eine 0 oder eine 1.
+
+Ein Beispiel mit der Hashfunktion SHA-256: Aus dem Text „Hochschule München“ wird dieser Hashwert:
+
+`d5423bd3c7b7ac0fb0dc9eaf31b165120071bab151f142d1931e31cecda7d773`
+
+Hashwerte werden meist hexadezimal geschrieben. Das Hexadezimalsystem hat 16 Ziffern, nämlich 0 bis 9 und a bis f. Jede Ziffer steht für genau 4 Bit. Die 64 Zeichen oben sind also 256 Nullen und Einsen in kurzer Schreibweise.
+
+<Platzhalter name="HashDemo" hinweis="Text eingeben, Hash live sehen" />
+
+## Wie groß ist 2 hoch 256?
+
+Ein Hashwert mit 256 Bit kann $2^{256}$ verschiedene Werte annehmen. Diese Zahl ist unvorstellbar groß. Sie liegt ungefähr bei einer 1 mit 77 Nullen:
+
+$$
+2^{256} \approx 1{,}158 \cdot 10^{77}
+$$
+
+Zum Vergleich: Im sichtbaren Universum gibt es schätzungsweise $10^{80}$ Atome.
+
+Ein zweiter Vergleich: Der Supercomputer Frontier gehört zu den schnellsten Rechnern der Welt. Er schafft etwa $1{,}6 \cdot 10^{18}$ Rechenschritte pro Sekunde. Nehmen wir großzügig an, ein Hashwert kostet nur einen einzigen Rechenschritt. In der Praxis sind es viel mehr.
+
+Die Zeit für alle Hashwerte ist dann die Anzahl der Hashwerte geteilt durch die Rechenschritte pro Sekunde:
+
+$$
+t = \frac{1{,}158 \cdot 10^{77}}{1{,}6 \cdot 10^{18}\ \tfrac{1}{\text{s}}} \approx 7{,}2 \cdot 10^{58}\ \text{s}
+$$
+
+Ein Jahr hat etwa $3{,}15 \cdot 10^{7}$ Sekunden. Teilt man die Sekunden durch diese Zahl, erhält man Jahre:
+
+$$
+t \approx \frac{7{,}2 \cdot 10^{58}}{3{,}15 \cdot 10^{7}} \approx 2{,}3 \cdot 10^{51}\ \text{Jahre}
+$$
+
+Das Universum ist erst etwa $1{,}37 \cdot 10^{10}$ Jahre alt. Alle Hashwerte durchzuprobieren ist also praktisch unmöglich.
+
+## Eigenschaften einer Hashfunktion
+
+Jede brauchbare Hashfunktion muss fünf Eigenschaften haben:
+
+- **Effizient:** Der Hashwert lässt sich schnell und mit wenig Speicher berechnen.
+- **Deterministisch:** Gleiche Eingabe ergibt immer denselben Hashwert.
+- **Feste Länge:** Der Hashwert ist immer gleich lang.
+- **Gleichverteilung:** Jeder mögliche Hashwert ist gleich wahrscheinlich.
+- **Lawineneffekt:** Eine kleine Änderung am Urbild ändert den Hashwert stark.
+
+Der Lawineneffekt (avalanche effect) ist besonders auffällig. Ändert man „Hochschule München“ zu „Hochschule Munchen“, fehlen nur zwei Punkte über dem u. Der neue Hashwert lautet aber `885bc1d5f370ea770b69fed36d6db76a05d859a65fe7291ced3a8422d2f1ceee`. Etwa die Hälfte der 256 Bits hat sich verändert.
+
+<Platzhalter name="LawinenDemo" hinweis="Ein Zeichen ändern und sehen, welche Bits umkippen" />
+
+### Kryptografische Hashfunktionen
+
+Für Sicherheit reichen diese fünf Eigenschaften nicht. Eine kryptografische Hashfunktion muss zusätzlich schwer umkehrbar sein.
+
+**Urbildresistenz (preimage resistance):** Aus einem Hashwert lässt sich die Nachricht praktisch nicht zurückrechnen. Die Hashfunktion ist damit eine Einwegfunktion (one-way function). In eine Richtung ist sie leicht zu berechnen, in die andere praktisch gar nicht.
+
+Eine Kollision (collision) liegt vor, wenn zwei verschiedene Nachrichten denselben Hashwert haben.
+
+<div class="callout achtung">
+
+**Kollisionen gibt es wirklich.** Es gibt unendlich viele mögliche Nachrichten, aber nur $2^{256}$ Hashwerte. Also müssen manche Nachrichten denselben Hashwert haben. Eine gute Hashfunktion sorgt nur dafür, dass niemand eine Kollision absichtlich finden kann.
+
+</div>
+
+**Schwache Kollisionsresistenz (second preimage resistance):** Gegeben ist eine Nachricht $x_1$. Es soll praktisch unmöglich sein, eine andere Nachricht $x_2$ mit demselben Hashwert zu finden. Als Formel, bei der das Fragezeichen gesucht ist:
+
+$$
+\text{hash}(x_1) = \text{hash}(x_2 = \,?) \quad \text{mit} \quad x_1 \neq x_2
+$$
+
+Der einzige Weg ist Ausprobieren (brute force). Wegen der Größe von $2^{256}$ dauert das viel zu lange.
+
+**Starke Kollisionsresistenz (collision resistance):** Es soll praktisch unmöglich sein, überhaupt irgendein Paar verschiedener Nachrichten mit gleichem Hashwert zu finden. Diesmal sind beide Nachrichten frei wählbar:
+
+$$
+\text{hash}(x_1 = \,?) = \text{hash}(x_2 = \,?) \quad \text{mit} \quad x_1 \neq x_2
+$$
+
+Diese Eigenschaft ist am schwersten zu erreichen. Sie wird meist als erste gebrochen. Dann gilt die Hashfunktion als unsicher.
+
+## Wofür Hashwerte nützlich sind
+
+- **Datenintegrität:** Man speichert den Hashwert von Daten. Später berechnet man ihn erneut. Weicht er ab, wurden die Daten verändert.
+- **Hash-Zeiger (hash pointer):** Ein gespeicherter Hashwert verweist eindeutig auf bestimmte Daten und sichert zugleich, dass sie unverändert sind.
+- **Commitment:** Man veröffentlicht zuerst nur den Hashwert. Später zeigt man das Urbild. So beweist man, dass man es schon vorher kannte, ohne es früher verraten zu haben.
+
+## Hashfunktionen in Bitcoin
+
+**SHA-256** (Secure Hash Algorithm) wurde von der US-Normungsbehörde NIST standardisiert. Die Nachricht darf kürzer als $2^{64}$ Bit sein, das sind etwa 2,3 Millionen Terabyte. Der Hashwert ist 256 Bit lang.
+
+**HASH256** wendet SHA-256 zweimal hintereinander an. Erst wird die Nachricht gehasht, dann das Ergebnis noch einmal:
+
+$$
+\text{HASH256}(\text{Nachricht}) = \text{SHA256}(\text{SHA256}(\text{Nachricht}))
+$$
+
+<div class="callout merke">
+
+**Merke:** In Bitcoin wird fast immer HASH256 verwendet. Damit entstehen die Transaktions-ID, die Block-ID, der Merkle-Baum, Prüfsummen und die Hashwerte für Signaturen.
+
+</div>
+
+**HASH160** kombiniert SHA-256 mit der Hashfunktion RIPEMD-160. Das Ergebnis ist 160 Bit lang:
+
+$$
+\text{HASH160}(\text{Nachricht}) = \text{RIPEMD160}(\text{SHA256}(\text{Nachricht}))
+$$
+
+HASH160 kürzt einen öffentlichen Schlüssel oder ein Skript, bevor daraus eine Adresse wird. RIPEMD-160 stammt von europäischen Forschern und nicht von einer US-Behörde. Vielleicht hat Satoshi Nakamoto sie deshalb gewählt. Das ist aber nur eine Vermutung, denn er hat sich nie dazu geäußert.
+
+## Zum Weiterlesen
+
+- [Hash-Funktionen bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/cryptography/hash-function/) (englisch)
+- [Bitcoin-Whitepaper von Satoshi Nakamoto](https://bitcoin.org/bitcoin.pdf) (englisch)
+- [Mastering Bitcoin, Kapitel „Keys and Addresses“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04_keys.adoc) (englisch)

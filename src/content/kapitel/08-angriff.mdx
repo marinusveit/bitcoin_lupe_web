@@ -1,0 +1,120 @@
+---
+title: Der 51-Prozent-Angriff
+order: 8
+summary: Wer mehr Rechenleistung hat als alle anderen, kann eigene Zahlungen rückgängig machen, aber mit jedem neuen Block sinkt die Chance dafür rasant.
+---
+
+import Platzhalter from '../../components/Platzhalter.astro';
+
+Die Blockchain ist durch Rechenarbeit geschützt. Was passiert, wenn ein Angreifer sehr viel Rechenleistung besitzt? Dieses Kapitel rechnet das Szenario aus dem Bitcoin-Whitepaper durch.
+
+## Das Szenario
+
+Der Angreifer baut heimlich eine eigene, alternative Kette. Steckt in ihr mehr Arbeit als in der ehrlichen Kette, übernehmen die anderen Knoten sie (Kapitel 6). Weil man dafür meist mehr als die Hälfte der Rechenleistung braucht, heißt das 51-Prozent-Angriff (51 % attack).
+
+Ein Beispiel zeigt, was der Angreifer davon hat:
+
+1. Der Angreifer schickt Person A eine Transaktion über 1 BTC. Sobald sie in einem Block steht, zahlt A ihm dafür einen Betrag in Euro.
+2. Gleichzeitig baut der Angreifer heimlich an seiner eigenen Kette. Darin ersetzt er die Zahlung an A durch eine Zahlung desselben Bitcoins an sich selbst.
+3. Sobald in seiner Kette mehr Arbeit steckt, veröffentlicht er sie.
+4. Die Knoten prüfen die Kette. Sie hält alle Regeln ein, also wechseln sie per Ketten-Reorganisation zu ihr. Die Zahlung an A ist verschwunden. Sie lässt sich auch nicht nachtragen, denn der Output ist schon ausgegeben. A hat sein Geld verloren.
+
+Diesen Trick nennt man doppelte Ausgabe (double spending).
+
+<figure>
+  <img src="/img/51_Attacke.svg" alt="Oben eine ehrliche Kette mit drei grünen Blöcken nach dem grauen Block mit der Zahlung, unten ein alternativer Block des Angreifers mit Fragezeichen dahinter" />
+  <figcaption>Die Zahlung steht im grauen Block. Danach haben ehrliche Miner schon drei Blöcke angehängt (z = 3). Wie weit der Angreifer unten ist, weiß niemand.</figcaption>
+</figure>
+
+## Was ein Angreifer kann und was nicht
+
+<div class="callout achtung">
+
+**Häufiges Missverständnis:** Auch mit 51 Prozent kann niemand fremde Bitcoins stehlen oder beliebig neue erschaffen. Dafür bräuchte er fremde private Schlüssel oder müsste die Regeln brechen. Jeder Knoten würde seine Kette dann ablehnen.
+
+</div>
+
+Der Angreifer ist an dieselben Konsensregeln gebunden wie alle anderen. Er kann nur eigene Transaktionen rückgängig machen und so bereits ausgegebene Bitcoins zurückholen.
+
+## Die Aufholjagd
+
+Stell dir ein Wettrennen vor. Die ehrlichen Miner laufen vorne, der Angreifer liegt $z$ Blöcke zurück. Mit jedem Block kann er einen Schritt aufholen oder weiter zurückfallen. Wie wahrscheinlich ist es, dass er irgendwann gleichzieht?
+
+Dafür definieren wir drei Wahrscheinlichkeiten:
+
+- $p$: Ein ehrlicher Miner findet den nächsten Block.
+- $q$: Der Angreifer findet den nächsten Block. Dabei ist $p + q = 1$.
+- $q_z$: Der Angreifer holt einen Rückstand von $z$ Blöcken auf.
+
+Hat der Angreifer mindestens so viel Rechenleistung wie die Ehrlichen, holt er sicher auf. Sonst sinkt seine Chance mit jedem Block Rückstand um den Faktor $\frac{q}{p}$:
+
+$$
+q_z = \begin{cases} 1 & \text{wenn } p \le q \\[4pt] \left(\dfrac{q}{p}\right)^{z} & \text{wenn } p > q \end{cases}
+$$
+
+Ein Beispiel: Der Angreifer hat 30 Prozent der Rechenleistung und liegt 10 Blöcke zurück.
+
+$$
+q_{10} = \left(\frac{0{,}3}{0{,}7}\right)^{10} \approx 0{,}000209 \approx 0{,}02\,\%
+$$
+
+<div class="callout merke">
+
+**Merke:** Die Erfolgschance des Angreifers sinkt exponentiell mit der Zahl der Blöcke, die er aufholen muss. Alte Blöcke sind deshalb praktisch unveränderbar.
+
+</div>
+
+## Wie lange soll man warten?
+
+Jeder Block, der nach dem Block mit der eigenen Zahlung angehängt wird, heißt Bestätigung (confirmation). Der Empfänger weiß aber nicht, wie viele Blöcke der Angreifer heimlich schon hat. Er muss alle Möglichkeiten zusammenzählen.
+
+{/* ERGÄNZT: Der Begriff Bestätigung (confirmation) steht nicht in der Arbeit; sie spricht von z nachfolgenden Blöcken. */}
+
+Hat der Angreifer schon $k$ Blöcke, muss er noch $z - k$ aufholen. Für jedes $k$ multipliziert man zwei Wahrscheinlichkeiten und addiert alles:
+
+$$
+\begin{aligned}
+& P(\text{hat } 0) \cdot P(\text{holt } z \text{ auf}) \\
++\ & P(\text{hat } 1) \cdot P(\text{holt } z-1 \text{ auf}) \\
++\ & \dots
+\end{aligned}
+$$
+
+Wie viele Blöcke der Angreifer in der Zeit schafft, folgt einer Poisson-Verteilung. Sie beschreibt zufällige Ereignisse, die mit einer festen Rate auftreten. Im Mittel schafft der Angreifer $\lambda = z \cdot \frac{q}{p}$ Blöcke. Die Wahrscheinlichkeit für genau $k$ Blöcke ist:
+
+$$
+P_\lambda(k) = \frac{\lambda^k}{k!}\, e^{-\lambda}
+$$
+
+Hat er schon $z$ oder mehr Blöcke, ist er gleichauf. Sonst gilt die Formel für $q_z$ mit dem Rest:
+
+$$
+P(\text{holt } z-k \text{ auf}) = \begin{cases} 1 & k \ge z \\[4pt] \left(\dfrac{q}{p}\right)^{z-k} & k \lt z \end{cases}
+$$
+
+Die Summe über alle $k$ wäre unendlich lang. Einfacher ist das Gegenereignis: Man zieht von 1 die Wahrscheinlichkeit ab, dass der Angreifer es nicht schafft. Dann reicht eine endliche Summe bis $z$:
+
+$$
+\begin{aligned}
+P(\text{Erfolg}) = 1 - \sum_{k=0}^{z} & \frac{\lambda^k e^{-\lambda}}{k!} \\
+\cdot & \left(1 - \left(\frac{q}{p}\right)^{z-k}\right)
+\end{aligned}
+$$
+
+Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), der Angreifer hat 10 Prozent der Rechenleistung ($q = 0{,}1$). Seine Erfolgschance beträgt dann etwa 1,3 Prozent. Bei $z = 5$ sind es noch knapp 0,1 Prozent.
+
+{/* KORRIGIERT gegenüber der Arbeit: Dort stehen für q = 0,1 und z = 3 „0,35 %“. Die Formel ergibt 1,32 % (so auch die Tabelle im Whitepaper, Abschnitt 11); 0,35 % ist der Wert für z = 4. Auch die Kurvendaten in der Abbildung der Arbeit sind um einen Block verschoben. ERGÄNZT: Der Wert für z = 5 (0,09 %) ist nachgerechnet und steht nicht in der Arbeit. */}
+
+<Platzhalter name="AngriffsDiagramm" hinweis="Rechenleistung des Angreifers und Wartezeit wählen, Erfolgschance ablesen" />
+
+## Warum es trotzdem kaum passiert
+
+Mit weniger als der Hälfte der Rechenleistung kann ein Angriff nur mit viel Glück gelingen. Mit mehr als der Hälfte gelingt er auf lange Sicht sicher. Alte Blöcke umzuschreiben dauert aber sehr lange. Man müsste die Arbeit vieler Jahre noch einmal leisten.
+
+Beobachtet wurde ein solcher Angriff auf Bitcoin bisher nicht. Ein Grund: Ehrlich zu minen lohnt sich mehr. Ein erfolgreicher Angriff würde das Vertrauen in Bitcoin beschädigen. Der Kurs würde fallen, und die erbeuteten Bitcoins wären weniger wert.
+
+## Zum Weiterlesen
+
+- [Bitcoin-Whitepaper, Abschnitt 11 „Calculations“](https://bitcoin.org/bitcoin.pdf) (englisch)
+- [Ketten-Reorganisation bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/blockchain/chain-reorganization/) (englisch)
+- [Mastering Bitcoin, Kapitel „Mining and Consensus“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch12_mining.adoc) (englisch)

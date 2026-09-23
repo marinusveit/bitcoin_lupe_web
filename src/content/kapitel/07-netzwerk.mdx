@@ -1,0 +1,108 @@
+---
+title: Das Bitcoin-Netzwerk
+order: 7
+summary: Tausende gleichberechtigte Rechner tauschen Transaktionen und Blöcke aus, prüfen sie nach denselben Regeln und brauchen dafür keine Zentrale.
+---
+
+import Platzhalter from '../../components/Platzhalter.astro';
+
+Satoshi Nakamoto wollte Geld ohne eine Stelle, der alle vertrauen müssen. Im Februar 2009 beschrieb er das Ergebnis so:
+
+> „The result is a distributed system with no single point of failure. Users hold the crypto keys to their own money and transact directly with each other, with the help of the P2P network to check for double-spending.“
+>
+> Satoshi Nakamoto, 11. Februar 2009
+
+Auf Deutsch sinngemäß: Es gibt keinen einzelnen Punkt, dessen Ausfall alles lahmlegt. Jeder hält die Schlüssel zu seinem Geld selbst. Das Netzwerk hilft dabei, doppelte Ausgaben zu erkennen. Wie dieses Netzwerk aufgebaut ist, zeigt dieses Kapitel.
+
+## Peer-to-Peer
+
+Das Bitcoin-Netzwerk besteht aus Knoten (nodes). Ein Knoten ist ein Rechner, auf dem die Bitcoin-Software läuft. Diese Software heißt Client. Es gibt die offizielle Software Bitcoin Core. Man darf aber auch andere Programme nutzen oder sogar selbst eines schreiben. Mehr als eine Internetverbindung braucht ein Knoten nicht.
+
+Das Netzwerk ist ein Peer-to-Peer-Netzwerk (P2P). Die Knoten sind direkt miteinander verbunden. Alle sind gleichberechtigt, das bedeutet das englische Wort peers. Es gibt keinen zentralen Server.
+
+Das funktioniert ähnlich wie eine Neuigkeit auf dem Schulhof. Niemand macht eine Durchsage. Jeder erzählt es seinen Freunden, die erzählen es weiter, und nach kurzer Zeit wissen es alle.
+
+{/* ERGÄNZT: Die Schulhof-Analogie für das Weiterleiten an Nachbarn ist eine Veranschaulichung; die Arbeit sagt nur, dass Knoten Daten austauschen. */}
+
+## Die drei Aufgaben eines Knotens
+
+Ein vollwertiger Knoten hat drei Aufgaben.
+
+**1. Daten austauschen.** Knoten schicken sich Nachrichten, neue Transaktionen und neu gefundene Blöcke.
+
+**2. Daten prüfen.** Jeder Knoten prüft alles, was er bekommt, nach den Regeln des Bitcoin-Protokolls. Bei Transaktionen gehören dazu zum Beispiel diese Regeln:
+
+- Transaktionen und Blöcke haben das vorgeschriebene Format.
+- Niemand gibt mehr aus, als er hat: $\sum \text{Inputs} \geq \sum \text{Outputs}$.
+- Die Transaktion hat Inputs und Outputs.
+- Die Inputs zeigen nur auf UTXOs.
+- Die Signaturen sind gültig.
+
+Bei Blöcken prüft der Knoten unter anderem diese Punkte:
+
+- Das Feld `nBits` passt zur aktuellen Schwierigkeit.
+- Die Block-ID ist kleiner als das Target.
+- Die erste Transaktion ist die Coinbase-Transaktion.
+- Die Merkle-Wurzel stimmt.
+- Der Zeitstempel ist aktuell genug.
+
+**3. Die Blockchain speichern.** Ohne die Kette kann ein Knoten neue Daten nicht prüfen. Außerdem gibt er sie an neue Teilnehmer weiter, damit auch diese auf den aktuellen Stand kommen.
+
+<div class="callout merke">
+
+**Merke:** Jeder Knoten prüft selbst. Ein Block mit einer ungültigen Transaktion wird von ehrlichen Knoten abgelehnt, egal wie viel Rechenarbeit in ihm steckt.
+
+</div>
+
+## Teilnehmer im Netzwerk
+
+### Full Nodes
+
+Ein Full Node speichert die ganze Blockchain und prüft alle Daten. Er muss niemandem vertrauen. Dafür braucht er viel Speicherplatz.
+
+Einen Teil davon kann er zurückgewinnen. Transaktionen, deren Outputs alle ausgegeben sind, braucht er nicht mehr. Er darf sie löschen und behält nur die Merkle-Wurzel und nötige Merkle-Proofs. Das lohnt sich aber nur für Blöcke weit hinten in der Kette. Je tiefer ein Block liegt, desto unwahrscheinlicher ändert er sich noch (siehe Kapitel 8).
+
+### SPV-Knoten
+
+SPV steht für Simplified Payment Verification, also vereinfachte Zahlungsprüfung. Ein SPV-Knoten speichert nur die Block-Header, nicht die Transaktionen. Das spart sehr viel Platz, zum Beispiel auf einem Handy.
+
+{/* ERGÄNZT: Das Beispiel Handy steht nicht in der Arbeit. */}
+
+Will er wissen, ob eine Transaktion in einem Block steht, fragt er einen Full Node nach dem Merkle-Proof. Mit ihm rechnet er bis zur Merkle-Wurzel im Header hoch (Kapitel 2).
+
+<figure>
+  <img src="/img/spv.svg" alt="Drei verkettete Block-Header; unter dem mittleren führt ein Merkle-Zweig von Tx3 über Hash3 und Hash23 zur Merkle Root" />
+  <figcaption>Ein SPV-Knoten kennt nur die Header der längsten Kette und prüft eine Transaktion über ihren Merkle-Zweig. Darstellung nach dem Bitcoin-Whitepaper.</figcaption>
+</figure>
+
+<div class="callout achtung">
+
+**Häufiges Missverständnis:** Ein SPV-Knoten kann Transaktionen nicht selbst auf Gültigkeit prüfen. Er verlässt sich darauf, dass es mehr ehrliche als unehrliche Full Nodes gibt.
+
+</div>
+
+### Miner
+
+Ein Miner versucht, neue Blöcke zu finden, und schickt sie an die anderen Knoten. Meist ist ein Miner auch ein Full Node, zwingend ist das aber nicht.
+
+<Platzhalter name="NetzwerkDemo" hinweis="Transaktion senden und zusehen, wie sie sich über die Knoten ausbreitet" />
+
+## Der Weg einer Transaktion
+
+Mit allen Kapiteln zusammen lässt sich der Weg einer Zahlung verfolgen:
+
+1. Alice erstellt eine Transaktion. Sie wählt UTXOs als Inputs und legt Outputs für den Empfänger und ihr Rückgeld an (Kapitel 4).
+2. Sie signiert die Transaktion mit ihrem privaten Schlüssel (Kapitel 3 und 5).
+3. Sie schickt die Transaktion an einen Knoten. Er prüft sie und gibt sie an andere Knoten weiter.
+4. Miner legen die Transaktion in ihren Mempool und nehmen sie in einen Kandidatenblock auf (Kapitel 6).
+5. Ein Miner findet eine passende Nonce und verschickt den neuen Block.
+6. Jeder Knoten prüft den Block, hängt ihn an seine Kette und aktualisiert seine UTXO-Menge.
+7. Der Empfänger wartet, bis einige weitere Blöcke darauf folgen. Warum, zeigt Kapitel 8.
+
+{/* ERGÄNZT: Diese Schrittfolge fasst Aussagen aus mehreren Kapiteln der Arbeit zusammen; als zusammenhängender Ablauf steht sie so nicht in der Arbeit. */}
+
+## Zum Weiterlesen
+
+- [Bitcoin-Whitepaper, Abschnitte 5, 7 und 8](https://bitcoin.org/bitcoin.pdf) (englisch)
+- [Netzwerk bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/networking/) (englisch)
+- [Mastering Bitcoin, Kapitel „The Bitcoin Network“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch10_network.adoc) (englisch)

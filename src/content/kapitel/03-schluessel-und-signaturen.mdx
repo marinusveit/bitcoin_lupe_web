@@ -1,0 +1,134 @@
+---
+title: Schlüssel und Signaturen
+order: 3
+summary: Mit einem geheimen Schlüssel und einer elliptischen Kurve beweist man in Bitcoin, dass einem die Coins gehören, ohne das Geheimnis zu verraten.
+---
+
+import Platzhalter from '../../components/Platzhalter.astro';
+
+Wer darf Bitcoins ausgeben? Bei einer Bank prüft die Bank. Bei Bitcoin gibt es keine Bank. Stattdessen beweist man mit Mathematik, dass man einen geheimen Schlüssel besitzt. Grundlage dafür ist eine elliptische Kurve.
+
+## Privater und öffentlicher Schlüssel
+
+Jeder Nutzer hat ein Schlüsselpaar. Es besteht aus einem privaten und einem öffentlichen Schlüssel.
+
+Der private Schlüssel (private key) $k_{pr}$ ist vergleichbar mit einem Passwort für das Bankkonto. Er gibt Zugriff auf das Guthaben und muss geheim bleiben. Geht er verloren, sind die Bitcoins für immer weg. Wird er gestohlen, kann der Dieb das Guthaben ausgeben.
+
+Der öffentliche Schlüssel (public key) $K_{pub}$ ist vergleichbar mit einer Kontonummer. Man darf ihn anderen zeigen.
+
+## Die elliptische Kurve secp256k1
+
+Eine elliptische Kurve (elliptic curve) ist die Menge aller Punkte $(x, y)$, die eine bestimmte Gleichung erfüllen. Bitcoin rechnet dabei modulo einer Primzahl $p$. Modulo bedeutet: Man nimmt nur den Rest bei der Division durch $p$. Das kennst du von der Uhr: 3 Stunden nach 11 Uhr ist 2 Uhr, weil man modulo 12 rechnet.
+
+Die allgemeine Form lautet: $y^2$ hat modulo $p$ denselben Rest wie $x^3 + ax + b$.
+
+$$
+y^2 \equiv x^3 + ax + b \mod p
+$$
+
+Satoshi Nakamoto wählte die Kurve secp256k1 mit $a = 0$ und $b = 7$. Die Gleichung wird dadurch kurz:
+
+$$
+y^2 \equiv x^3 + 7 \mod p
+$$
+
+Dazu kommen drei weitere Werte:
+
+| Parameter | Bedeutung | Wert (hex, gekürzt) |
+| --- | --- | --- |
+| $p$ | Primzahl, begrenzt die Werte für $x$ und $y$ | `FFFF…FC2F` |
+| $G$ | Generatorpunkt, fester Startpunkt aller Rechnungen | x: `79BE…1798` |
+| $n$ | Anzahl der Punkte, die man von $G$ aus erreicht | `FFFF…4141` |
+
+Alle drei Zahlen sind ungefähr so groß wie $2^{256}$.
+
+<figure>
+  <img src="/img/secp256k1.svg" alt="Links eine Punktwolke der Kurve über einem kleinen endlichen Feld, rechts eine glatte Kurve im Reellen" />
+  <figcaption>Die Kurve secp256k1 links über dem kleinen Zahlenbereich modulo 2087, rechts über den reellen Zahlen.</figcaption>
+</figure>
+
+Links sieht die Kurve aus wie zufällige Punkte. Rechts ist sie eine glatte Linie. Zum Verstehen nutzt man das rechte Bild. Die Rechenregeln funktionieren in beiden Fällen gleich.
+
+## Mit Punkten rechnen
+
+Auf der Kurve kann man zwei Punkte addieren. Man legt eine Gerade durch $P$ und $Q$. Die Gerade schneidet die Kurve in einem dritten Punkt. Diesen spiegelt man an der x-Achse. Das Ergebnis ist $P + Q$.
+
+Will man einen Punkt zu sich selbst addieren, nimmt man statt der Geraden die Tangente an diesen Punkt. Das nennt man Verdoppeln, denn das Ergebnis ist $2P$.
+
+Bei der skalaren Multiplikation (scalar multiplication) addiert man einen Punkt $k$-mal zu sich selbst. Das geht schnell durch geschicktes Verdoppeln und Addieren. Für $26P$ schreibt man 26 als Binärzahl $11010$. Die erste 1 ist der Start. Für jede 0 wird verdoppelt ($\cdot 2$), für jede 1 verdoppelt und dann $P$ addiert:
+
+$$
+\begin{aligned}
+& P \xrightarrow{\cdot 2} 2P \xrightarrow{+P} 3P \xrightarrow{\cdot 2} 6P \\
+& \xrightarrow{\cdot 2} 12P \xrightarrow{+P} 13P \xrightarrow{\cdot 2} 26P
+\end{aligned}
+$$
+
+Statt 25 Additionen braucht man nur sechs Schritte. Bei 256-Bit-Zahlen sind es höchstens 512 Schritte.
+
+<Platzhalter name="KurvenDemo" hinweis="Punkte auf der Kurve addieren und verdoppeln" />
+
+## Die Einwegfunktion
+
+Den öffentlichen Schlüssel erhält man, indem man den Generatorpunkt $G$ mit dem privaten Schlüssel multipliziert:
+
+$$
+K_{pub} = k_{pr} \cdot G
+$$
+
+Der private Schlüssel ist dabei einfach eine Zufallszahl zwischen 1 und $n - 1$. Man muss sie mit einem guten Zufallsgenerator erzeugen. Weil es so viele Möglichkeiten gibt, wählen zwei Menschen praktisch nie dieselbe Zahl.
+
+Die Rechnung von $k_{pr}$ nach $K_{pub}$ ist schnell. Der Rückweg ist praktisch unmöglich. Man müsste $G$ immer wieder zu sich selbst addieren, bis man $K_{pub}$ trifft. Bei rund $2^{256}$ Möglichkeiten dauert das länger als das Universum alt ist. Die skalare Multiplikation ist also eine Einwegfunktion.
+
+<div class="callout merke">
+
+**Merke:** Aus dem privaten Schlüssel folgt der öffentliche. Aus dem öffentlichen lässt sich der private nicht zurückrechnen.
+
+</div>
+
+## Signieren und Prüfen
+
+Eine digitale Signatur (digital signature) beweist, dass jemand den privaten Schlüssel zu einem öffentlichen Schlüssel besitzt. Den privaten Schlüssel muss er dafür nicht zeigen. In Bitcoin belegt die Signatur außerdem, dass die Transaktion nach dem Unterschreiben nicht verändert wurde.
+
+<div class="callout achtung">
+
+**Anders als eine Unterschrift auf Papier:** Eine digitale Signatur gilt nur für genau eine Nachricht. Kopiert man sie unter eine andere Nachricht, ist sie ungültig.
+
+</div>
+
+<figure>
+  <img src="/img/signatur_prozess.svg" alt="Ablaufdiagramm: Daten werden gehasht, mit dem privaten Schlüssel signiert und mit dem öffentlichen Schlüssel verifiziert" />
+  <figcaption>Links wird eine Signatur erstellt, rechts wird sie geprüft.</figcaption>
+</figure>
+
+Bitcoin nutzt dafür den ECDSA (Elliptic Curve Digital Signature Algorithm). Die Signatur besteht aus zwei Zahlen $r$ und $s$. So entsteht sie aus der Nachricht $M$:
+
+1. Man wählt eine neue Zufallszahl $k$ zwischen 1 und $n - 1$.
+2. Man berechnet den Punkt $R = k \cdot G$. Die Zahl $r$ ist dessen x-Koordinate modulo $n$.
+3. Man verbindet $r$, den privaten Schlüssel und den Hash der Nachricht zur Zahl $s$:
+
+$$
+s \equiv k^{-1} \cdot \big(r \cdot k_{pr} + \text{HASH256}(M)\big) \mod n
+$$
+
+Weil $k$ jedes Mal neu gewählt wird, ergibt dieselbe Nachricht jedes Mal eine andere Signatur.
+
+Zum Prüfen braucht man die Nachricht, die Signatur und den öffentlichen Schlüssel. Der Prüfer berechnet zwei Punkte und addiert sie:
+
+$$
+R' = \big(s^{-1} \cdot \text{HASH256}(M)\big) \cdot G + \big(s^{-1} \cdot r\big) \cdot K_{pub}
+$$
+
+Stimmt die x-Koordinate von $R'$ modulo $n$ mit $r$ überein, ist die Signatur gültig. Sonst ist sie ungültig.
+
+<Platzhalter name="SignaturDemo" hinweis="Nachricht signieren, ändern und erneut prüfen" />
+
+## Vom Schlüssel zur Adresse
+
+Einen öffentlichen Schlüssel gibt man meist nicht direkt weiter. Man kürzt ihn zuerst mit HASH160 auf 160 Bit. Daraus wird dann eine Adresse, eine gut lesbare Zeichenkette zum Empfangen von Bitcoins. Wie das genau funktioniert, zeigt Kapitel 5.
+
+## Zum Weiterlesen
+
+- [ECDSA bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/cryptography/elliptic-curve/ecdsa/) (englisch)
+- [Mastering Bitcoin, Kapitel „Keys and Addresses“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04_keys.adoc) (englisch)
+- [Mastering Bitcoin, Kapitel „Digital Signatures“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch08_signatures.adoc) (englisch)

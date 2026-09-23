@@ -1,0 +1,147 @@
+---
+title: Blockchain und Mining
+order: 6
+summary: Miner bündeln Transaktionen in Blöcke, verketten sie über Hashwerte und sichern sie mit Rechenarbeit, sodass sich alle auf dieselbe Geschichte einigen.
+---
+
+import Platzhalter from '../../components/Platzhalter.astro';
+
+Doppelte Ausgaben lassen sich verhindern, wenn alle Transaktionen in einer festen zeitlichen Reihenfolge vorliegen. Dann sieht jeder, welche Ausgabe zuerst kam. Aber wer legt die Reihenfolge fest, wenn es keine Bank gibt? Bitcoin löst das mit der Blockchain.
+
+Die Blockchain hat vier Eigenschaften:
+
+- **Dezentral:** Jeder Teilnehmer speichert eine eigene Kopie und hält sie aktuell.
+- **Transparent:** Jeder kann alle Daten lesen. Für jede Transaktion nutzt man ein neues Schlüsselpaar, damit Namen trotzdem verborgen bleiben.
+- **Verkettet:** Die Blöcke sind über Hash-Zeiger verbunden und dadurch gegen Veränderung gesichert.
+- **Konsens:** Ein fester Mechanismus sorgt dafür, dass sich alle auf eine gültige Kette einigen.
+
+## Der Block
+
+Ein Block (block) speichert eine begrenzte Anzahl von Transaktionen. Er besteht aus einem Kopf, dem Block-Header, und einem Körper, dem Block-Body. Der Header fasst den ganzen Block zusammen:
+
+- `version`: die Versionsnummer der Regeln, nach denen der Block gebaut ist.
+- `previous_block_id`: der Hashwert des vorherigen Blocks.
+- `merkle_root`: die Merkle-Wurzel aller Transaktionen im Body (Kapitel 2).
+- `time`: ein Zeitstempel. Er darf höchstens etwa zwei Stunden von der Zeit der anderen Knoten abweichen.
+- `nBits`: eine kurze Schreibweise für das Target (siehe unten).
+- `nonce`: eine Zahl, die Miner frei verändern dürfen.
+
+Die Block-ID ist der HASH256-Wert des Headers. Sie kennzeichnet den Block eindeutig.
+
+<Platzhalter name="BlockDemo" hinweis="Felder im Header ändern und die Block-ID beobachten" />
+
+## Verkettung
+
+Jeder Block enthält die Block-ID seines Vorgängers. So entsteht eine Kette mit fester Reihenfolge. Daher kommt der Name Blockchain. Die Idee stammt aus einem Artikel von Haber und Stornetta über Zeitstempel für Dokumente. Im Whitepaper kommt das Wort „Blockchain“ noch gar nicht vor.
+
+Was passiert, wenn jemand eine alte Transaktion fälscht? Dann ändert sich die Merkle-Wurzel und damit die Block-ID. Der nächste Block zeigt aber noch auf die alte ID. Passt man ihn an, ändert sich auch seine ID. So pflanzt sich eine einzige Änderung bis zum Ende der Kette fort.
+
+<Platzhalter name="KettenDemo" hinweis="Einen alten Block ändern und sehen, welche Blöcke ungültig werden" />
+
+## Mining
+
+Neue Blöcke erzeugen die Miner (miners, deutsch auch Schürfer). Jeder Miner hat einen Mempool (memory pool). Dort sammelt er geprüfte Transaktionen, die noch in keinem Block stehen. Daraus stellt er einen Kandidatenblock (candidate block) zusammen.
+
+### Das Target
+
+Ein Block ist nur gültig, wenn seine Block-ID kleiner ist als das Target. Das Target ist eine Obergrenze auf dem Zahlenstrahl von 0 bis $2^{256}$.
+
+Stell dir eine Lotterie vor. Jede Block-ID ist ein Los mit einer Zahl. Gewinnt nur ein Los unter einer sehr kleinen Grenze, braucht man viele Versuche. Weil alle Hashwerte gleich wahrscheinlich sind, ist die Gewinnchance der Anteil der Zahlen unterhalb des Targets:
+
+$$
+P(\text{Block-ID} < \text{target}) = \frac{\text{target}}{2^{256}}
+$$
+
+Das Target ist 32 Byte groß. Im Header steht es verkürzt im 4 Byte großen Feld `nBits`. Das erste Byte ist der Exponent, die übrigen drei Bytes sind die Mantisse. Das Target ergibt sich aus der Mantisse mal 256 hoch (Exponent minus 3):
+
+$$
+\text{target} = \text{Mantisse} \cdot 256^{\,\text{Exponent} - 3}
+$$
+
+Ein Beispiel: `nBits` ist `0x170f48e4`. Der Exponent ist `0x17`, also 23. Die Mantisse ist `0x0f48e4`. Die Mantisse wird also um $23 - 3 = 20$ Bytes nach links geschoben. Das Target ist `0f48e4` mit 40 Nullen dahinter, vorne mit Nullen auf 64 Hex-Stellen aufgefüllt.
+
+{/* KORRIGIERT gegenüber der Arbeit: Dort steht „64 Byte“ (richtig: 32 Byte bzw. 64 Hex-Stellen), „0x17 = 23_2“ (richtig: dezimal 23) und „um 23 Bytes verschieben“ (richtig: 20 Bytes, die Zahl ist danach 23 Bytes lang). */}
+
+### Der Mining-Prozess
+
+Der Miner berechnet die Block-ID seines Kandidatenblocks. Ist sie nicht kleiner als das Target, erhöht er die Nonce um eins und rechnet neu. Durch den Lawineneffekt ergibt jede Nonce eine völlig neue Block-ID. Das wiederholt er, bis er Glück hat.
+
+Wer mehr Rechenleistung hat, schafft mehr Versuche pro Sekunde. Er findet deshalb öfter einen gültigen Block. Das Target ist so gewählt, dass im ganzen Netz im Schnitt alle 10 Minuten ein Block gefunden wird.
+
+Das Finden ist schwer, das Prüfen dagegen leicht. Jeder kann mit einer einzigen Hash-Berechnung sehen, dass der Miner die Arbeit erbracht hat. Deshalb heißt das Verfahren Arbeitsnachweis (proof of work).
+
+<Platzhalter name="MiningDemo" hinweis="Nonce hochzählen, bis die Block-ID unter dem Target liegt" />
+
+<div class="callout merke">
+
+**Merke:** Ein Block ist gültig, wenn seine Block-ID kleiner als das Target ist. Wer einen alten Block ändert, muss diese Arbeit für ihn und alle folgenden Blöcke neu leisten.
+
+</div>
+
+### Schwierigkeit und Anpassung
+
+Die Schwierigkeit (difficulty) sagt, wie viel schwerer ein Block heute ist als der allererste Block, der Genesis-Block. Dessen Target gilt als maximales Target:
+
+$$
+\text{Schwierigkeit} = \frac{\text{maximales Target}}{\text{target}}
+$$
+
+Je kleiner das Target, desto größer die Schwierigkeit.
+
+Die Rechenleistung im Netz ändert sich ständig. Deshalb passt Bitcoin das Target alle 2016 Blöcke an. Das sind ungefähr zwei Wochen. Das neue Target ist das alte mal dem Verhältnis aus tatsächlich gebrauchter und erwarteter Zeit:
+
+$$
+\text{target}_{neu} = \frac{\text{tatsächlich benötigte Zeit}}{\text{erwartete Zeit}} \cdot \text{target}_{alt}
+$$
+
+Beispiel: Die letzten 2016 Blöcke kamen im Schnitt alle 8 statt alle 10 Minuten. Das Target wird mit $\frac{8}{10}$ multipliziert. Aus der Mantisse `0f48e4` wird `0c3a50`. Blöcke werden schwerer, und die Blockzeit steigt wieder auf 10 Minuten.
+
+## Die Blockbelohnung
+
+Warum rechnen Miner überhaupt? Die erste Transaktion jedes Blocks ist die Coinbase-Transaktion. Mit ihr zahlt sich der Miner eine Belohnung aus. Sie besteht aus zwei Teilen: dem Blockzuschuss (block subsidy) und den Gebühren (fees) aller Transaktionen im Block. Das deckt Strom und Rechenzeit und schafft einen Anreiz, das Netz sicher zu halten.
+
+Über den Blockzuschuss kommen neue Bitcoins in Umlauf. Am Anfang gab es 50 BTC pro Block. Alle 210.000 Blöcke halbiert sich der Zuschuss. Das nennt man Halving. Aktuell sind es 3,125 BTC.
+
+Dadurch ist die Menge der Bitcoins begrenzt. In Worten: Man addiert 210.000 Blöcke mal 50, mal 25, mal 12,5 und so weiter. Die Summe der Halbierungen $1 + \frac{1}{2} + \frac{1}{4} + \dots$ ergibt 2:
+
+$$
+\begin{aligned}
+50 \cdot 210\,000 \cdot \sum_{n=0}^{\infty} \frac{1}{2^n} &= 50 \cdot 210\,000 \cdot 2 \\
+&= 21\,000\,000 \text{ BTC}
+\end{aligned}
+$$
+
+Ganz erreicht wird diese Zahl nie. Die kleinste Einheit ist ein Satoshi, benannt nach dem Erfinder: $1 \text{ sat} = 10^{-8}$ BTC. Kleiner lässt sich der Zuschuss nicht teilen. Deshalb wird es höchstens 20.999.999,9769 BTC geben.
+
+<figure>
+  <img src="/img/blockzuschuss.svg" alt="Diagramm: Der Blockzuschuss fällt stufenweise von 50 BTC, die Menge der Bitcoins steigt gegen 21 Millionen" />
+  <figcaption>Blockzuschuss (orange) und Bitcoins im Umlauf (blau) abhängig von der Blockhöhe.</figcaption>
+</figure>
+
+<Platzhalter name="HalvingDiagramm" hinweis="Blockhöhe wählen und Zuschuss sowie Gesamtmenge ablesen" />
+
+Miner nehmen meist die Transaktionen mit den höchsten Gebühren zuerst. Wer zu wenig Gebühr zahlt, muss lange warten. Irgendwann verwerfen die Knoten die Transaktion. Sinkt der Zuschuss gegen null, bleiben die Gebühren der wichtigste Anreiz für Miner.
+
+## Konsens
+
+Wie einigen sich alle auf eine Kette? Jeder Teilnehmer vertraut der Kette, in der die meiste Rechenarbeit steckt. Man kann sich das als Abstimmung vorstellen, bei der jede Recheneinheit eine Stimme hat. Solange ehrliche Miner mehr als die Hälfte der Rechenleistung haben, wächst ihre Kette am schnellsten.
+
+<div class="callout achtung">
+
+**Häufiges Missverständnis:** Es gewinnt nicht die Kette mit den meisten Blöcken, sondern die mit der meisten Arbeit. Meist ist das dieselbe Kette, aber nicht immer.
+
+</div>
+
+{/* ERGÄNZT: Der Nachsatz „Meist ist das dieselbe Kette, aber nicht immer“ steht nicht in der Arbeit. */}
+
+## Ketten-Reorganisation
+
+Manchmal finden zwei Miner fast gleichzeitig einen Block. Dann kennen verschiedene Knoten unterschiedliche neueste Blöcke. Jeder arbeitet zunächst mit dem Block weiter, den er zuerst erhalten hat. Den anderen hebt er auf.
+
+Wird auf den anderen Block zuerst ein weiterer Block gesetzt, steckt in diesem Zweig mehr Arbeit. Dann wechseln alle Knoten dorthin. Das nennt man Ketten-Reorganisation (chain reorganization).
+
+## Zum Weiterlesen
+
+- [Bitcoin-Whitepaper, Abschnitte 3 bis 6](https://bitcoin.org/bitcoin.pdf) (englisch)
+- [Bits und Target bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/block/bits/) (englisch)
+- [Mastering Bitcoin, Kapitel „Mining and Consensus“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch12_mining.adoc) (englisch)

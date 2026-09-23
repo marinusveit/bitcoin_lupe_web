@@ -1,0 +1,121 @@
+---
+title: Skripte und Adressen
+order: 5
+summary: Kleine Programme legen fest, wer einen Output öffnen darf, und eine Adresse ist nur eine lesbare Form eines solchen Programms.
+---
+
+import Platzhalter from '../../components/Platzhalter.astro';
+
+Im letzten Kapitel war ein Output eine Kiste mit Schloss und der Input der passende Schlüssel. Technisch sind beide kleine Programme, sogenannte Skripte (scripts).
+
+## Schloss und Schlüssel als Skript
+
+Der `ScriptPubKey` im Output beschreibt die Bedingungen, unter denen die Bitcoins ausgegeben werden dürfen. Das `ScriptSig` im Input liefert die Daten, die diese Bedingungen erfüllen. Zum Prüfen werden beide zu einem Skript zusammengesetzt und ausgeführt. Die Skriptsprache ist absichtlich einfach und kennt zum Beispiel keine Schleifen.
+
+## Der Stack
+
+Die Skriptsprache arbeitet mit einem Stapelspeicher, dem Stack. Stell dir einen Stapel Teller vor. Man legt einen neuen Teller immer oben drauf und nimmt auch immer den obersten zuerst wieder weg.
+
+Das Skript läuft von links nach rechts. Daten kommen oben auf den Stack. Befehle nehmen Elemente herunter, rechnen damit und legen das Ergebnis oben ab.
+
+## Opcodes
+
+Ein Opcode ist ein Befehl, der durch eine feste Zahl dargestellt wird. So steht `0xac` für den Befehl `OP_CHECKSIG`. Für die beiden Skripte in diesem Kapitel reichen fünf Opcodes:
+
+| Opcode | Hex | Was er tut |
+| --- | --- | --- |
+| `OP_PUSHBYTES_X` | `0x01` bis `0x4b` | Legt die folgenden X Bytes auf den Stack, etwa eine Signatur. |
+| `OP_DUP` | `0x76` | Verdoppelt das oberste Element des Stacks. |
+| `OP_HASH160` | `0xa9` | Nimmt das oberste Element, berechnet dessen HASH160 und legt das Ergebnis oben ab. |
+| `OP_EQUALVERIFY` | `0x88` | Vergleicht die beiden obersten Elemente und entfernt sie. Sind sie verschieden, bricht das Skript ab. |
+| `OP_CHECKSIG` | `0xac` | Prüft die Signatur mit dem öffentlichen Schlüssel. Gültig: legt 1 ab. Ungültig: legt 0 ab. |
+
+{/* ERGÄNZT: Hex-Bereich 0x01 bis 0x4b für OP_PUSHBYTES_X und das Entfernen der beiden Elemente bei OP_EQUALVERIFY stehen nicht ausdrücklich in der Arbeit (Quelle: Bitcoin-Wiki „Script“). */}
+
+`OP_CHECKSIG` führt die Prüfung aus Kapitel 3 aus. Unterschrieben wird der Hashwert der Transaktionsdaten ohne die Signaturen. Deshalb kann niemand die Transaktion unterwegs ändern, ohne die Signatur ungültig zu machen.
+
+## Wann ist ein Skript erfolgreich?
+
+Ein Skript ist erfolgreich, wenn am Ende genau ein Element auf dem Stack liegt und dieses nicht null ist, meist eine 1. Es scheitert in diesen Fällen:
+
+- Der Stack ist am Ende leer.
+- Das letzte Element ist null.
+- Es liegt mehr als ein Element auf dem Stack.
+- Das Skript bricht vor dem letzten Befehl ab.
+
+## P2PK: der einfachste Fall
+
+Das Skript P2PK (Pay to Public Key) wurde in der Anfangszeit von Bitcoin genutzt. Im ScriptPubKey stehen der öffentliche Schlüssel und `OP_CHECKSIG`, im ScriptSig nur die Signatur. `OP_CHECKSIG` prüft beide und hinterlässt eine 1.
+
+Der Nachteil: Der ganze öffentliche Schlüssel steht im Output. Unkomprimiert braucht er 65 Bytes. Außerdem schützt nichts mehr, falls ECDSA eines Tages gebrochen wird.
+
+## P2PKH Schritt für Schritt
+
+P2PKH (Pay to Public Key Hash) löst diese Probleme. Im ScriptPubKey steht nur der HASH160 des öffentlichen Schlüssels. Das ist ein Commitment aus Kapitel 1. Wird ECDSA gebrochen, schützt die Hashfunktion zusätzlich.
+
+Das ScriptSig enthält die Signatur (Sig) und den öffentlichen Schlüssel (PubKey). Der ScriptPubKey lautet:
+
+`OP_DUP OP_HASH160 PKH OP_EQUALVERIFY OP_CHECKSIG`
+
+PKH ist der gespeicherte Schlüssel-Hash. Das oberste Stack-Element steht rechts.
+
+| Schritt | Stack danach | Was passiert |
+| --- | --- | --- |
+| 1 | (leer) | ScriptSig und ScriptPubKey werden zu einem Skript verbunden. |
+| 2 | Sig, PubKey | Die Daten aus dem ScriptSig kommen auf den Stack. |
+| 3 | Sig, PubKey, PubKey | `OP_DUP` verdoppelt den Schlüssel: eine Kopie für das Commitment, eine für die Signatur. |
+| 4 | Sig, PubKey, HASH160(PubKey) | `OP_HASH160` berechnet den Hash des Schlüssels. |
+| 5 | Sig, PubKey, HASH160(PubKey), PKH | Der gespeicherte Hash aus dem ScriptPubKey kommt auf den Stack. |
+| 6 | Sig, PubKey | `OP_EQUALVERIFY` vergleicht beide Hashes. Sie sind gleich, also geht es weiter. |
+| 7 | 1 | `OP_CHECKSIG` prüft die Signatur. Sie ist gültig, es bleibt eine 1. |
+
+Alle Befehle wurden ausgeführt und auf dem Stack liegt nur eine 1. Das Skript war erfolgreich.
+
+<Platzhalter name="SkriptDemo" hinweis="P2PKH-Skript Schritt für Schritt ausführen" />
+
+<div class="callout merke">
+
+**Merke:** Schritt 6 prüft, ob der Schlüssel zum Schloss passt. Schritt 7 prüft, ob der Absender den privaten Schlüssel dazu besitzt.
+
+</div>
+
+## Weitere Standard-Skripte
+
+Knoten leiten meist nur Transaktionen mit Standard-Skripten weiter. Zwei weitere sind wichtig:
+
+- **P2SH (Pay to Script Hash):** Im Output steht der Hash eines ganzen Skripts. So sind etwa Zahlungen möglich, die mehrere Personen freigeben müssen.
+- **P2WPKH (Pay to Witness Public Key Hash):** Funktioniert wie P2PKH. Die Signaturdaten stehen aber in einem eigenen Feld, das nicht in die TxID eingeht.
+
+Heute nutzen die meisten Transaktionen neuere Skripte, weil sie weniger Platz und Gebühren kosten.
+
+## Vom Skript zur Adresse
+
+Eine Bitcoin-Adresse ist eine benutzerfreundliche Schreibweise eines ScriptPubKey. Man teilt sie, damit andere einem Bitcoins senden können.
+
+<div class="callout achtung">
+
+**Häufiges Missverständnis:** Adressen stehen nicht in der Blockchain. Dort steht nur der ScriptPubKey. Die Adresse ist lediglich eine andere Schreibweise davon.
+
+</div>
+
+Für eine P2PKH-Adresse hängt man drei Teile aneinander. Vorne steht die Versionsnummer, bei P2PKH `0x00`. Dann folgt der HASH160 des öffentlichen Schlüssels. Am Ende steht eine Prüfsumme. Die Prüfsumme sind die ersten 4 Bytes von HASH256 über Version und Schlüssel-Hash. Das Ganze wird mit Base58 kodiert. Base58 ist eine Schreibweise mit 58 Zeichen, bei der leicht verwechselbare Zeichen wie `0` und `O` fehlen.
+
+{/* ERGÄNZT: Die Erklärung, welche Zeichen in Base58 fehlen, steht nicht in der Arbeit. Korrigiert: Die Arbeit schreibt HASH256(Version + Schlüssel); die Prüfsumme wird über Version + HASH160(Schlüssel) gebildet, am Beispiel nachgerechnet. */}
+
+$$
+\text{Adresse} = \text{Base58}\big(\text{Version} + \text{HASH160}(K_{pub}) + \text{Prüfsumme}\big)
+$$
+
+<figure>
+  <img src="/img/umwandlung_adresse.svg" alt="Umwandlung der Adresse 1Fk7aP6k1kYBhLz8jCGkk1SNhAeLrSoWL5 in Version, Schlüssel-Hash und Prüfsumme und weiter in das P2PKH-Skript" />
+  <figcaption>Aus der Adresse wird durch Dekodieren wieder der ScriptPubKey und umgekehrt.</figcaption>
+</figure>
+
+Ein Beispiel: Die Adresse `1Fk7aP6k1kYBhLz8jCGkk1SNhAeLrSoWL5` enthält die Version `00`, den Schlüssel-Hash `a1b922e5338aa5b78a093a907838c753d6094683` und die Prüfsumme `edfb4f06`. Als Skript in Hex lautet sie `76a914a1b922e5338aa5b78a093a907838c753d609468388ac`. Darin stecken die Opcodes `76`, `a9`, `14` (20 Bytes schieben), `88` und `ac`.
+
+## Zum Weiterlesen
+
+- [Script bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/script/) (englisch)
+- [P2PKH bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/script/p2pkh/) (englisch)
+- [Adressen bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/keys/address/) (englisch)
+- [Mastering Bitcoin, Kapitel „Authorization and Authentication“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch07_authorization-authentication.adoc) (englisch)

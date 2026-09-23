@@ -1,0 +1,106 @@
+---
+title: Transaktionen
+order: 4
+summary: Eine Bitcoin-Transaktion öffnet alte Schatzkisten mit Bitcoins und verschließt den Inhalt in neuen Kisten für die Empfänger.
+---
+
+import Platzhalter from '../../components/Platzhalter.astro';
+
+Bei Bitcoin gibt es keine Kontostände, die eine Bank verwaltet. Es gibt nur Transaktionen. Eine Transaktion (transaction) überträgt Bitcoins von einem Besitzer zum nächsten. Wie sie aufgebaut ist, zeigt dieses Kapitel.
+
+## Die Bestandteile
+
+Jede Transaktion braucht vier Dinge:
+
+- **Referenzierte Bitcoins:** Welche Bitcoins werden gesendet?
+- **Autorisierung:** Der Absender beweist mit seiner Signatur, dass er die Bitcoins ausgeben darf.
+- **Betrag:** Wie viele Bitcoins werden übertragen?
+- **Empfänger:** An wen gehen die Bitcoins, und wie kann er sie später wieder ausgeben?
+
+Eine Transaktion hat Eingänge (inputs) und Ausgänge (outputs). Jede Transaktion hat eine eigene Kennung, die TxID. Sie ist der HASH256-Wert der Transaktionsdaten, zum Beispiel `28a…cb2`.
+
+## Outputs: verschlossene Kisten
+
+Stell dir einen Output als Kiste vor, in der eine bestimmte Menge Bitcoins liegt. Das Feld `Value` gibt an, wie viele es sind. Das Feld `ScriptPubKey` ist das Schloss der Kiste. Es legt fest, wer die Kiste öffnen darf.
+
+Eine Transaktion kann mehrere Outputs haben. So kann man Bitcoins an mehrere Empfänger verteilen. Ein Output kann auch an einen selbst gehen. Das ist dann Rückgeld (change), falls man mehr Bitcoins hineingesteckt hat als nötig.
+
+Ein Output, der noch nicht ausgegeben wurde, heißt UTXO (unspent transaction output), also „nicht ausgegebener Transaktionsausgang“.
+
+## Inputs: die passenden Schlüssel
+
+Ein Input zeigt auf eine Kiste aus einer früheren Transaktion. Dafür enthält er zwei Angaben. Das Feld `Previous TxID` ist ein Hash-Zeiger auf die frühere Transaktion. Der `Index` sagt, welcher Output darin gemeint ist.
+
+Die Kiste ist aber verschlossen. Deshalb enthält der Input auch einen Schlüssel, das Feld `ScriptSig`. Es beweist, dass der Absender die Bitcoins besitzt. Meist steckt darin eine Signatur aus Kapitel 3.
+
+Man kann mehrere Inputs kombinieren, um einen größeren Betrag zu bezahlen.
+
+<Platzhalter name="TransaktionsDemo" hinweis="Inputs auswählen, Outputs verteilen und die Gebühr ablesen" />
+
+## Die UTXO-Menge
+
+Bitcoins dürfen nicht zweimal ausgegeben werden. Das Problem heißt doppelte Ausgabe (double spending). Man könnte bei jeder neuen Transaktion alle früheren durchsuchen, ob der Output schon verwendet wurde. Das wäre sehr aufwendig.
+
+Deshalb speichert jeder Teilnehmer die UTXO-Menge (UTXO set). Das ist die Liste aller Outputs, die noch nicht ausgegeben wurden. Nach jeder Transaktion wird sie aktualisiert. Sie umfasst alle Bitcoins, die gerade im Umlauf sind.
+
+<div class="callout merke">
+
+**Merke:** Bitcoins besitzen heißt, UTXOs öffnen zu können. Dein Kontostand ist die Summe aller UTXOs, für die du den passenden privaten Schlüssel hast.
+
+</div>
+
+## Gebühren
+
+In einer Transaktion darf nicht mehr ausgegeben werden, als hineingeht. Die Summe der Outputs darf also höchstens so groß sein wie die Summe der Inputs:
+
+$$
+\sum \text{Inputs} \geq \sum \text{Outputs}
+$$
+
+Ist die Summe der Inputs größer, bleibt ein Rest übrig. Dieser Rest ist die Transaktionsgebühr (fee). Sie geht an den Miner, der die Transaktion in einen Block schreibt (siehe Kapitel 6):
+
+$$
+\text{Gebühr} = \sum \text{Inputs} - \sum \text{Outputs}
+$$
+
+## Die Coinbase-Transaktion
+
+Woher kommen die ersten Bitcoins? Jeder Block beginnt mit einer besonderen Transaktion, der Coinbase-Transaktion. Sie hat keinen normalen Input. In ihr entstehen neue Bitcoins. Außerdem sammelt sie alle Gebühren des Blocks ein. Warum und an wen, erklärt Kapitel 6.
+
+{/* ERGÄNZT: Die Arbeit zeigt das Rückgeld nur am Beispiel; die allgemeine Aussage „Output wird immer ganz verbraucht“ steht so nicht ausdrücklich darin (vgl. Whitepaper Abschnitt 9). */}
+
+<div class="callout achtung">
+
+**Häufiges Missverständnis:** Ein Output wird nie zur Hälfte ausgegeben. Man verbraucht immer den ganzen Output und schickt sich den Rest als Rückgeld selbst zurück.
+
+</div>
+
+## Eine Beispielkette
+
+<figure>
+  <img src="/img/tx_overview.svg" alt="Transaktionsgraph über drei Blöcke mit Coinbase-Transaktionen, Beträgen, Schlössern und Schlüsseln der Personen A bis F" />
+  <figcaption>Transaktionen in drei aufeinanderfolgenden Blöcken. Ein Schloss mit Buchstabe gehört zum öffentlichen Schlüssel dieser Person, ein roter Schlüssel zum privaten.</figcaption>
+</figure>
+
+Die Abbildung zeigt Transaktionen in drei Blöcken. Links stehen die älteren, rechts die neueren. Jeder Pfeil ist ein Geldfluss von einem Output zu einem Input.
+
+**Block n:** Person A besitzt einen UTXO über 3,9 BTC. Sie will 1 BTC an B und 0,4 BTC an C senden. Ihre Transaktion hat deshalb drei Outputs: 1 BTC für B, 0,4 BTC für C und 2,5 BTC als Rückgeld an sich selbst. Die Rechnung geht genau auf:
+
+$$
+3{,}9 \geq 2{,}5 + 1 + 0{,}4 = 3{,}9
+$$
+
+Hier fällt keine Gebühr an. Der Output über 2,5 BTC wurde noch nicht ausgegeben, er ist ein UTXO. Die Coinbase dieses Blocks über 3,125 BTC konnte Person B öffnen.
+
+**Block n+1:** B gibt beide Beträge zusammen aus. Die Inputs ergeben $3{,}125 + 1 = 4{,}125$ BTC. Der Output an C beträgt 4,1 BTC. Die Differenz von 0,025 BTC ist die Gebühr. Die Coinbase dieses Blocks ist deshalb etwas höher als 3,125 BTC.
+
+**Block n+2:** C gibt 4,1 BTC und 0,4 BTC aus, zusammen 4,5 BTC. Davon gehen 3,75 BTC an F und 0,7 BTC als Rückgeld zurück an C. Für die Gebühr bleiben 0,05 BTC übrig.
+
+Alle Transaktionen zusammen bilden einen Graphen ohne Kreise. Bitcoins fließen nämlich immer nur von einer früheren zu einer späteren Transaktion.
+
+## Zum Weiterlesen
+
+- [Transaktionen bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/transaction/) (englisch)
+- [UTXO bei learnmeabitcoin.com](https://learnmeabitcoin.com/technical/transaction/utxo/) (englisch)
+- [Bitcoin-Whitepaper, Abschnitte 2 und 9](https://bitcoin.org/bitcoin.pdf) (englisch)
+- [Mastering Bitcoin, Kapitel „Transactions“](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch06_transactions.adoc) (englisch)
