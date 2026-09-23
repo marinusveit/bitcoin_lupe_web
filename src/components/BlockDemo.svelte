@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { headerHash, meetsTarget, merkleRoot, nBitsToTarget } from '../lib';
+  import { bytesToHex, headerHash, meetsTarget, merkleRoot, nBitsToTarget, serializeHeader } from '../lib';
 
   // Werte des Genesis-Blocks vom 3. Januar 2009.
   const GENESIS = {
@@ -18,6 +18,20 @@
   let nBitsText = $state(GENESIS.nBits);
   let nonce = $state(GENESIS.nonce);
 
+  /** Die sechs Felder in der Reihenfolge, in der Bitcoin sie in die 80 Header-Bytes schreibt. */
+  const FIELDS = [
+    { key: 'version', label: 'Version', size: 4 },
+    { key: 'prev', label: 'Vorheriger Block', size: 32 },
+    { key: 'root', label: 'Merkle-Wurzel', size: 32 },
+    { key: 'time', label: 'Zeitstempel', size: 4 },
+    { key: 'bits', label: 'nBits', size: 4 },
+    { key: 'nonce', label: 'Nonce', size: 4 },
+  ] as const;
+  interface Byte {
+    hex: string;
+    field: (typeof FIELDS)[number]['key'];
+  }
+
   const isHash = (s: string) => /^[0-9a-fA-F]{64}$/.test(s.trim());
   const isUint32 = (n: number) => Number.isInteger(n) && n >= 0 && n <= 0xffffffff;
 
@@ -31,7 +45,7 @@
     if (!isUint32(timestamp)) errors.push('Der Zeitstempel muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!isUint32(nonce)) errors.push('Die Nonce muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!/^[0-9a-fA-F]{1,8}$/.test(nBitsText.trim())) errors.push('nBits braucht 1 bis 8 Hex-Zeichen, z. B. 1d00ffff.');
-    const failed = (errors: string[]) => ({ errors, root: '', hash: '', targetHex: '', ok: false });
+    const failed = (errors: string[]) => ({ errors, root: '', hash: '', targetHex: '', ok: false, bytes: [] as Byte[] });
     if (errors.length) return failed(errors);
     const nBits = parseInt(nBitsText.trim(), 16);
     let target: bigint;
@@ -45,9 +59,18 @@
       return failed(['Diese nBits ergeben ein Target mit mehr als 256 Bit. So ein Target gibt es in Bitcoin nicht. Wähle einen kleineren Exponenten (das erste Byte).']);
     }
     const root = merkleRoot(txids.map((t) => t.trim()));
-    const hash = headerHash({ version, prevHash: prevHash.trim(), merkleRoot: root, timestamp, nBits, nonce });
+    const header = { version, prevHash: prevHash.trim(), merkleRoot: root, timestamp, nBits, nonce };
+    const hash = headerHash(header);
     const targetHex = target.toString(16).padStart(64, '0');
-    return { errors: [] as string[], root, hash, targetHex, ok: meetsTarget(hash, target) };
+    // Die 80 Bytes, die tatsächlich gehasht werden, mit Zuordnung zum Feld.
+    const hex = bytesToHex(serializeHeader(header));
+    const bytes: Byte[] = [];
+    let offset = 0;
+    for (const f of FIELDS) {
+      for (let i = 0; i < f.size; i++) bytes.push({ hex: hex.slice((offset + i) * 2, (offset + i) * 2 + 2), field: f.key });
+      offset += f.size;
+    }
+    return { errors: [] as string[], root, hash, targetHex, ok: meetsTarget(hash, target), bytes };
   });
 
   const zeros = (hex: string) => hex.match(/^0*/)![0].length;
@@ -76,10 +99,10 @@
 
 <div class="demo">
   <div class="header-fields">
-    <label class="f-version">Version
+    <label class="f-version fld version">Version
       <input type="number" bind:value={version} />
     </label>
-    <label class="f-wide">Hash des vorherigen Blocks
+    <label class="f-wide fld prev">Hash des vorherigen Blocks
       <input type="text" class="hash" bind:value={prevHash} spellcheck="false" />
     </label>
     <div class="f-wide txs">
@@ -96,18 +119,18 @@
         <button type="button" class="small-btn" onclick={addTx}>TxID hinzufügen</button>
       {/if}
     </div>
-    <div class="f-wide derived">
+    <div class="f-wide derived fld root">
       <span class="lbl">Merkle-Wurzel (aus den TxIDs berechnet)</span>
       <span class="hash">{computed.root || '–'}</span>
     </div>
-    <label>Zeitstempel
+    <label class="fld time">Zeitstempel
       <input type="number" bind:value={timestamp} />
       <span class="hint">Sekunden seit 1970, also {date}</span>
     </label>
-    <label>nBits (Schwierigkeit, Hex)
+    <label class="fld bits">nBits (Schwierigkeit, Hex)
       <input type="text" class="hash" bind:value={nBitsText} spellcheck="false" />
     </label>
-    <label>Nonce
+    <label class="fld nonce">Nonce
       <input type="number" bind:value={nonce} min="0" max="4294967295" />
     </label>
   </div>
@@ -122,9 +145,26 @@
       {#each computed.errors as e (e)}<li>{e}</li>{/each}
     </ul>
   {:else}
+    <figure class="strip">
+      <p class="strip-title">Das wird gehasht: die 80 Bytes des Headers</p>
+      <div class="bytes" aria-label="80 Header-Bytes in Hex, nach Feld gefärbt">
+        {#each computed.bytes as b, i (i)}<span class="byte {b.field}">{b.hex}</span>{/each}
+      </div>
+      <figcaption class="fields">
+        {#each FIELDS as f (f.key)}
+          <span class="fld-key"><i class="sw {f.key}"></i>{f.label} ({f.size} Byte)</span>
+        {/each}
+      </figcaption>
+      <p class="hint">
+        Zahlen stehen mit dem niedrigsten Byte zuerst (Little Endian), die beiden Hashes in umgekehrter
+        Byte-Reihenfolge. Deshalb sehen die Bytes anders aus als die Felder oben. Aus diesen 80 Bytes wird
+        HASH256 berechnet, also zweimal SHA-256. Das Ergebnis ist die Block-ID:
+      </p>
+      <div class="arrow" aria-hidden="true">HASH256 ↓</div>
+    </figure>
     <div class="compare" class:ok={computed.ok} class:bad={!computed.ok}>
       <div class="row">
-        <span class="lbl">Header-Hash</span>
+        <span class="lbl">Header-Hash (Block-ID)</span>
         <span class="hash big"><span class="z">{computed.hash.slice(0, zeros(computed.hash))}</span>{computed.hash.slice(zeros(computed.hash))}</span>
       </div>
       <div class="row">
@@ -149,6 +189,23 @@
   .header-fields label, .txs, .derived { display: grid; gap: 0.25rem; align-content: start; min-width: 0; }
   .f-wide { grid-column: 1 / -1; }
   .f-version input { max-width: 8rem; }
+  /* Feldfarben: Eingabefeld und Byte-Streifen tragen dieselbe Farbe. */
+  .fld { border-left: 3px solid var(--fc, var(--border)); padding-left: 0.5rem; }
+  .version, .sw.version, .byte.version { --fc: color-mix(in srgb, var(--fg-muted) 70%, var(--bg-elevated)); }
+  .prev, .sw.prev, .byte.prev { --fc: color-mix(in srgb, var(--info) 60%, var(--bg-elevated)); }
+  .root, .sw.root, .byte.root { --fc: color-mix(in srgb, var(--ok) 60%, var(--bg-elevated)); }
+  .time, .sw.time, .byte.time { --fc: color-mix(in srgb, var(--warn) 70%, var(--bg-elevated)); }
+  .bits, .sw.bits, .byte.bits { --fc: color-mix(in srgb, var(--danger) 55%, var(--bg-elevated)); }
+  .nonce, .sw.nonce, .byte.nonce { --fc: var(--accent); }
+  .strip { margin: 0; display: grid; gap: 0.5rem; }
+  .strip-title { margin: 0; font-weight: 600; }
+  .bytes { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.7rem, 1fr)); gap: 2px; font-family: var(--font-mono); font-size: 0.78rem; }
+  .byte { text-align: center; padding: 0.15rem 0; border-radius: 2px; background: color-mix(in srgb, var(--fc) 45%, var(--bg-elevated)); border-bottom: 3px solid var(--fc); color: var(--fg); }
+  .fields { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; font-size: 0.85rem; color: var(--fg-muted); }
+  .fld-key { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .sw { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: var(--radius-sm); background: var(--fc); }
+  .strip .hint { margin: 0; }
+  .arrow { font-family: var(--font-mono); font-weight: 700; color: var(--fg-muted); padding-left: 0.2rem; }
   input { width: 100%; }
   input.hash { font-size: 0.85rem; }
   .lbl { font-size: 0.92rem; color: var(--fg-muted); }
