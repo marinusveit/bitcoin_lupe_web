@@ -39,3 +39,8 @@ docs/SIMULATOR.md            Spezifikation des Netzwerk-Simulators
 ```
 
 Regeln für die Mitarbeit stehen in `AGENTS.md`.
+
+## Lizenz
+
+Der Quellcode steht unter der MIT-Lizenz (`LICENSE`). Die Lehrtexte und Grafiken stehen unter
+CC BY-SA 4.0 (`LICENSE-CONTENT.md`).
