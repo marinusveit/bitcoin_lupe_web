@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { fly } from 'svelte/transition';
+  import { flip } from 'svelte/animate';
   import {
     execute,
     hash160Hex,
@@ -34,6 +36,10 @@
     [hash160Hex(hexToBytes(malloryPub)), 'HASH160 (fremd)'],
     [MSG, 'Nachrichten-Hash'],
   ]);
+
+  /** Bewegung nur, wenn das System sie nicht abgeschaltet hat. */
+  const motion = typeof matchMedia === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DUR = motion ? 260 : 0;
 
   let mode: Mode = $state('p2pkh');
   let tamper = $state(false);
@@ -161,9 +167,15 @@
     <div class="stack-col">
       <h4>Stapel</h4>
       <div class="stack">
-        {#each [...stack].reverse() as item, i (i + ':' + item)}
+        {#each stack as item, j (j + ':' + item)}
           {@const d = display(item)}
-          <div class="slot" class:top={i === 0}>
+          <div
+            class="slot"
+            class:top={j === stack.length - 1}
+            in:fly={{ y: -28, duration: DUR }}
+            out:fly={{ y: -28, duration: DUR }}
+            animate:flip={{ duration: DUR }}
+          >
             <span class="hash">{d.text}</span>
             {#if d.label}<span class="muted small">{d.label}</span>{/if}
           </div>
@@ -207,7 +219,13 @@
   .chip.scriptSig { border-bottom-color: var(--info); }
   .chip.scriptPubKey { border-bottom-color: var(--accent); }
   .chip.done { opacity: 0.5; }
+  .chip { position: relative; }
   .chip.current { outline: 2px solid var(--fg); outline-offset: 1px; }
+  .chip.current::before {
+    content: "▼"; position: absolute; top: -1.15rem; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-sans); font-size: 0.7rem; color: var(--fg);
+  }
+  .tokens { padding-top: 1.4rem; row-gap: 1.1rem; }
   .chip.failed { outline-color: var(--danger); }
   .divider { width: 1px; align-self: stretch; background: var(--border); margin: 0 0.3rem; }
   .legend { margin: -0.4rem 0 0; color: var(--fg-muted); display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; align-items: center; }
@@ -218,7 +236,8 @@
   .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .machine { display: grid; grid-template-columns: minmax(12rem, 18rem) 1fr; gap: 1.5rem; }
   h4 { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--fg-muted); }
-  .stack { display: flex; flex-direction: column; gap: 0.35rem; min-height: 8rem; justify-content: flex-end; padding: 0.5rem; border: 2px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); }
+  /* Unten das älteste, oben das zuletzt abgelegte Element: Reihenfolge per column-reverse. */
+  .stack { display: flex; flex-direction: column-reverse; gap: 0.35rem; min-height: 8rem; justify-content: flex-start; padding: 0.5rem; border: 2px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
   .slot { display: grid; padding: 0.4rem 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); }
   .slot.top { border-color: var(--accent); background: var(--accent-soft); }
   .empty { text-align: center; padding: 0.5rem; }
