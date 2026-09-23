@@ -14,11 +14,13 @@ export interface MiningWorkerResponse {
   /** Treffer bzw. zuletzt probierter Hash (Anzeige-Hex). */
   hash: string;
   nonce: number;
+  /** Bisherige Verteilung der Hashes nach führenden Null-Hexzeichen (nur beim Header-Mining). */
+  zeroHist?: number[];
 }
 
 /** Endergebnis eines Mining-Laufs. */
 export type MiningOutcome =
-  | { status: 'found' | 'exhausted'; iterations: number; hash: string; nonce: number }
+  | { status: 'found' | 'exhausted'; iterations: number; hash: string; nonce: number; zeroHist?: number[] }
   | { status: 'cancelled' };
 
 /** Weitere Optionen für `startMining`. */
@@ -79,7 +81,7 @@ function runWorker(request: MiningWorkerRequest, onProgress: (progress: MiningWo
     const msg = event.data;
     onProgress(msg);
     if (msg.type !== 'progress') {
-      settle({ status: msg.type, iterations: msg.iterations, hash: msg.hash, nonce: msg.nonce });
+      settle({ status: msg.type, iterations: msg.iterations, hash: msg.hash, nonce: msg.nonce, zeroHist: msg.zeroHist });
     }
   };
   worker.postMessage(request);
