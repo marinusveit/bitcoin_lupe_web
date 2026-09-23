@@ -16,6 +16,13 @@
 
   const ROWS = [0, 1, 2, 3, 4, 5, 6, 7];
 
+  /** Bitunterschiede der bisherigen Zufallsänderungen, für den Mittelwert. */
+  let history: number[] = $state([]);
+  const mean = $derived(history.length ? history.reduce((a, b) => a + b, 0) / history.length : null);
+  const meanText = $derived(mean === null ? '' : mean.toLocaleString('de-DE', { maximumFractionDigits: 1 }));
+  const lowest = $derived(history.length ? Math.min(...history) : null);
+  const highest = $derived(history.length ? Math.max(...history) : null);
+
   function changeOneChar() {
     const chars = Array.from(right);
     if (chars.length === 0) {
@@ -29,11 +36,14 @@
     }
     chars[pos] = replacement;
     right = chars.join('');
+    const count = Array.from(toBitString(sha256Hex(left)), (b, i) => b !== bitsRight[i]).filter(Boolean).length;
+    history = [...history, count];
   }
 
   function reset() {
     left = START_LEFT;
     right = START_RIGHT;
+    history = [];
   }
 </script>
 
@@ -65,6 +75,9 @@
 
   <p class="summary" aria-live="polite">
     <strong>{diffCount} von 256 Bits</strong> unterschiedlich ({percent} %)
+    {#if mean !== null}
+      <span class="stat">Nach {history.length} {history.length === 1 ? 'Änderung' : 'Änderungen'}: im Mittel {meanText} Bits, kleinster Wert {lowest}, größter Wert {highest}</span>
+    {/if}
   </p>
   <p class="hint">
     Farbig markiert sind die Bits, die sich unterscheiden. Schon ein einziges geändertes Zeichen kippt
@@ -96,6 +109,7 @@
   .bit-row span.diff { background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; }
   .summary { margin: 0; font-size: 1.1rem; }
   .summary strong { color: var(--accent-strong); }
+  .stat { display: block; font-size: 0.9rem; color: var(--fg-muted); margin-top: 0.2rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 </style>
