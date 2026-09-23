@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import HashHero from '../components/HashHero.svelte';
+import Bausteine from '../components/Bausteine.astro';
 import { getCollection } from 'astro:content';
 const kapitel = (await getCollection('kapitel', (k) => !k.data.draft)).sort((a, b) => a.data.order - b.data.order);
 const erstes = kapitel[0];
@@ -32,6 +33,12 @@ const erstes = kapitel[0];
     </p>
   </section>
 
+  <section class="bausteine-abschnitt" aria-labelledby="bausteine-titel-h2">
+    <h2 id="bausteine-titel-h2">So greifen die Bausteine ineinander</h2>
+    <p class="einleitung">Kein Kapitel steht allein. Die Pfeile zeigen, welcher Baustein auf welchem aufbaut.</p>
+    <Bausteine />
+  </section>
+
   <section class="prose" aria-labelledby="weg-titel">
     <h2 id="weg-titel">Der Weg durch die Seite</h2>
     <ol class="weg">
@@ -52,6 +59,7 @@ const erstes = kapitel[0];
 <style>
   .hero { max-width: 46rem; padding: 1rem 0 1.5rem; }
   .lead { font-size: 1.15rem; color: var(--fg-muted); margin-bottom: 1.6rem; }
+  .einleitung { max-width: var(--measure); }
   .weg { list-style: none; counter-reset: weg; padding: 0; margin: 0 0 2rem; }
   .weg li {
     counter-increment: weg;

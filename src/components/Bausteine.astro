@@ -1,0 +1,150 @@
+---
+// Übersichtsgrafik: wie die acht Kapitel aufeinander aufbauen.
+// Oben der Hash-Strang (1, 2, 6), unten der Schlüssel-Strang (3, 4, 5), rechts Netzwerk und Angriff.
+type Strand = 'hash' | 'key' | 'net';
+interface Node { nr: number; id: string; short: string; long: string; x: number; y: number; strand: Strand }
+
+const W = 160;
+const H = 60;
+const TOP = 100;
+const BOTTOM = 330;
+const col = [20, 310, 600, 890];
+
+const nodes: Node[] = [
+  { nr: 1, id: '01-hashfunktionen', short: 'Hash', long: 'Hashfunktionen', x: col[0], y: TOP, strand: 'hash' },
+  { nr: 2, id: '02-merkle-baum', short: 'Merkle-Baum', long: 'Merkle-Baum', x: col[1], y: TOP, strand: 'hash' },
+  { nr: 3, id: '03-schluessel-und-signaturen', short: 'Schlüssel', long: 'Schlüssel und Signaturen', x: col[0], y: BOTTOM, strand: 'key' },
+  { nr: 4, id: '04-transaktionen', short: 'Transaktionen', long: 'Transaktionen', x: col[1], y: BOTTOM, strand: 'key' },
+  { nr: 5, id: '05-skripte', short: 'Skripte', long: 'Skripte', x: col[2], y: BOTTOM, strand: 'key' },
+  { nr: 6, id: '06-blockchain', short: 'Blockchain', long: 'Blockchain', x: col[2], y: TOP, strand: 'hash' },
+  { nr: 7, id: '07-netzwerk', short: 'Netzwerk', long: 'Netzwerk', x: col[3], y: TOP, strand: 'net' },
+  { nr: 8, id: '08-angriff', short: 'Angriff', long: 'Angriff', x: col[3], y: BOTTOM, strand: 'net' },
+];
+
+const midY = (y: number) => y + H / 2;
+const right = (x: number) => x + W;
+const cx = (x: number) => x + W / 2;
+const gap = 6; // Abstand der Pfeilspitze zum Kasten
+
+interface Edge { d: string; label: string[]; lx: number; ly: number; anchor: 'start' | 'middle' }
+
+// Waagerechte Pfeile: Beschriftung in zwei Zeilen über der Linie.
+const horizontal = (fromX: number, toX: number, y: number, label: string[]): Edge => ({
+  d: `M${right(fromX) + gap},${midY(y)} H${toX - gap}`,
+  label,
+  lx: (right(fromX) + toX) / 2,
+  ly: midY(y) - 26,
+  anchor: 'middle',
+});
+// Senkrechte Pfeile: Beschriftung rechts neben der Linie.
+const vertical = (x: number, fromY: number, toY: number, label: string[]): Edge => ({
+  d: `M${cx(x)},${fromY} V${toY}`,
+  label,
+  lx: cx(x) + 12,
+  ly: (fromY + toY) / 2 - 8,
+  anchor: 'start',
+});
+
+const edges: Edge[] = [
+  horizontal(col[0], col[1], TOP, ['fasst viele', 'Hashes zusammen']),
+  horizontal(col[1], col[2], TOP, ['Merkle-Wurzel', 'im Header']),
+  horizontal(col[2], col[3], TOP, ['Knoten tauschen', 'Blöcke aus']),
+  horizontal(col[0], col[1], BOTTOM, ['Signatur', 'beweist Besitz']),
+  horizontal(col[1], col[2], BOTTOM, ['Bedingung', 'fürs Ausgeben']),
+  vertical(col[1], BOTTOM - gap, TOP + H + gap, ['Transaktionen', 'sind die Blätter']),
+  vertical(col[3], TOP + H + gap, BOTTOM - gap, ['Mehrheit der', 'Rechenleistung']),
+  // Bogen über dem Merkle-Baum: Hash direkt zur Blockchain.
+  {
+    d: `M${cx(col[0])},${TOP - gap} C${cx(col[0])},${TOP - 64} ${cx(col[2])},${TOP - 64} ${cx(col[2])},${TOP - gap}`,
+    label: ['Block-ID und Proof of Work'],
+    lx: cx(col[1]),
+    ly: 30,
+    anchor: 'middle',
+  },
+];
+---
+
+<figure class="bausteine">
+  <svg
+    viewBox="0 0 1100 410"
+    role="group"
+    aria-labelledby="bausteine-titel bausteine-desc"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title id="bausteine-titel">So greifen die Bausteine ineinander</title>
+    <desc id="bausteine-desc">
+      Hashfunktionen führen zum Merkle-Baum und zur Blockchain. Schlüssel führen zu Transaktionen, Transaktionen zu
+      Skripten und zum Merkle-Baum. Die Blockchain führt zum Netzwerk, das Netzwerk zum Angriff.
+    </desc>
+    <defs>
+      <marker id="bausteine-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" class="spitze" />
+      </marker>
+    </defs>
+
+    <g class="kanten" aria-hidden="true">
+      {edges.map((e) => (
+        <g>
+          <path d={e.d} class="linie" marker-end="url(#bausteine-pfeil)" />
+          <text x={e.lx} y={e.ly} text-anchor={e.anchor} class="beschriftung">
+            {e.label.map((zeile, i) => (
+              <tspan x={e.lx} dy={i === 0 ? 0 : 15}>{zeile}</tspan>
+            ))}
+          </text>
+        </g>
+      ))}
+    </g>
+
+    {nodes.map((n) => (
+      <a href={`/kapitel/${n.id}/`} class={`kasten ${n.strand}`} role="link" aria-label={`Kapitel ${n.nr}: ${n.long}`}>
+        <rect x={n.x} y={n.y} width={W} height={H} rx="6" />
+        <text x={cx(n.x)} y={midY(n.y) + 6} text-anchor="middle">
+          <tspan class="nr">{n.nr}</tspan>
+          <tspan class="titel" dx="6">{n.short}</tspan>
+        </text>
+      </a>
+    ))}
+  </svg>
+  <figcaption>
+    <span class="marke hash" aria-hidden="true"></span> Hash-Strang
+    <span class="marke key" aria-hidden="true"></span> Schlüssel-Strang
+    <span class="marke net" aria-hidden="true"></span> Netzwerk und Angriff.
+    Jeder Kasten führt zu seinem Kapitel.
+  </figcaption>
+</figure>
+<p class="schmal-hinweis">Auf schmalen Bildschirmen steht die Übersicht als Liste unten.</p>
+
+<style>
+  .bausteine { margin: 0 0 2rem; max-width: 66rem; }
+  svg { display: block; width: 100%; height: auto; font-family: var(--font-sans); }
+  .linie { fill: none; stroke: var(--fg-muted); stroke-width: 1.6; }
+  .spitze { fill: var(--fg-muted); }
+  .beschriftung { fill: var(--fg-muted); font-size: 14px; }
+
+  .kasten rect { fill: var(--bg-elevated); stroke: var(--border); stroke-width: 2; transition: fill 0.15s; }
+  .kasten.hash rect { stroke: var(--accent); }
+  .kasten.key rect { stroke: var(--info); }
+  .kasten.net rect { stroke: var(--fg-muted); }
+  .kasten { text-decoration: none; }
+  .kasten text { fill: var(--fg); font-size: 17px; font-family: var(--font-sans); text-decoration: none; }
+  .kasten .nr { font-family: var(--font-mono); font-weight: 700; fill: var(--accent-strong); }
+  .kasten.key .nr { fill: var(--info); }
+  .kasten.net .nr { fill: var(--fg-muted); }
+  .kasten .titel { font-family: var(--font-sans); font-weight: 600; }
+  .kasten:hover rect { fill: var(--accent-soft); }
+  .kasten:focus { outline: none; }
+  .kasten:focus-visible rect { fill: var(--accent-soft); stroke: var(--fg); stroke-width: 3; stroke-dasharray: 5 3; }
+
+  figcaption { margin-top: 0.6rem; color: var(--fg-muted); font-size: 0.9rem; }
+  .marke { display: inline-block; width: 0.9rem; height: 0.9rem; margin-left: 0.4rem; vertical-align: -0.1rem; border: 2px solid; border-radius: var(--radius-sm); background: var(--bg-elevated); }
+  .marke:first-child { margin-left: 0; }
+  .marke.hash { border-color: var(--accent); }
+  .marke.key { border-color: var(--info); }
+  .marke.net { border-color: var(--fg-muted); }
+
+  .schmal-hinweis { display: none; color: var(--fg-muted); }
+  @media (max-width: 559.98px) {
+    .bausteine { display: none; }
+    .schmal-hinweis { display: block; }
+  }
+</style>
