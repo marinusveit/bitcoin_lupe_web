@@ -91,6 +91,15 @@
     return () => clearInterval(id);
   });
 
+  // Szenario aus der Adresse vorwählen, z. B. /simulator/?szenario=fork (Links aus den Kapiteln).
+  const SZENARIEN: readonly PresetName[] = ['normal', 'fork', 'attack'];
+  onMount(() => {
+    if (compact) return;
+    const wanted = new URLSearchParams(window.location.search).get('szenario');
+    const match = SZENARIEN.find((name) => name === wanted);
+    if (match && match !== preset) loadPreset(match);
+  });
+
   onMount(() => {
     let raf = 0;
     const frame = (now: number) => {

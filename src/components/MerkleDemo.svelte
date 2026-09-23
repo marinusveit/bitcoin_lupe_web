@@ -10,6 +10,7 @@
     'Heidi → Alice 1,5 BTC',
   ];
   const MAX_TX = 8;
+  const START_ROOT = buildMerkleTree(START_TXS.map((t) => sha256dHex(t))).root;
 
   // SVG-Maße in viewBox-Einheiten
   const SLOT = 100;
@@ -43,6 +44,8 @@
   let txs = $state<string[]>([...START_TXS]);
   let selected = $state<number | null>(null);
   let flashLeaf = $state<number | null>(null);
+  /** Im Block-Header eingefrorene Wurzel; `null`, solange nichts eingetragen ist. */
+  let headerRoot = $state<string | null>(START_ROOT);
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
   const txids = $derived(txs.map((t) => sha256dHex(t)));
@@ -133,11 +136,13 @@
       return row;
     });
   });
+  // Mit Header-Eintrag prüft der Beweis gegen die eingefrorene Wurzel, sonst gegen die aktuelle.
   const proofOk = $derived(
     selected !== null && selected < txids.length
-      ? verifyMerkleProof(txids[selected]!, merkleProof(txids, selected), tree.root)
+      ? verifyMerkleProof(txids[selected]!, merkleProof(txids, selected), headerRoot ?? tree.root)
       : false,
   );
+  const headerMatches = $derived(headerRoot === tree.root);
 
   const short = (h: string) => h.slice(0, 8);
 
@@ -163,10 +168,15 @@
     if (selected !== null && selected >= txs.length) selected = null;
   }
 
+  function freezeRoot() {
+    headerRoot = tree.root;
+  }
+
   function reset() {
     txs = [...START_TXS];
     selected = null;
     flashLeaf = null;
+    headerRoot = START_ROOT;
   }
 </script>
 
@@ -191,6 +201,21 @@
   <div class="actions left">
     <button type="button" onclick={addTx} disabled={txs.length >= MAX_TX}>Transaktion hinzufügen</button>
     <button type="button" onclick={removeTx} disabled={txs.length <= 1}>Transaktion entfernen</button>
+  </div>
+
+  <div class="header-box" class:mismatch={headerRoot !== null && !headerMatches}>
+    <p class="header-title">Block-Header</p>
+    {#if headerRoot === null}
+      <p class="header-line">Im Header steht noch keine Merkle-Wurzel.</p>
+    {:else}
+      <p class="header-line">
+        Im Header steht: <span class="hash" title={headerRoot}>{headerRoot.slice(0, 16)}…</span>
+        <span class="header-state">
+          {headerMatches ? '(passt zur aktuellen Wurzel)' : '(passt nicht mehr zur aktuellen Wurzel)'}
+        </span>
+      </p>
+    {/if}
+    <button type="button" onclick={freezeRoot} disabled={headerMatches}>Wurzel in den Block-Header schreiben</button>
   </div>
 
   <figure class="tree">
@@ -263,8 +288,8 @@
     {#if selected === null}
       <p class="hint">
         Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu
-        beweisen, dass diese Transaktion im Block steckt. Ändere einen Text, und alle Knoten bis zur Wurzel
-        ändern sich mit.
+        beweisen, dass diese Transaktion im Block steckt. Ändere danach einen Text: Alle Knoten bis zur
+        Wurzel ändern sich mit{headerRoot === null ? '.' : ', und der Beweis passt nicht mehr zur Wurzel im Header.'}
       </p>
     {:else if proofSteps.length === 0}
       <p class="hint">Bei nur einer Transaktion ist ihre TxID selbst schon die Merkle-Wurzel.</p>
@@ -288,9 +313,28 @@
           </li>
         {/each}
       </ol>
-      <p class="verdict" class:ok={proofOk}>
-        {proofOk ? 'Ergebnis stimmt mit der Merkle-Wurzel überein: Beweis gültig.' : 'Ergebnis weicht von der Wurzel ab.'}
-      </p>
+    {/if}
+    {#if selected !== null}
+      {#if headerRoot === null}
+        <p class="verdict" class:ok={proofOk}>
+          {proofOk ? 'Ergebnis stimmt mit der aktuellen Merkle-Wurzel überein.' : 'Ergebnis weicht von der Wurzel ab.'}
+        </p>
+        <p class="hint">
+          Das beweist noch nichts, denn die Wurzel wurde gerade aus denselben Daten berechnet. Schreibe zuerst
+          die Wurzel in den Block-Header, dann gibt es einen festen Wert, gegen den der Beweis prüft.
+        </p>
+      {:else if proofOk}
+        <p class="verdict ok">Ergebnis stimmt mit der Wurzel im Header überein: Beweis gültig.</p>
+      {:else}
+        <p class="verdict">
+          Beweis scheitert: berechnete Wurzel <span class="hash">{short(tree.root)}</span> ≠ Wurzel im Header
+          <span class="hash">{short(headerRoot)}</span>
+        </p>
+        <p class="hint">
+          Seit dem Eintrag in den Header hat sich eine Transaktion geändert, dadurch ändern sich alle Hashes bis
+          zur Wurzel, während die Wurzel im Header fest bleibt.
+        </p>
+      {/if}
     {/if}
   </div>
 
@@ -361,6 +405,23 @@
   .sw.sibling { background: var(--bg-muted); border-color: var(--info); }
   .sw.ghost { background: var(--bg-muted); border: 1.5px dashed var(--fg-muted); }
 
+  .header-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--ok);
+    border-radius: 8px;
+    background: var(--bg-muted);
+  }
+  .header-box.mismatch { border-left-color: var(--danger); }
+  .header-title { margin: 0; font-weight: 600; }
+  .header-line { margin: 0; flex: 1 1 16rem; min-width: 0; overflow-wrap: anywhere; }
+  .header-state { color: var(--fg-muted); font-size: 0.85rem; }
+  .header-box.mismatch .header-state { color: var(--danger); }
+
   .proof { border-top: 1px solid var(--border); padding-top: 0.9rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
   .proof-title { margin: 0 0 0.5rem; font-weight: 600; }
@@ -369,7 +430,7 @@
   .own { color: var(--accent-strong); font-weight: 600; }
   .sib { color: var(--info); font-weight: 600; }
   .side { color: var(--fg-muted); font-size: 0.85rem; }
-  .verdict { margin: 0; color: var(--danger); font-weight: 600; }
+  .verdict { margin: 0 0 0.3rem; color: var(--danger); font-weight: 600; }
   .verdict.ok { color: var(--ok); }
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
   .actions.left { justify-content: flex-start; }

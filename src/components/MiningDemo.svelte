@@ -32,6 +32,9 @@
   const target = $derived(2n ** BigInt(256 - 4 * zeros) - 1n);
   const expected = $derived(16 ** zeros);
 
+  /** Target als 64 Hex-Zeichen: n Nullen, danach lauter f. */
+  const targetHex = (n: number) => '0'.repeat(n) + 'f'.repeat(64 - n);
+
   const fmt = (n: number, digits = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: digits });
 
   function start() {
@@ -74,6 +77,12 @@
           const seconds = (performance.now() - startedAt) / 1000;
           const find = { zeros: n, iterations: outcome.iterations, seconds, nonce: outcome.nonce, hash: outcome.hash };
           lastFind = find;
+          // Anzeige auf den Endstand setzen; der letzte Fortschrittsbericht liegt vor dem Treffer.
+          iterations = outcome.iterations;
+          elapsed = seconds;
+          rate = seconds > 0 ? outcome.iterations / seconds : 0;
+          currentNonce = outcome.nonce;
+          currentHash = outcome.hash;
           history = [find, ...history].slice(0, 10);
         } else if (outcome.status === 'exhausted') {
           error = 'Alle 4,3 Milliarden Nonces probiert, kein Treffer. Starte neu, dann gilt ein neuer Zeitstempel.';
@@ -127,8 +136,8 @@
   </div>
 
   <div class="target">
-    <span class="lbl">Ziel: Der Hash muss so beginnen</span>
-    <span class="hash"><span class="z">{'0'.repeat(zeros)}</span>{'f'.repeat(64 - zeros)}</span>
+    <span class="lbl">Target (Obergrenze): der Hash muss als Zahl kleiner oder gleich sein</span>
+    <span class="hash"><span class="z">{'0'.repeat(zeros)}</span>{targetHex(zeros).slice(zeros)}</span>
   </div>
 
   <dl class="stats" aria-live="polite">
@@ -138,6 +147,10 @@
     <div class="wide">
       <dt>{running ? 'Aktueller Hash' : lastFind ? 'Gefundener Hash' : 'Hash'}</dt>
       <dd class="hash">{#if lastFind && !running}<span class="z">{lastFind.hash.slice(0, lastFind.zeros)}</span>{lastFind.hash.slice(lastFind.zeros)}{:else}{currentHash || '–'}{/if}</dd>
+      {#if lastFind && !running}
+        <dt>Target zum Vergleich</dt>
+        <dd class="hash"><span class="z">{'0'.repeat(lastFind.zeros)}</span>{targetHex(lastFind.zeros).slice(lastFind.zeros)}</dd>
+      {/if}
     </div>
   </dl>
 
@@ -164,7 +177,7 @@
 
   <p class="note">
     Jede weitere Null macht die Suche im Mittel 16-mal aufwendiger. Ein echter Bitcoin-Block braucht 2026 etwa
-    19 führende Null-Hexzeichen, das ist rund 280 Billionen Mal so viel Arbeit wie Stufe 7 hier.
+    19 führende Null-Hexzeichen, das ist grob 280 Billionen Mal so viel Arbeit wie Stufe 7 hier (nur nach den führenden Nullen gezählt).
   </p>
 </div>
 

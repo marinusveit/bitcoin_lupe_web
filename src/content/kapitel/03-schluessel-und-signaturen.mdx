@@ -1,11 +1,13 @@
 ---
 title: Schlüssel und Signaturen
+navTitle: Schlüssel
 order: 3
 summary: Mit einem geheimen Schlüssel und einer elliptischen Kurve beweist man in Bitcoin, dass einem die Coins gehören, ohne das Geheimnis zu verraten.
 ---
 
 import KurvenDemo from '../../components/KurvenDemo.svelte';
 import SignaturDemo from '../../components/SignaturDemo.svelte';
+import Werkbank from '../../components/Werkbank.astro';
 
 Wer darf Bitcoins ausgeben? Bei einer Bank prüft die Bank. Bei Bitcoin gibt es keine Bank. Stattdessen beweist man mit Mathematik, dass man einen geheimen Schlüssel besitzt. Grundlage dafür ist eine elliptische Kurve.
 
@@ -33,7 +35,10 @@ $$
 y^2 \equiv x^3 + 7 \mod p
 $$
 
-Dazu kommen drei weitere Werte:
+Dazu kommen drei feste Werte, die jeder kennt: die Primzahl $p$, ein Startpunkt $G$ auf der Kurve und die Zahl $n$. Alle drei sind ungefähr so groß wie $2^{256}$, also Zahlen mit 78 Stellen.
+
+<details class="vertiefung">
+<summary>Vertiefung: Die Zahlen von secp256k1</summary>
 
 | Parameter | Bedeutung | Wert (hex, gekürzt) |
 | --- | --- | --- |
@@ -41,7 +46,7 @@ Dazu kommen drei weitere Werte:
 | $G$ | Generatorpunkt, fester Startpunkt aller Rechnungen | x: `79BE…1798` |
 | $n$ | Anzahl der Punkte, die man von $G$ aus erreicht | `FFFF…4141` |
 
-Alle drei Zahlen sind ungefähr so groß wie $2^{256}$.
+</details>
 
 <figure>
   <img src="/img/secp256k1.svg" alt="Links eine Punktwolke der Kurve über einem kleinen endlichen Feld, rechts eine glatte Kurve im Reellen" />
@@ -56,7 +61,16 @@ Auf der Kurve kann man zwei Punkte addieren. Man legt eine Gerade durch $P$ und 
 
 Will man einen Punkt zu sich selbst addieren, nimmt man statt der Geraden die Tangente an diesen Punkt. Das nennt man Verdoppeln, denn das Ergebnis ist $2P$.
 
-Bei der skalaren Multiplikation (scalar multiplication) addiert man einen Punkt $k$-mal zu sich selbst. Das geht schnell durch geschicktes Verdoppeln und Addieren. Für $26P$ schreibt man 26 als Binärzahl $11010$. Die erste 1 ist der Start. Für jede 0 wird verdoppelt ($\cdot 2$), für jede 1 verdoppelt und dann $P$ addiert:
+Bei der skalaren Multiplikation (scalar multiplication) addiert man einen Punkt $k$-mal zu sich selbst. Das geht schnell durch geschicktes Verdoppeln und Addieren. Bei 256-Bit-Zahlen braucht man so höchstens 512 Schritte statt unvorstellbar vieler einzelner Additionen.
+
+<Werkbank aufgabe="Öffne den Reiter „Reelle Kurve“ und ziehe Q langsam auf P zu: Was wird aus der Geraden? Wechsle dann zurück zum ersten Reiter, schiebe k Schritt für Schritt nach oben und sag vorher, wo k·G als Nächstes landet." deutung="Auf der glatten Kurve sieht man die Regel mit Gerade und Spiegelung. Modulo p springt k·G scheinbar zufällig über die Punkte. Aus der Lage von k·G lässt sich k nicht ablesen.">
+  <KurvenDemo client:visible />
+</Werkbank>
+
+<details class="vertiefung">
+<summary>Vertiefung: Verdoppeln und Addieren am Beispiel 26P</summary>
+
+Für $26P$ schreibt man 26 als Binärzahl. Es gilt $26 = 16 + 8 + 2$, als Binärzahl also $11010$. Die erste 1 ist der Start. Für jede 0 wird verdoppelt ($\cdot 2$), für jede 1 verdoppelt und dann $P$ addiert:
 
 $$
 \begin{aligned}
@@ -67,7 +81,7 @@ $$
 
 Statt 25 Additionen braucht man nur sechs Schritte. Bei 256-Bit-Zahlen sind es höchstens 512 Schritte.
 
-<KurvenDemo client:visible />
+</details>
 
 ## Die Einwegfunktion
 
@@ -102,9 +116,24 @@ Eine digitale Signatur (digital signature) beweist, dass jemand den privaten Sch
   <figcaption>Links wird eine Signatur erstellt, rechts wird sie geprüft.</figcaption>
 </figure>
 
-Bitcoin nutzt dafür den ECDSA (Elliptic Curve Digital Signature Algorithm). Die Signatur besteht aus zwei Zahlen $r$ und $s$. So entsteht sie aus der Nachricht $M$:
+Bitcoin nutzt dafür den ECDSA (Elliptic Curve Digital Signature Algorithm). Die Signatur besteht aus zwei Zahlen $r$ und $s$. Signiert wird nicht die Nachricht selbst, sondern ihr Hashwert. In Bitcoin ist das der HASH256-Wert der Transaktion aus Kapitel 1. Die Demo unten vereinfacht und hasht die Nachricht nur einmal mit SHA-256.
 
-1. Man wählt eine neue Zufallszahl $k$ zwischen 1 und $n - 1$.
+Zum Signieren braucht man den privaten Schlüssel, den Hash der Nachricht und eine geheime Hilfszahl $k$. Zum Prüfen genügen die Nachricht, die Signatur und der öffentliche Schlüssel.
+
+Die Hilfszahl $k$ muss geheim bleiben und für jede Nachricht eine andere sein. Im ursprünglichen Verfahren wählt man $k$ zufällig. Moderne Wallets berechnen $k$ dagegen aus dem privaten Schlüssel und der Nachricht, nach einem Verfahren namens RFC 6979. Dann ergibt dieselbe Nachricht mit demselben Schlüssel immer dieselbe Signatur. Eine andere Nachricht ergibt eine ganz andere Signatur. Die Demo arbeitet genau so.
+
+{/* KORRIGIERT gegenüber der Arbeit: Dort steht, weil k zufällig gewählt werde, entstehe beim wiederholten Signieren derselben Nachricht jedes Mal eine andere Signatur (1_Kryptographie.tex). Das gilt nur für zufälliges k; Bitcoin Core und die Demo (src/lib/keys.ts) leiten k deterministisch nach RFC 6979 ab, dann ist die Signatur für gleiche Nachricht und gleichen Schlüssel immer gleich. ERGÄNZT: Hinweis, dass die Demo einfaches SHA-256 statt HASH256 signiert (SignaturDemo.svelte). */}
+
+<Werkbank aufgabe="Ändere die Nachricht um ein Zeichen und schätze vorher, ob sich die Signatur ändert. Stelle die Nachricht dann wieder her: Ist die alte Signatur zurück? Drücke zum Schluss „Nachricht manipulieren“ und „Fremden Schlüssel verwenden“ und lies jeweils das Prüfergebnis." deutung="Die Signatur hängt an genau dieser Nachricht und diesem Schlüssel. Deshalb kann in Bitcoin niemand eine signierte Transaktion unbemerkt ändern oder mit einem fremden Schlüssel ausgeben.">
+  <SignaturDemo client:visible />
+</Werkbank>
+
+<details class="vertiefung">
+<summary>Vertiefung: So rechnet ECDSA</summary>
+
+So entsteht die Signatur aus der Nachricht $M$:
+
+1. Man bestimmt eine geheime Zahl $k$ zwischen 1 und $n - 1$, zufällig oder nach RFC 6979 aus privatem Schlüssel und Nachricht.
 2. Man berechnet den Punkt $R = k \cdot G$. Die Zahl $r$ ist dessen x-Koordinate modulo $n$.
 3. Man verbindet $r$, den privaten Schlüssel und den Hash der Nachricht zur Zahl $s$:
 
@@ -112,9 +141,7 @@ $$
 s \equiv k^{-1} \cdot \big(r \cdot k_{pr} + \text{HASH256}(M)\big) \mod n
 $$
 
-Weil $k$ jedes Mal neu gewählt wird, ergibt dieselbe Nachricht jedes Mal eine andere Signatur.
-
-Zum Prüfen braucht man die Nachricht, die Signatur und den öffentlichen Schlüssel. Der Prüfer berechnet zwei Punkte und addiert sie:
+Zum Prüfen berechnet der Prüfer zwei Punkte und addiert sie:
 
 $$
 R' = \big(s^{-1} \cdot \text{HASH256}(M)\big) \cdot G + \big(s^{-1} \cdot r\big) \cdot K_{pub}
@@ -122,11 +149,21 @@ $$
 
 Stimmt die x-Koordinate von $R'$ modulo $n$ mit $r$ überein, ist die Signatur gültig. Sonst ist sie ungültig.
 
-<SignaturDemo client:visible />
+</details>
 
 ## Vom Schlüssel zur Adresse
 
 Einen öffentlichen Schlüssel gibt man meist nicht direkt weiter. Man kürzt ihn zuerst mit HASH160 auf 160 Bit. Daraus wird dann eine Adresse, eine gut lesbare Zeichenkette zum Empfangen von Bitcoins. Wie das genau funktioniert, zeigt Kapitel 5.
+
+<div class="mitnehmen">
+
+**Das nimmst du mit:**
+
+- Der öffentliche Schlüssel ist der Generatorpunkt mal dem privaten Schlüssel.
+- Vom privaten zum öffentlichen Schlüssel ist es leicht, zurück praktisch unmöglich.
+- Eine Signatur beweist den Besitz des privaten Schlüssels und gilt nur für genau eine Nachricht.
+
+</div>
 
 ## Zum Weiterlesen
 

@@ -1,10 +1,12 @@
 ---
 title: Skripte und Adressen
 order: 5
+navTitle: Skripte
 summary: Kleine Programme legen fest, wer einen Output öffnen darf, und eine Adresse ist nur eine lesbare Form eines solchen Programms.
 ---
 
 import SkriptDemo from '../../components/SkriptDemo.svelte';
+import Werkbank from '../../components/Werkbank.astro';
 
 Im letzten Kapitel war ein Output eine Kiste mit Schloss und der Input der passende Schlüssel. Technisch sind beide kleine Programme, sogenannte Skripte (scripts).
 
@@ -57,7 +59,22 @@ Das ScriptSig enthält die Signatur (Sig) und den öffentlichen Schlüssel (PubK
 
 `OP_DUP OP_HASH160 PKH OP_EQUALVERIFY OP_CHECKSIG`
 
-PKH ist der gespeicherte Schlüssel-Hash. Das oberste Stack-Element steht rechts.
+PKH ist der gespeicherte Schlüssel-Hash. Die Demo führt das Skript Befehl für Befehl aus und zeigt nach jedem Schritt den Stapel.
+
+<Werkbank aufgabe="Drücke siebenmal „Schritt“ und beobachte den Stapel. Setze dann den Haken „falschen Schlüssel verwenden“. Sag vorher: In welchem Schritt bricht das Skript ab?" deutung="Mit dem richtigen Schlüssel bleibt am Ende eine 1 oben liegen. Mit einem fremden Schlüssel passt sein Hash nicht zum gespeicherten Hash, und OP_EQUALVERIFY bricht ab, bevor die Signatur überhaupt geprüft wird.">
+  <SkriptDemo client:visible />
+</Werkbank>
+
+Kurz zusammengefasst passiert dreierlei:
+
+1. Signatur und öffentlicher Schlüssel aus dem ScriptSig kommen auf den Stack.
+2. `OP_DUP`, `OP_HASH160` und `OP_EQUALVERIFY` prüfen, ob der Hash des Schlüssels zum gespeicherten PKH passt.
+3. `OP_CHECKSIG` prüft die Signatur. Ist sie gültig, bleibt eine 1 liegen und das Skript war erfolgreich.
+
+<details class="vertiefung">
+<summary>Vertiefung: alle sieben Schritte als Tabelle</summary>
+
+In der Tabelle steht das oberste Stack-Element rechts, in der Demo oben.
 
 | Schritt | Stack danach | Was passiert |
 | --- | --- | --- |
@@ -71,7 +88,7 @@ PKH ist der gespeicherte Schlüssel-Hash. Das oberste Stack-Element steht rechts
 
 Alle Befehle wurden ausgeführt und auf dem Stack liegt nur eine 1. Das Skript war erfolgreich.
 
-<SkriptDemo client:visible />
+</details>
 
 <div class="callout merke">
 
@@ -98,6 +115,11 @@ Eine Bitcoin-Adresse ist eine benutzerfreundliche Schreibweise eines ScriptPubKe
 
 </div>
 
+Eine Adresse enthält den Schlüssel-Hash und eine Prüfsumme. Vertippst du dich beim Abschreiben, passt die Prüfsumme nicht mehr, und das Wallet lehnt die Adresse ab.
+
+<details class="vertiefung">
+<summary>Vertiefung: So entsteht eine P2PKH-Adresse</summary>
+
 Für eine P2PKH-Adresse hängt man drei Teile aneinander. Vorne steht die Versionsnummer, bei P2PKH `0x00`. Dann folgt der HASH160 des öffentlichen Schlüssels. Am Ende steht eine Prüfsumme. Die Prüfsumme sind die ersten 4 Bytes von HASH256 über Version und Schlüssel-Hash. Das Ganze wird mit Base58 kodiert. Base58 ist eine Schreibweise mit 58 Zeichen, bei der leicht verwechselbare Zeichen wie `0` und `O` fehlen.
 
 {/* ERGÄNZT: Die Erklärung, welche Zeichen in Base58 fehlen, steht nicht in der Arbeit. Korrigiert: Die Arbeit schreibt HASH256(Version + Schlüssel); die Prüfsumme wird über Version + HASH160(Schlüssel) gebildet, am Beispiel nachgerechnet. */}
@@ -112,6 +134,18 @@ $$
 </figure>
 
 Ein Beispiel: Die Adresse `1Fk7aP6k1kYBhLz8jCGkk1SNhAeLrSoWL5` enthält die Version `00`, den Schlüssel-Hash `a1b922e5338aa5b78a093a907838c753d6094683` und die Prüfsumme `edfb4f06`. Als Skript in Hex lautet sie `76a914a1b922e5338aa5b78a093a907838c753d609468388ac`. Darin stecken die Opcodes `76`, `a9`, `14` (20 Bytes schieben), `88` und `ac`.
+
+</details>
+
+<div class="mitnehmen">
+
+**Das nimmst du mit:**
+
+- Ein Output ist mit einem kleinen Skript verschlossen, das Input-Skript liefert den Schlüssel dazu.
+- Bei P2PKH prüft das Skript erst den Hash des öffentlichen Schlüssels und dann die Signatur.
+- Eine Adresse ist nur eine lesbare Schreibweise des Schlosses, mit Prüfsumme gegen Tippfehler.
+
+</div>
 
 ## Zum Weiterlesen
 

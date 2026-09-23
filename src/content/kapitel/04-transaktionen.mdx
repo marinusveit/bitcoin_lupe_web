@@ -1,10 +1,12 @@
 ---
 title: Transaktionen
+navTitle: Transaktionen
 order: 4
 summary: Eine Bitcoin-Transaktion öffnet alte Schatzkisten mit Bitcoins und verschließt den Inhalt in neuen Kisten für die Empfänger.
 ---
 
 import TransaktionsDemo from '../../components/TransaktionsDemo.svelte';
+import Werkbank from '../../components/Werkbank.astro';
 
 Bei Bitcoin gibt es keine Kontostände, die eine Bank verwaltet. Es gibt nur Transaktionen. Eine Transaktion (transaction) überträgt Bitcoins von einem Besitzer zum nächsten. Wie sie aufgebaut ist, zeigt dieses Kapitel.
 
@@ -23,7 +25,7 @@ Eine Transaktion hat Eingänge (inputs) und Ausgänge (outputs). Jede Transaktio
 
 Stell dir einen Output als Kiste vor, in der eine bestimmte Menge Bitcoins liegt. Das Feld `Value` gibt an, wie viele es sind. Das Feld `ScriptPubKey` ist das Schloss der Kiste. Es legt fest, wer die Kiste öffnen darf.
 
-Eine Transaktion kann mehrere Outputs haben. So kann man Bitcoins an mehrere Empfänger verteilen. Ein Output kann auch an einen selbst gehen. Das ist dann Rückgeld (change), falls man mehr Bitcoins hineingesteckt hat als nötig.
+Eine Transaktion kann mehrere Outputs haben. So kann man Bitcoins an mehrere Empfänger verteilen. Ein Output kann auch an einen selbst gehen. Das ist dann Rückgeld (Wechselgeld, change), falls man mehr Bitcoins hineingesteckt hat als nötig.
 
 Ein Output, der noch nicht ausgegeben wurde, heißt UTXO (unspent transaction output), also „nicht ausgegebener Transaktionsausgang“.
 
@@ -34,8 +36,6 @@ Ein Input zeigt auf eine Kiste aus einer früheren Transaktion. Dafür enthält 
 Die Kiste ist aber verschlossen. Deshalb enthält der Input auch einen Schlüssel, das Feld `ScriptSig`. Es beweist, dass der Absender die Bitcoins besitzt. Meist steckt darin eine Signatur aus Kapitel 3.
 
 Man kann mehrere Inputs kombinieren, um einen größeren Betrag zu bezahlen.
-
-<TransaktionsDemo client:visible />
 
 ## Die UTXO-Menge
 
@@ -75,6 +75,14 @@ Woher kommen die ersten Bitcoins? Jeder Block beginnt mit einer besonderen Trans
 
 </div>
 
+## Selbst ausprobieren
+
+In der Demo besitzt Alice am Anfang einen Output über 50 BTC aus einer Coinbase-Transaktion. Bei jedem Input steht „aus“ und dahinter TxID und Nummer, etwa `3f2a…:0`. Das sind genau die Felder `Previous TxID` und `Index` von oben: die frühere Transaktion und die Nummer des Outputs darin, gezählt ab 0. Das Rückgeld heißt in der Demo Wechselgeld.
+
+<Werkbank aufgabe="Schicke mit „Signieren und senden“ 10 BTC von Alice an Bob. Schätze vorher: Wie viele Outputs hat die Transaktion, und wie viele UTXOs besitzt Alice danach? Versuche dann, 45 BTC von Alice an Carol zu senden. Drücke zum Schluss „Denselben Output noch einmal ausgeben“: Was passiert?" deutung="Alices 50-BTC-Output wird ganz verbraucht. 10 BTC gehen an Bob, der Rest kommt als Rückgeld zu Alice zurück, und die kleine Differenz ist die Gebühr. Die 45 BTC scheitern, weil Alices UTXOs zusammen nicht mehr reichen. Die zweite Ausgabe desselben Outputs wird abgelehnt: Er steht nicht mehr in der UTXO-Menge. Genau so verhindert Bitcoin die doppelte Ausgabe.">
+  <TransaktionsDemo client:visible />
+</Werkbank>
+
 ## Eine Beispielkette
 
 <figure>
@@ -94,9 +102,30 @@ Hier fällt keine Gebühr an. Der Output über 2,5 BTC wurde noch nicht ausgegeb
 
 **Block n+1:** B gibt beide Beträge zusammen aus. Die Inputs ergeben $3{,}125 + 1 = 4{,}125$ BTC. Der Output an C beträgt 4,1 BTC. Die Differenz von 0,025 BTC ist die Gebühr. Die Coinbase dieses Blocks ist deshalb etwas höher als 3,125 BTC.
 
-**Block n+2:** C gibt 4,1 BTC und 0,4 BTC aus, zusammen 4,5 BTC. Davon gehen 3,75 BTC an F und 0,7 BTC als Rückgeld zurück an C. Für die Gebühr bleiben 0,05 BTC übrig.
+**Block n+2:** C gibt 4,1 BTC und 0,4 BTC aus, zusammen 4,5 BTC. Davon gehen 3,75 BTC an F und 0,7 BTC als Rückgeld zurück an C. Rechne selbst: Wie hoch ist die Gebühr?
+
+<details class="vertiefung">
+<summary>Lösung</summary>
+
+Die Gebühr ist die Summe der Inputs minus die Summe der Outputs:
+
+$$
+4{,}5 - (3{,}75 + 0{,}7) = 0{,}05 	ext{ BTC}
+$$
+
+</details>
 
 Alle Transaktionen zusammen bilden einen Graphen ohne Kreise. Bitcoins fließen nämlich immer nur von einer früheren zu einer späteren Transaktion.
+
+<div class="mitnehmen">
+
+**Das nimmst du mit:**
+
+- Eine Transaktion öffnet alte Outputs (Inputs) und verschließt die Bitcoins in neuen Outputs.
+- Ein Output wird immer ganz ausgegeben, der Rest kommt als Rückgeld zurück.
+- Was die Inputs mehr enthalten als die Outputs, bekommt der Miner als Gebühr.
+
+</div>
 
 ## Zum Weiterlesen
 

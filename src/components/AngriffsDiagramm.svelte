@@ -3,8 +3,11 @@
    * Wahrscheinlichkeit, dass ein Angreifer mit Rechenanteil q einen Rückstand von z Blöcken
    * aufholt (Nakamoto 2008): 1 − Σ_{k=0}^{z} Poisson(λ, k) · (1 − (q/p)^{z−k}) mit λ = z·q/p.
    */
+  /** Ab der Hälfte der Rechenleistung holt der Angreifer immer auf (Toleranz für Reglerwerte wie 0,5000001). */
+  const atLeastHalf = (q: number) => q >= 0.5 - 1e-9;
+
   function catchUp(q: number, z: number): number {
-    if (z === 0) return 1;
+    if (z === 0 || atLeastHalf(q)) return 1;
     const p = 1 - q;
     const lambda = (z * q) / p;
     const logLambda = Math.log(lambda);
@@ -19,7 +22,9 @@
     return Math.min(1, Math.max(0, 1 - sum));
   }
 
-  function confirmationsFor(q: number, limit = 0.001): number {
+  /** Nötige Bestätigungen für ein Risiko unter `limit`; `null`, wenn kein Warten hilft (q ab 50 %). */
+  function confirmationsFor(q: number, limit = 0.001): number | null {
+    if (atLeastHalf(q)) return null;
     let z = 0;
     while (catchUp(q, z) >= limit && z < 5000) z++;
     return z;
@@ -29,12 +34,13 @@
   // Geordnete Anteile: ein Farbton, von blass (kleines q) nach kräftig (großes q).
   const SHADE = [45, 58, 72, 86, 100];
   const Z_MAX = 12;
-  const START_Q = 0.25;
+  const START_Q = 0.1;
+  const START_Z = 3;
 
   let width = $state(720);
   let ownQ = $state(START_Q);
   let hoverZ: number | null = $state(null);
-  let pinnedZ = $state(6);
+  let pinnedZ = $state(START_Z);
 
   const W = $derived(Math.max(300, width));
   const M = { left: 48, right: 16, top: 16, bottom: 44 };
@@ -70,7 +76,7 @@
   function reset() {
     ownQ = START_Q;
     hoverZ = null;
-    pinnedZ = 6;
+    pinnedZ = START_Z;
   }
 </script>
 
@@ -78,10 +84,13 @@
   <div class="controls">
     <label class="slider">
       <span>Dein Angreifer besitzt <strong>{qLabel(ownQ)}</strong> der Rechenleistung</span>
-      <input type="range" min="0.01" max="0.49" step="0.01" bind:value={ownQ} />
+      <input type="range" min="0.01" max="0.6" step="0.01" bind:value={ownQ} />
     </label>
     <button onclick={reset}>Zurücksetzen</button>
   </div>
+  {#if atLeastHalf(ownQ)}
+    <p class="warn" role="status">Ab 50 % holt der Angreifer immer auf, egal wie lange der Händler wartet.</p>
+  {/if}
 
   <div class="legend" aria-live="polite">
     <span class="lbl">Erfolgschance bei z = {activeZ} Bestätigung{activeZ === 1 ? '' : 'en'}</span>
@@ -135,8 +144,13 @@
       {#each table as r (r.q + ':' + r.own)}
         <tr class:own={r.own}>
           <td>{qLabel(r.q)}{r.own ? ' (dein Wert)' : ''}</td>
-          <td class="num">{r.z}</td>
-          <td class="num">{r.z * 10 < 120 ? `${r.z * 10} min` : `${(r.z / 6).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`}</td>
+          {#if r.z === null}
+            <td class="num">nie sicher</td>
+            <td class="num">–</td>
+          {:else}
+            <td class="num">{r.z}</td>
+            <td class="num">{r.z * 10 < 120 ? `${r.z * 10} min` : `${(r.z / 6).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`}</td>
+          {/if}
         </tr>
       {/each}
     </tbody>
@@ -163,6 +177,7 @@
   .line.own { stroke: var(--info); stroke-width: 3; }
   .dot { fill: var(--info); stroke: var(--bg); stroke-width: 2; }
   .hint { font-size: 0.88rem; color: var(--fg-muted); margin: 0; }
+  .warn { margin: 0; font-weight: 600; color: var(--danger); }
   table { margin: 0.4rem 0 0; }
   caption { text-align: left; font-weight: 600; padding-bottom: 0.3rem; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }

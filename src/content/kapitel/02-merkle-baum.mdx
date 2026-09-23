@@ -1,12 +1,14 @@
 ---
 title: Merkle-Baum
+navTitle: Merkle
 order: 2
 summary: Ein Merkle-Baum fasst tausende Transaktionen in einem einzigen Hashwert zusammen und erlaubt trotzdem, eine einzelne Transaktion mit wenigen Hashwerten nachzuweisen.
 ---
 
 import MerkleDemo from '../../components/MerkleDemo.svelte';
+import Werkbank from '../../components/Werkbank.astro';
 
-Ein Bitcoin-Block enthält oft mehrere tausend Transaktionen. Wie kann ein einziger Hashwert sie alle absichern? Und wie prüft man eine einzelne davon, ohne alle anderen herunterzuladen? Die Antwort ist der Merkle-Baum.
+Eine Transaktion ist bei Bitcoin eine Überweisung. Ein Block ist ein Paket aus vielen Transaktionen. Beides kommt in Kapitel 4 und 6 genauer. Für dieses Kapitel reicht: Ein Bitcoin-Block enthält oft mehrere tausend Transaktionen. Wie kann ein einziger Hashwert sie alle absichern? Und wie prüft man eine einzelne davon, ohne alle anderen herunterzuladen? Die Antwort ist der Merkle-Baum.
 
 ## Hash-Zeiger als Bausteine
 
@@ -20,10 +22,10 @@ Stell dir den Spielplan eines K.-o.-Turniers vor. Unten stehen alle Mannschaften
 
 Die Blätter (leaves) ganz unten sind die Hashwerte der Daten. In Bitcoin sind das die Transaktions-IDs, kurz TxID. Eine TxID ist der HASH256-Wert einer Transaktion.
 
-Für jeden Elternknoten hängt man die Hashwerte seiner beiden Kinder aneinander. Das nennt man Konkatenation (concatenation). Vom Ergebnis berechnet man wieder den Hashwert. In Worten: Knoten $i$ ist der Hash aus seinem linken Kind $2i$ und seinem rechten Kind $2i+1$, hintereinander geschrieben.
+Für jeden Elternknoten hängt man die Hashwerte seiner beiden Kinder aneinander. Das nennt man Konkatenation (concatenation). Vom Ergebnis berechnet man wieder den Hashwert:
 
 $$
-\text{Knoten}_i = \text{HASH256}(\text{Knoten}_{2i} + \text{Knoten}_{2i+1})
+\text{Elternknoten} = \text{HASH256}(\text{linkes Kind} + \text{rechtes Kind})
 $$
 
 Das Pluszeichen bedeutet hier Aneinanderhängen und nicht Addieren. Den obersten Knoten nennt man Merkle-Wurzel (Merkle root).
@@ -38,7 +40,9 @@ Was passiert, wenn auf einer Ebene eine ungerade Zahl von Knoten steht? Dann wir
      TxID1          TxID2                    TxID3
 ```
 
-<MerkleDemo client:visible />
+<Werkbank aufgabe="Klicke auf Tx 3 und sieh dir den Beweis an. Ändere dann in Tx 3 einen Buchstaben. Sag vorher: Welche Kästchen ändern sich mit, und gilt der Beweis noch? Füge danach eine fünfte Transaktion hinzu: Wo taucht ein gestrichelter, verdoppelter Knoten auf?" deutung="Eine Änderung in einem Blatt ändert jeden Knoten auf dem Weg nach oben bis zur Wurzel. Die Wurzel im Block-Header passt dann nicht mehr, und der Beweis scheitert. Bei einer ungeraden Zahl von Knoten wird der letzte verdoppelt, genau wie TxID3 im Bild oben.">
+  <MerkleDemo client:visible />
+</Werkbank>
 
 ## Warum die Wurzel alles absichert
 
@@ -54,19 +58,19 @@ Jeder Elternknoten ist ein Hash-Zeiger auf seine beiden Kinder. Er sichert, dass
 
 Es gäbe auch einen einfacheren Weg. Man könnte alle TxIDs aneinanderhängen und davon einen einzigen Hashwert bilden. Dann müsste man aber alle Transaktionen kennen, um zu prüfen, ob eine bestimmte dabei ist.
 
-Beim Merkle-Baum reicht viel weniger. Man braucht nur die Transaktion selbst und den Merkle-Proof. Der Merkle-Proof (Merkle proof) sind die Hashwerte, die auf dem Weg von der Transaktion zur Wurzel noch fehlen.
+Beim Merkle-Baum reicht viel weniger. Man braucht nur die Transaktion selbst und den Merkle-Proof. Der Merkle-Proof (Merkle proof, in der Demo „Merkle-Beweis“) sind die Hashwerte, die auf dem Weg von der Transaktion zur Wurzel noch fehlen.
 
-Ein Beispiel mit 32 Transaktionen. Wir wollen prüfen, ob die Transaktion $Tx_5$ enthalten ist. Dafür geht man so vor:
+Ein Beispiel mit 8 Transaktionen. Wir wollen prüfen, ob die Transaktion $Tx_5$ enthalten ist. $H_{5-6}$ ist der Knoten über $TxID_5$ und $TxID_6$, $H_{1-8}$ ist die Wurzel. Dafür geht man so vor:
 
 1. Man berechnet $TxID_5$ aus der Transaktion.
 2. Man lädt $TxID_6$ und berechnet daraus $H_{5-6}$.
 3. Man lädt $H_{7-8}$ und berechnet $H_{5-8}$.
-4. Man lädt $H_{1-4}$ und berechnet $H_{1-8}$.
-5. Man lädt $H_{9-16}$ und berechnet $H_{1-16}$.
-6. Man lädt $H_{17-32}$ und berechnet die Wurzel $H_{1-32}$.
-7. Stimmt das Ergebnis mit der bekannten Merkle-Wurzel überein, ist $Tx_5$ im Baum.
+4. Man lädt $H_{1-4}$ und berechnet die Wurzel $H_{1-8}$.
+5. Stimmt das Ergebnis mit der bekannten Merkle-Wurzel überein, ist $Tx_5$ im Baum.
 
-Der Merkle-Proof besteht hier also aus nur fünf Hashwerten. Die übrigen 26 Transaktionen braucht man nicht.
+Der Merkle-Proof besteht hier also aus nur drei Hashwerten. Die anderen sieben Transaktionen selbst braucht man nicht.
+
+Probiere es oben in der Demo aus: Füge Transaktionen hinzu, bis es acht sind, und klicke auf Tx 5. Die Demo zeigt dieselben drei Beweis-Hashes.
 
 <div class="callout achtung">
 
@@ -76,13 +80,22 @@ Der Merkle-Proof besteht hier also aus nur fünf Hashwerten. Die übrigen 26 Tra
 
 ## Warum das Speicher spart
 
-Wie viele Hashwerte braucht ein Merkle-Proof? Das hängt von der Höhe des Baums ab. Die Höhe ist die Zahl der Ebenen von den Blättern bis zur Wurzel. Man braucht einen Hashwert pro Ebene, außer für die Wurzel:
+Wie viele Hashwerte braucht ein Merkle-Proof? Einen pro Ebene des Baums, außer für die Wurzel. Mit jeder Ebene nach oben halbiert sich die Zahl der Knoten. Die Frage lautet also: Wie oft kann man die Zahl der Transaktionen halbieren (und dabei aufrunden), bis 1 übrig bleibt?
+
+Bei 8 Transaktionen sind das 3 Schritte: 8, 4, 2, 1. Bei 2500 Transaktionen sind es 12 Schritte: 2500, 1250, 625, 313, 157, 79, 40, 20, 10, 5, 3, 2, 1.
+
+Statt 2500 Hashwerten muss man also nur 12 laden. Das spart viel Speicher und Datenverkehr. Genau diesen Trick nutzen leichte Bitcoin-Programme, die nicht die ganze Blockchain speichern (siehe Kapitel 7).
+
+<details class="vertiefung">
+<summary>Vertiefung: Die Rechnung mit dem Logarithmus</summary>
+
+Die Höhe des Baums ist die Zahl der Ebenen von den Blättern bis zur Wurzel. Man braucht einen Hashwert pro Ebene, außer für die Wurzel:
 
 $$
 \text{Anzahl Hashwerte} = \text{Höhe des Baums} - 1
 $$
 
-Mit jeder Ebene verdoppelt sich die Zahl der Blätter. Deshalb wächst die Höhe nur mit dem Logarithmus zur Basis 2. Die Klammern $\lceil \ \rceil$ bedeuten Aufrunden:
+Mit jeder Ebene verdoppelt sich die Zahl der Blätter. Deshalb wächst die Höhe nur mit dem Logarithmus zur Basis 2. Der Logarithmus $\log_2$ beantwortet die Frage „2 hoch wie viel ergibt diese Zahl?“. Die Klammern $\lceil \ \rceil$ bedeuten Aufrunden:
 
 $$
 \text{Höhe des Baums} = \lceil \log_2(\text{Anzahl Transaktionen}) \rceil + 1
@@ -94,7 +107,19 @@ $$
 \lceil \log_2(2500) \rceil = 12
 $$
 
-Statt 2500 Hashwerten muss man also nur 12 laden. Das spart viel Speicher und Datenverkehr. Genau diesen Trick nutzen leichte Bitcoin-Programme, die nicht die ganze Blockchain speichern (siehe Kapitel 7).
+Das passt zum Halbieren oben: $2^{11} = 2048$ ist noch kleiner als 2500, erst $2^{12} = 4096$ reicht.
+
+</details>
+
+<div class="mitnehmen">
+
+**Das nimmst du mit:**
+
+- Ein Merkle-Baum hasht Transaktionen paarweise, bis nur die Merkle-Wurzel übrig bleibt.
+- Ändert sich eine einzige Transaktion, ändert sich die Wurzel.
+- Ob eine Transaktion im Block steht, zeigen wenige Hashwerte, der Merkle-Proof.
+
+</div>
 
 ## Zum Weiterlesen
 

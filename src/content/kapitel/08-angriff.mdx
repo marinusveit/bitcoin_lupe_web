@@ -1,10 +1,12 @@
 ---
 title: Der 51-Prozent-Angriff
 order: 8
+navTitle: Angriff
 summary: Wer mehr Rechenleistung hat als alle anderen, kann eigene Zahlungen rückgängig machen, aber mit jedem neuen Block sinkt die Chance dafür rasant.
 ---
 
 import AngriffsDiagramm from '../../components/AngriffsDiagramm.svelte';
+import Werkbank from '../../components/Werkbank.astro';
 
 Die Blockchain ist durch Rechenarbeit geschützt. Was passiert, wenn ein Angreifer sehr viel Rechenleistung besitzt? Dieses Kapitel rechnet das Szenario aus dem Bitcoin-Whitepaper durch.
 
@@ -25,6 +27,8 @@ Diesen Trick nennt man doppelte Ausgabe (double spending).
   <img src="/img/51_Attacke.svg" alt="Oben eine ehrliche Kette mit drei grünen Blöcken nach dem grauen Block mit der Zahlung, unten ein alternativer Block des Angreifers mit Fragezeichen dahinter" />
   <figcaption>Die Zahlung steht im grauen Block. Danach haben ehrliche Miner schon drei Blöcke angehängt (z = 3). Wie weit der Angreifer unten ist, weiß niemand.</figcaption>
 </figure>
+
+Diesen Angriff kannst du im [Simulator mit dem Szenario „Double Spend (51 %)“](/simulator/?szenario=attack) ablaufen lassen. Dort ist Bob der Händler. Starte und beobachte, wann die Kette sich gabelt und welcher Zweig gewinnt. Wie viele Bestätigungen hatte Bob, bevor seine Zahlung verschwand?
 
 ## Was ein Angreifer kann und was nicht
 
@@ -70,6 +74,11 @@ Jeder Block, der nach dem Block mit der eigenen Zahlung angehängt wird, heißt 
 
 {/* ERGÄNZT: Der Begriff Bestätigung (confirmation) steht nicht in der Arbeit; sie spricht von z nachfolgenden Blöcken. */}
 
+Rechnet man alle Möglichkeiten zusammen, ergibt sich die Kurve im Diagramm unten. Wie das genau geht, steht in der Vertiefung.
+
+<details class="vertiefung">
+<summary>Vertiefung: So rechnet das Whitepaper</summary>
+
 Hat der Angreifer schon $k$ Blöcke, muss er noch $z - k$ aufholen. Für jedes $k$ multipliziert man zwei Wahrscheinlichkeiten und addiert alles:
 
 $$
@@ -101,17 +110,33 @@ P(\text{Erfolg}) = 1 - \sum_{k=0}^{z} & \frac{\lambda^k e^{-\lambda}}{k!} \\
 \end{aligned}
 $$
 
+</details>
+
 Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), der Angreifer hat 10 Prozent der Rechenleistung ($q = 0{,}1$). Seine Erfolgschance beträgt dann etwa 1,3 Prozent. Bei $z = 5$ sind es noch knapp 0,1 Prozent.
 
 {/* KORRIGIERT gegenüber der Arbeit: Dort stehen für q = 0,1 und z = 3 „0,35 %“. Die Formel ergibt 1,32 % (so auch die Tabelle im Whitepaper, Abschnitt 11); 0,35 % ist der Wert für z = 4. Auch die Kurvendaten in der Abbildung der Arbeit sind um einen Block verschoben. ERGÄNZT: Der Wert für z = 5 (0,09 %) ist nachgerechnet und steht nicht in der Arbeit. */}
 
-<AngriffsDiagramm client:visible />
+Ein Händler legt fest, welches Risiko er hinnimmt, zum Beispiel 0,1 Prozent, also eins zu tausend. Die Tabelle unter dem Diagramm zeigt, wie viele Bestätigungen er dafür abwarten muss. Ab 50 Prozent der Rechenleistung hilft kein Warten mehr, denn dann holt der Angreifer jeden Rückstand auf.
+
+<Werkbank aufgabe="Die Demo startet mit dem Beispiel: q = 10 % und z = 3, also etwa 1,3 %. Schiebe den Regler auf 45 %. Sag vorher: Wie viele Bestätigungen braucht der Händler jetzt? Schiebe ihn danach über 50 %." deutung="Mit jeder Bestätigung sinkt die Chance des Angreifers. Je mehr Rechenleistung er hat, desto langsamer sinkt sie. Ab 50 % bleibt die Kurve oben: Der Angriff gelingt immer.">
+  <AngriffsDiagramm client:visible />
+</Werkbank>
 
 ## Warum es trotzdem kaum passiert
 
 Mit weniger als der Hälfte der Rechenleistung kann ein Angriff nur mit viel Glück gelingen. Mit mehr als der Hälfte gelingt er auf lange Sicht sicher. Alte Blöcke umzuschreiben dauert aber sehr lange. Man müsste die Arbeit vieler Jahre noch einmal leisten.
 
 Beobachtet wurde ein solcher Angriff auf Bitcoin bisher nicht. Ein Grund: Ehrlich zu minen lohnt sich mehr. Ein erfolgreicher Angriff würde das Vertrauen in Bitcoin beschädigen. Der Kurs würde fallen, und die erbeuteten Bitcoins wären weniger wert.
+
+<div class="mitnehmen">
+
+**Das nimmst du mit:**
+
+- Ein Angreifer mit viel Rechenleistung kann nur eigene Zahlungen rückgängig machen, keine fremden Bitcoins stehlen.
+- Mit jeder Bestätigung sinkt seine Chance stark, solange er weniger als die Hälfte der Rechenleistung hat.
+- Ab 50 Prozent holt er jeden Rückstand auf, dann hilft auch langes Warten nicht.
+
+</div>
 
 ## Zum Weiterlesen
 

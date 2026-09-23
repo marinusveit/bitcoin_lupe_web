@@ -81,8 +81,13 @@
   let amount = $state('10');
   let feeText = $state('0,0001');
   let error = $state('');
+  /** Ergebnis des Versuchs, einen schon verbrauchten Output noch einmal auszugeben. */
+  let doubleSpend: { attempt: string; verdict: string } | null = $state(null);
 
   const latest = $derived(history[history.length - 1]!);
+  const canDoubleSpend = $derived(
+    latest.from !== null && latest.tx.inputs.some((i) => !utxos.has(outpointKey(i.txid, i.vout))),
+  );
 
   const byPerson = $derived(
     people.map((p) => {
@@ -93,9 +98,48 @@
     }),
   );
 
+  /** Signiert eine Transaktion mit den Inputs `keys` für den Absender. */
+  function signTx(sender: Person, keys: string[], outputs: TxOutput[]): { tx: Transaction; msg: string } {
+    const unsigned: Transaction = {
+      inputs: keys.map((key) => {
+        const [id, vout] = key.split(':');
+        return { txid: id!, vout: Number(vout), scriptSig: [] };
+      }),
+      outputs,
+    };
+    // Signieren: der Absender unterschreibt den Sighash mit seinem Private Key.
+    const msg = sighash(unsigned);
+    const sig = signMessage(sender.priv, msg);
+    return { tx: { ...unsigned, inputs: unsigned.inputs.map((i) => ({ ...i, scriptSig: p2pkhScriptSig(sig, sender.pub) })) }, msg };
+  }
+
+  /** Baut aus der letzten Transaktion eine zweite mit denselben Inputs und prüft sie gegen die UTXO-Menge. */
+  function spendAgain() {
+    if (!canDoubleSpend || !latest.from) return;
+    error = '';
+    const sender = people.find((p) => p.name === latest.from)!;
+    const other = people.find((p) => p.name !== latest.from && p.name !== latest.to) ?? sender;
+    const keys = latest.tx.inputs.map((i) => outpointKey(i.txid, i.vout));
+    const outputs = latest.tx.outputs.map((o, i) => (i === 0 ? { ...o, scriptPubKey: p2pkhScriptPubKey(other.pub) } : o));
+    const { tx } = signTx(sender, keys, outputs);
+    const check = validateTx(utxos, tx);
+    const attempt = `${sender.name} versucht, dieselben Inputs noch einmal auszugeben, diesmal ${btc(outputs[0]!.value)} an ${other.name}.`;
+    if (check.ok) {
+      doubleSpend = { attempt, verdict: 'Unerwartet: Die Prüfung hat nichts gefunden. Die Transaktion wurde trotzdem nicht übernommen.' };
+      return;
+    }
+    const spentKey = keys.find((k) => !utxos.has(k)) ?? keys[0]!;
+    const [spentTxid, spentVout] = spentKey.split(':');
+    doubleSpend = {
+      attempt,
+      verdict: `Abgelehnt: Output ${short(spentTxid!)}:${spentVout} wurde in Transaktion ${short(latest.id)} schon ausgegeben (nicht mehr in der UTXO-Menge).`,
+    };
+  }
+
   function send(event: SubmitEvent) {
     event.preventDefault();
     error = '';
+    doubleSpend = null;
     const sender = people.find((p) => p.name === from)!;
     const receiver = people.find((p) => p.name === to)!;
     const value = parseBtc(amount);
@@ -123,20 +167,11 @@
     }
     const outputs: TxOutput[] = [{ value, scriptPubKey: p2pkhScriptPubKey(receiver.pub) }];
     if (sum - need > 0) outputs.push({ value: sum - need, scriptPubKey: p2pkhScriptPubKey(sender.pub) });
-    const unsigned: Transaction = {
-      inputs: chosen.map(([key]) => {
-        const [id, vout] = key.split(':');
-        return { txid: id!, vout: Number(vout), scriptSig: [] };
-      }),
+    const { tx, msg } = signTx(
+      sender,
+      chosen.map(([key]) => key),
       outputs,
-    };
-    // Signieren: der Absender unterschreibt den Sighash mit seinem Private Key.
-    const msg = sighash(unsigned);
-    const sig = signMessage(sender.priv, msg);
-    const tx: Transaction = {
-      ...unsigned,
-      inputs: unsigned.inputs.map((i) => ({ ...i, scriptSig: p2pkhScriptSig(sig, sender.pub) })),
-    };
+    );
     const check = validateTx(utxos, tx);
     if (!check.ok) return void (error = check.error);
     const prevOuts = chosen.map(([, o]) => o);
@@ -158,6 +193,7 @@
     amount = '10';
     feeText = '0,0001';
     error = '';
+    doubleSpend = null;
   }
 </script>
 
@@ -184,9 +220,20 @@
     </div>
     <div class="actions">
       <button type="submit" class="primary">Signieren und senden</button>
+      <button type="button" onclick={spendAgain} disabled={!canDoubleSpend}>Denselben Output noch einmal ausgeben</button>
       <button type="button" onclick={reset}>Zurücksetzen</button>
     </div>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
+    {#if doubleSpend}
+      <div class="rejected" role="status">
+        <p class="small">{doubleSpend.attempt}</p>
+        <p class="verdict">{doubleSpend.verdict}</p>
+        <p class="muted small">
+          Jeder Knoten prüft, ob die Inputs noch in der UTXO-Menge stehen. So kann niemand dieselben Coins zweimal
+          ausgeben (doppelte Ausgabe).
+        </p>
+      </div>
+    {/if}
   </form>
 
   <section class="tx" aria-live="polite">
@@ -282,6 +329,10 @@
   .fields input, .fields select { width: 100%; }
   .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.9rem; }
   .error { color: var(--danger); margin: 0.7rem 0 0; font-weight: 600; }
+  .rejected { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border: 1px solid var(--danger); border-left-width: 4px; border-radius: 8px; background: var(--bg-elevated); }
+  .rejected p { margin: 0 0 0.3rem; }
+  .rejected p:last-child { margin: 0; }
+  .rejected .verdict { color: var(--danger); font-weight: 600; overflow-wrap: anywhere; }
   .tx { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; }
   .caption { margin: 0 0 0.9rem; color: var(--fg-muted); font-size: 0.95rem; }
   .flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.8rem; align-items: start; }
