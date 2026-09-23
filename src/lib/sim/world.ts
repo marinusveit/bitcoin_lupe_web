@@ -8,6 +8,33 @@ import { attackTick, startDoubleSpend } from './attack';
 import { createRng } from './rng';
 import { DEFAULT_PARAMS, PRESETS, type PresetName, type PresetSpec } from './presets';
 
+/**
+ * Outpoints, die eine Wallet gerade nicht ausgeben kann: schon im Mempool ihres Knotens
+ * ausgegeben oder in einer eigenen Transaktion, die noch zum Knoten unterwegs ist.
+ */
+function lockedOutpoints(world: World, walletId: string, via: ChainNode): Set<string> {
+  const locked = mempoolSpent(via.mempool);
+  for (const m of world.messagesInFlight) {
+    if (m.kind === 'tx' && m.from === walletId) for (const i of m.payload.inputs) locked.add(outpointKey(i.txid, i.vout));
+  }
+  return locked;
+}
+
+/**
+ * Betrag in Satoshi, den eine Wallet jetzt ausgeben kann: bestätigte UTXOs ihrer Adresse ohne
+ * gesperrte Outpoints. Dieselbe Regel prüft `sendTransaction`. `null`, wenn es die Wallet nicht gibt.
+ */
+export function spendableBalance(world: World, walletId: string): number | null {
+  const w = world.nodes[walletId];
+  if (!w || w.kind !== 'wallet') return null;
+  const via = chainNodeOf(world, w.id);
+  if (!via) return null;
+  const locked = lockedOutpoints(world, w.id, via);
+  let sum = 0;
+  for (const [key, o] of Object.entries(via.utxo)) if (o.address === w.address && !locked.has(key)) sum += o.value;
+  return sum;
+}
+
 /** Legt eine Welt aus einem Preset (Name oder eigene Beschreibung) an. */
 export function createWorld(preset: PresetName | PresetSpec, seed = 1, overrides: Partial<SimParams> = {}): World {
   const spec = typeof preset === 'string' ? PRESETS[preset] : preset;
@@ -118,11 +145,7 @@ export function sendTransaction(
   if (to.id === from.id) return { ok: false, error: 'Absender und Empfänger sind gleich', events };
   const via = chainNodeOf(world, from.id);
   if (!via) return { ok: false, error: `${from.name} ist mit keinem Knoten verbunden`, events };
-  const locked = mempoolSpent(via.mempool);
-  for (const m of world.messagesInFlight) {
-    if (m.kind === 'tx' && m.from === from.id) for (const i of m.payload.inputs) locked.add(outpointKey(i.txid, i.vout));
-  }
-  const pay = buildPayment(via.utxo, locked, from.address, to.address, amount, fee);
+  const pay = buildPayment(via.utxo, lockedOutpoints(world, from.id, via), from.address, to.address, amount, fee);
   if (!pay.ok) return { ok: false, error: pay.error, events };
   emit({ kind: 'tx-created', text: `${from.name} sendet ${describePayment(world, pay.tx, from.address)}`, nodeId: from.id, txid: pay.tx.txid });
   sendMessage(world, 'tx', pay.tx, from.id, via.id);

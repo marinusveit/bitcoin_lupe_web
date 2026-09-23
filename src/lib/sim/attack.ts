@@ -158,14 +158,35 @@ export function attackTick(world: World, emit: Emit): void {
   checkAttackSuccess(world, emit);
 }
 
-/** Angriff gelungen, wenn alle ehrlichen Knoten die geheime statt der öffentlichen Zahlung bestätigt haben. */
+/**
+ * Nach der Veröffentlichung: Angriff gelungen, wenn alle ehrlichen Knoten die geheime statt der
+ * öffentlichen Zahlung bestätigt haben. Gescheitert, wenn alle Knoten (auch der Angreifer) die
+ * öffentliche Zahlung in ihrer besten Kette haben und kein Block mehr unterwegs ist: Dann baut
+ * niemand mehr auf der veröffentlichten Kette weiter.
+ */
 function checkAttackSuccess(world: World, emit: Emit): void {
   const attack = world.attack;
   if (!attack || attack.status !== 'released') return;
+  let succeeded = true;
+  let failed = !world.messagesInFlight.some((m) => m.kind === 'block');
   for (const node of Object.values(world.nodes)) {
-    if (!isChainNode(node) || node.id === attack.attackerId) continue;
-    if (!node.txIndex[attack.privateTx.txid] || node.txIndex[attack.publicTx.txid]) return;
+    if (!isChainNode(node)) continue;
+    const hasPublic = Boolean(node.txIndex[attack.publicTx.txid]);
+    const hasPrivate = Boolean(node.txIndex[attack.privateTx.txid]);
+    if (!hasPublic || hasPrivate) failed = false;
+    if (node.id !== attack.attackerId && (!hasPrivate || hasPublic)) succeeded = false;
   }
+  if (failed) {
+    attack.status = 'failed';
+    emit({
+      kind: 'attack-failed',
+      text: 'Angriff gescheitert: die ehrliche Kette bleibt vorn, die Zahlung an das Opfer ist weiter bestätigt',
+      nodeId: attack.attackerId,
+      txid: attack.publicTx.txid,
+    });
+    return;
+  }
+  if (!succeeded) return;
   attack.status = 'succeeded';
   const victim = world.nodes[attack.victimId];
   emit({

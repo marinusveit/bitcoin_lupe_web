@@ -116,6 +116,7 @@ export type EventKind =
   | 'attack-release'
   | 'attack-success'
   | 'attack-abandoned'
+  | 'attack-failed'
   | 'node-added'
   | 'node-removed'
   | 'config';
@@ -155,7 +156,7 @@ export interface RngState {
   state: number;
 }
 
-export type AttackStatus = 'running' | 'released' | 'succeeded' | 'abandoned';
+export type AttackStatus = 'running' | 'released' | 'succeeded' | 'failed' | 'abandoned';
 
 export interface AttackState {
   attackerId: string;

@@ -1,5 +1,5 @@
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes } from './hash';
+import { bytesToHex, hexToBytes, sha256Hex } from './hash';
 
 /**
  * Blockheader, Schwierigkeit, Mining und Geldmenge wie in Bitcoin. `prevHash`, `merkleRoot`
@@ -90,6 +90,37 @@ export function targetToNBits(target: bigint): number {
     size++;
   }
   return ((size << 24) | Number(compact)) >>> 0;
+}
+
+/** Ergebnis eines Text-Mining-Abschnitts (Lehr-Demos): Treffer oder zuletzt probierte Nonce. */
+export interface TextMineResult {
+  found: boolean;
+  nonce: number;
+  hash: string;
+  iterations: number;
+  nextNonce: number;
+}
+
+/**
+ * Vereinfachtes Mining für Demos: probiert ab `startNonce` bis zu `maxIterations` Nonces, bis
+ * SHA-256(prefix + nonce) mit `zeros` Null-Hexzeichen beginnt. In Abschnitten aufrufbar.
+ */
+export function mineText(
+  prefix: string,
+  zeros: number,
+  options: { maxIterations: number; startNonce?: number },
+): TextMineResult {
+  const want = '0'.repeat(zeros);
+  let nonce = options.startNonce ?? 0;
+  let hash = '';
+  let iterations = 0;
+  while (iterations < options.maxIterations) {
+    hash = sha256Hex(prefix + nonce);
+    iterations++;
+    if (hash.startsWith(want)) return { found: true, nonce, hash, iterations, nextNonce: nonce + 1 };
+    nonce++;
+  }
+  return { found: false, nonce: nonce - 1, hash, iterations, nextNonce: nonce };
 }
 
 /** Größtes erlaubtes Ziel (Schwierigkeit 1). */

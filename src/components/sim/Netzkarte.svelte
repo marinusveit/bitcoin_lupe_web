@@ -25,13 +25,6 @@
     }
     return pts.join(' ');
   }
-  // Auf schmalen Bildschirmen wird die Karte stark verkleinert; Knoten und Schrift wachsen
-  // dann in SVG-Einheiten mit, damit sie lesbar bleiben.
-  let figWidth = $state(0);
-  const k = $derived(figWidth > 0 ? Math.min(1.9, Math.max(1, view.w / figWidth / 1.5)) : 1);
-  const r = $derived(R * k);
-  const HEX = $derived(hexPoints(r));
-  const HEX_RING = $derived(hexPoints(r + 7 * k));
 
   interface NodeView {
     node: SimNode;
@@ -83,6 +76,14 @@
     return { viewBox: `${minX} ${minY} ${w} ${h}`, w, list, links };
   });
 
+  // Auf schmalen Bildschirmen wird die Karte stark verkleinert; Knoten und Schrift wachsen
+  // dann in SVG-Einheiten mit, damit sie lesbar bleiben.
+  let figWidth = $state(0);
+  const k = $derived(figWidth > 0 ? Math.min(1.9, Math.max(1, view.w / figWidth / 1.5)) : 1);
+  const r = $derived(R * k);
+  const HEX = $derived(hexPoints(r));
+  const HEX_RING = $derived(hexPoints(r + 7 * k));
+
   const messages = $derived.by(() => {
     void version;
     const now = world.tick + frac;
@@ -113,7 +114,7 @@
     <g class="links">
       {#each view.links as { l, a, b } (`${l.a}-${l.b}`)}
         <line x1={a.pos.x} y1={a.pos.y} x2={b.pos.x} y2={b.pos.y} class:slow={l.latencyTicks >= SLOW}>
-          <title>Verbindung {a.name} – {b.name}: {l.latencyTicks} {l.latencyTicks === 1 ? 'Tick' : 'Ticks'} Laufzeit</title>
+          <title>Verbindung {a.name} und {b.name}: {l.latencyTicks} {l.latencyTicks === 1 ? 'Tick' : 'Ticks'} Laufzeit</title>
         </line>
       {/each}
     </g>

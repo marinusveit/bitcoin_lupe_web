@@ -13,6 +13,8 @@ import {
   removeNode,
   sendTransaction,
   setHashrate,
+  spendableBalance,
+  startDoubleSpend,
   stats,
   step,
   subsidy,
@@ -89,6 +91,21 @@ describe('Transaktionen', () => {
     const second = sendTransaction(world, 'carol', 'bob', btcToSats(1));
     expect(second.ok).toBe(false);
     if (!second.ok) expect(second.error).toMatch(/Guthaben reicht nicht/);
+  });
+
+  it('verfügbarer Betrag zählt gesperrte UTXOs nicht mit, bis das Rückgeld bestätigt ist', () => {
+    const world = createWorld('normal', 3, NO_MINING);
+    expect(spendableBalance(world, 'alice')).toBe(btcToSats(50));
+    expect(sendTransaction(world, 'alice', 'bob', btcToSats(2)).ok).toBe(true);
+    expect(spendableBalance(world, 'alice')).toBe(0);
+    run(world, 10);
+    expect(spendableBalance(world, 'alice')).toBe(0);
+    expect(sendTransaction(world, 'alice', 'bob', btcToSats(1)).ok).toBe(false);
+    forceBlock(world, 'm1');
+    run(world, 10);
+    const change = btcToSats(48) - world.params.defaultFee;
+    expect(spendableBalance(world, 'alice')).toBe(change);
+    expect(sendTransaction(world, 'alice', 'bob', btcToSats(1)).ok).toBe(true);
   });
 
   it('bestätigt eine Transaktion in einem Block und zahlt die Gebühr an den Miner', () => {
@@ -286,5 +303,22 @@ describe('Double Spend', () => {
     expect(world.log.some((e) => e.kind === 'attack-success')).toBe(false);
     const bob = chainNodeOf(world, 'bob')!;
     expect(confirmations(bob, world.attack!.publicTx.txid)).toBeGreaterThan(0);
+  });
+
+  // Seed 21 im Preset attack (wie im Simulator mit 10 Nullbits): Der Angreifer veröffentlicht in Tick 1001,
+  // die ehrliche Kette bleibt trotzdem vorn. Der Angriff muss danach als gescheitert gelten.
+  it('verliert die veröffentlichte Kette das Rennen, gilt der Angriff als gescheitert (Seed 21)', () => {
+    const world = createWorld('attack', 21, { displayZeroBits: 10 });
+    runUntil(world, () => world.log.some((e) => e.kind === 'attack-release'), 2000);
+    expect(world.attack!.status).toBe('released');
+    run(world, 3000);
+    expect(world.attack!.status).toBe('failed');
+    expect(world.log.some((e) => e.text.startsWith('Angriff gescheitert: die ehrliche Kette bleibt vorn'))).toBe(true);
+    const bob = chainNodeOf(world, 'bob')!;
+    expect(bob.txIndex[world.attack!.publicTx.txid]).toBeDefined();
+    expect(bob.txIndex[world.attack!.privateTx.txid]).toBeUndefined();
+    const again = startDoubleSpend(world, 'm3', 'bob', btcToSats(1));
+    expect(again.ok).toBe(true);
+    expect(world.attack!.status).toBe('running');
   });
 });

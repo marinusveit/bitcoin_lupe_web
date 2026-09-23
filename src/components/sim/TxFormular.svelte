@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { btcToSats, formatBtc, sendTransaction, walletBalance, type World } from '../../lib/sim';
+  import { btcToSats, formatBtc, sendTransaction, spendableBalance, type World } from '../../lib/sim';
 
   interface Props {
     world: World;
@@ -26,8 +26,7 @@
 
   const available = $derived.by(() => {
     void version;
-    const b = walletBalance(world, from);
-    return b ? b.confirmed + Math.min(0, b.unconfirmed) : null;
+    return spendableBalance(world, from);
   });
 
   function submit(e: SubmitEvent) {

@@ -19,8 +19,9 @@
     if (!a) return null;
     const text = {
       running: a.z >= 0 ? `läuft, Vorsprung ${a.z}` : `läuft, Rückstand ${-a.z}`,
-      released: 'veröffentlicht, Netz reorganisiert',
+      released: 'veröffentlicht, Ausgang offen',
       succeeded: 'gelungen',
+      failed: 'gescheitert, ehrliche Kette vorn',
       abandoned: 'aufgegeben',
     }[a.status];
     return { text, status: a.status };
@@ -76,7 +77,8 @@
   .angriff dd {
     color: var(--danger);
   }
-  .angriff.abandoned dd {
+  .angriff.abandoned dd,
+  .angriff.failed dd {
     color: var(--ok);
   }
 </style>

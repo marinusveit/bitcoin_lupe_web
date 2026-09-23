@@ -3,6 +3,7 @@ import type { BlockHeader } from './block';
 /** Nachricht an den Mining-Worker: starten (mit Header) oder stoppen. */
 export type MiningWorkerRequest =
   | { type: 'start'; header: BlockHeader; chunkSize?: number; startNonce?: number; target?: bigint }
+  | { type: 'start-text'; prefix: string; zeros: number; chunkSize?: number; startNonce?: number }
   | { type: 'stop' };
 
 /** Nachricht vom Mining-Worker: Fortschritt, Treffer oder alle Nonces erfolglos probiert. */
@@ -40,6 +41,23 @@ export function startMining(
   onProgress: (progress: MiningWorkerResponse) => void,
   options: StartMiningOptions = {},
 ): MiningHandle {
+  return runWorker({ type: 'start', header, ...options }, onProgress);
+}
+
+/**
+ * Vereinfachtes Mining für Lehr-Demos: sucht eine Nonce, sodass SHA-256(prefix + nonce) mit
+ * `zeros` Null-Hexzeichen beginnt. Läuft ebenfalls im Web Worker.
+ */
+export function startTextMining(
+  prefix: string,
+  zeros: number,
+  onProgress: (progress: MiningWorkerResponse) => void,
+  options: Pick<StartMiningOptions, 'chunkSize' | 'startNonce'> = {},
+): MiningHandle {
+  return runWorker({ type: 'start-text', prefix, zeros, ...options }, onProgress);
+}
+
+function runWorker(request: MiningWorkerRequest, onProgress: (progress: MiningWorkerResponse) => void): MiningHandle {
   const worker = new Worker(new URL('./workers/mining.worker.ts', import.meta.url), { type: 'module' });
   let settle: (outcome: MiningOutcome) => void = () => {};
   let done = false;
@@ -64,7 +82,6 @@ export function startMining(
       settle({ status: msg.type, iterations: msg.iterations, hash: msg.hash, nonce: msg.nonce });
     }
   };
-  const request: MiningWorkerRequest = { type: 'start', header, ...options };
   worker.postMessage(request);
   return {
     promise,

@@ -79,8 +79,14 @@
   const at = $derived(Math.min(pos, result.steps.length));
   const done = $derived(at >= result.steps.length);
   const stack = $derived(at === 0 ? [] : result.steps[at - 1]!.stackAfter);
+  // Ohne Schritte (beide Felder leer oder unlesbares Skript) gibt es nichts zu klicken: Urteil sofort zeigen.
+  const noSteps = $derived(result.steps.length === 0);
   const note = $derived(
-    at === 0 ? 'Noch nichts ausgeführt. Der Stapel ist leer. Drücke „Schritt“.' : result.steps[at - 1]!.note,
+    noSteps
+      ? 'Das Skript enthält keinen Befehl, der ausgeführt werden kann.'
+      : at === 0
+        ? 'Noch nichts ausgeführt. Der Stapel ist leer. Drücke „Schritt“.'
+        : result.steps[at - 1]!.note,
   );
 
   function display(value: string): { text: string; label?: string } {
@@ -170,7 +176,7 @@
     <div class="explain">
       <h4>Schritt {at} von {result.steps.length}</h4>
       <p class="note">{note}</p>
-      {#if done && at > 0}
+      {#if done && (at > 0 || noSteps)}
         <p class="verdict" class:ok={result.ok} class:bad={!result.ok} role="status">
           {#if result.ok}
             Gültig: Oben liegt „wahr“. Der Output darf ausgegeben werden.

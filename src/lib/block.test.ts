@@ -8,6 +8,7 @@ import {
   headerHash,
   meetsTarget,
   mineHeader,
+  mineText,
   nBitsToTarget,
   retarget,
   serializeHeader,
@@ -89,5 +90,20 @@ describe('block', () => {
     expect(retarget(t, EXPECTED_RETARGET_SECONDS / 100)).toBe(t / 4n);
     expect(retarget(t, EXPECTED_RETARGET_SECONDS * 100)).toBe(t * 4n);
     expect(retarget(MAX_TARGET, EXPECTED_RETARGET_SECONDS * 2)).toBe(MAX_TARGET);
+  });
+
+  it('mineText: findet die Nonce ab Startwert und setzt Abschnitte fort', () => {
+    // Nonces aus KettenDemo: 65131 ist die kleinste Nonce ab 0 für Block 1.
+    const prefix = '1|' + '0'.repeat(64) + '|Coinbase: 50 BTC an Alice|';
+    const first = mineText(prefix, 4, { maxIterations: 60_000 });
+    expect(first.found).toBe(false);
+    expect(first.nextNonce).toBe(60_000);
+    const second = mineText(prefix, 4, { maxIterations: 60_000, startNonce: first.nextNonce });
+    expect(second).toMatchObject({ found: true, nonce: 65131, iterations: 5132 });
+    expect(second.hash.startsWith('0000')).toBe(true);
+    // Ab 65132 findet die Suche eine andere Nonce, nie wieder die alte.
+    const later = mineText(prefix, 4, { maxIterations: 1_000_000, startNonce: 65132 });
+    expect(later.found).toBe(true);
+    expect(later.nonce).toBeGreaterThan(65131);
   });
 });

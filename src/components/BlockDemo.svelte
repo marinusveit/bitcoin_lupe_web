@@ -31,18 +31,23 @@
     if (!isUint32(timestamp)) errors.push('Der Zeitstempel muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!isUint32(nonce)) errors.push('Die Nonce muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!/^[0-9a-fA-F]{1,8}$/.test(nBitsText.trim())) errors.push('nBits braucht 1 bis 8 Hex-Zeichen, z. B. 1d00ffff.');
-    if (errors.length) return { errors } as const;
+    const failed = (errors: string[]) => ({ errors, root: '', hash: '', targetHex: '', ok: false });
+    if (errors.length) return failed(errors);
     const nBits = parseInt(nBitsText.trim(), 16);
     let target: bigint;
     try {
       target = nBitsToTarget(nBits);
     } catch (e) {
-      return { errors: [e instanceof Error ? e.message : String(e)] } as const;
+      return failed([e instanceof Error ? e.message : String(e)]);
+    }
+    // Ein Hash hat 256 Bit. Ein Target ab 2^256 passt nicht in die Anzeige und kommt in Bitcoin nicht vor.
+    if (target >= 1n << 256n) {
+      return failed(['Diese nBits ergeben ein Target mit mehr als 256 Bit. So ein Target gibt es in Bitcoin nicht. Wähle einen kleineren Exponenten (das erste Byte).']);
     }
     const root = merkleRoot(txids.map((t) => t.trim()));
     const hash = headerHash({ version, prevHash: prevHash.trim(), merkleRoot: root, timestamp, nBits, nonce });
-    const targetHex = target.toString(16).padStart(64, '0').slice(-64);
-    return { errors: [], root, hash, targetHex, ok: meetsTarget(hash, target) } as const;
+    const targetHex = target.toString(16).padStart(64, '0');
+    return { errors: [] as string[], root, hash, targetHex, ok: meetsTarget(hash, target) };
   });
 
   const zeros = (hex: string) => hex.match(/^0*/)![0].length;
@@ -92,8 +97,8 @@
       {/if}
     </div>
     <div class="f-wide derived">
-      <span class="lbl">Merkle-Root (aus den TxIDs berechnet)</span>
-      <span class="hash">{'root' in computed ? computed.root : '–'}</span>
+      <span class="lbl">Merkle-Wurzel (aus den TxIDs berechnet)</span>
+      <span class="hash">{computed.root || '–'}</span>
     </div>
     <label>Zeitstempel
       <input type="number" bind:value={timestamp} />
@@ -109,7 +114,6 @@
 
   <div class="actions">
     <button class="primary" onclick={() => (nonce = (nonce + 1) % 2 ** 32)}>Nonce +1</button>
-    <button onclick={loadGenesis}>Genesis laden</button>
     <button onclick={loadGenesis}>Zurücksetzen</button>
   </div>
 
@@ -117,7 +121,7 @@
     <ul class="errors" role="alert">
       {#each computed.errors as e (e)}<li>{e}</li>{/each}
     </ul>
-  {:else if 'hash' in computed}
+  {:else}
     <div class="compare" class:ok={computed.ok} class:bad={!computed.ok}>
       <div class="row">
         <span class="lbl">Header-Hash</span>
@@ -128,7 +132,7 @@
         <span class="hash big"><span class="z">{computed.targetHex.slice(0, zeros(computed.targetHex))}</span>{computed.targetHex.slice(zeros(computed.targetHex))}</span>
       </div>
       <p class="verdict" role="status">
-        Hash &lt; Target?
+        Hash höchstens so groß wie das Target?
         <strong>{computed.ok ? 'Ja, der Block ist gültig.' : 'Nein, dieser Block wäre ungültig.'}</strong>
       </p>
       <p class="hint">

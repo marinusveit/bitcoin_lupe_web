@@ -15,6 +15,7 @@ export {
   removeNode,
   setHashrate,
   walletBalance,
+  spendableBalance,
   chainNodeOf,
   referenceNode,
   stats,
