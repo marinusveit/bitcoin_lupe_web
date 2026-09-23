@@ -49,6 +49,8 @@ export function verifySignature(pubHex: string, msgHashHex: string, sigHex: stri
     return secp256k1.verify(hexToBytes(sigHex), hexToBytes(msgHashHex), hexToBytes(pubHex), {
       prehash: false,
       format,
+      // Bitcoin akzeptiert nach Konsens auch High-S-Signaturen (Low-S ist nur Standardregel).
+      lowS: false,
     });
   } catch {
     return false;

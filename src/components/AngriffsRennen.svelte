@@ -118,7 +118,7 @@
       <input type="range" min="0.05" max="0.6" step="0.05" bind:value={q} oninput={onParamChange} />
     </label>
     <label class="slider">
-      <span>Händler wartet <strong>{z}</strong> {z === 1 ? 'Bestätigung' : 'Bestätigungen'}</span>
+      <span>Händler wartet z = <strong>{z}</strong> {z === 1 ? 'Block' : 'Blöcke'} nach der Zahlung</span>
       <input type="range" min="0" max="8" step="1" bind:value={z} oninput={onParamChange} />
     </label>
   </div>
@@ -167,7 +167,7 @@
       Angreifer, sonst an die ehrlichen Miner.
     {:else if !view.done}
       {#if !view.delivered}
-        Der Händler wartet noch: {view.honest} von {z} Bestätigungen.
+        Der Händler wartet noch: {view.honest} von {z} Blöcken.
       {:else if lead < 0}
         Der Händler hat geliefert. Der Angreifer liegt {-lead} {lead === -1 ? 'Block' : 'Blöcke'} zurück und sucht weiter nach Blöcken.
       {:else}
@@ -197,9 +197,10 @@
       wenn er nur lange genug durchhält. In der Simulation gibt er bei {GIVE_UP} Blöcken Rückstand auf, deshalb
       scheitern hier trotzdem einige Rennen.
     {:else}
-      Je mehr Rennen du laufen lässt, desto näher rückt die Quote an die Formel. Ein einzelnes Rennen kann
-      immer anders ausgehen, das ist Zufall. Die Formel im Whitepaper ist eine Näherung, und der Angreifer
-      gibt in der Simulation bei {GIVE_UP} Blöcken Rückstand auf. Ein paar Prozent Abstand bleiben deshalb.
+      Je mehr Rennen du laufen lässt, desto stabiler wird die Quote. Ein einzelnes Rennen kann immer anders
+      ausgehen, das ist Zufall. Die Quote liegt meist etwas über der Formel, denn die Formel im Whitepaper ist
+      eine Näherung, die das Risiko unterschätzt. Außerdem gibt der Angreifer in der Simulation bei {GIVE_UP}
+      Blöcken Rückstand auf.
     {/if}
     Wie im Whitepaper zählt es als Erfolg, sobald die heimliche Kette gleich lang ist. Im echten Netz muss
     sie länger sein, damit die Knoten zu ihr wechseln.

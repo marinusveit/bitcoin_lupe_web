@@ -109,7 +109,7 @@ export function receiveBlock(world: World, node: ChainNode, block: Block, from: 
     const n = update.discarded.length;
     emit({
       kind: 'reorg',
-      text: `${label(node)} wechselt auf längere Kette (Reorganisation, ${n} ${n === 1 ? 'Block' : 'Blöcke'} verworfen)`,
+      text: `${label(node)} wechselt auf die Kette mit mehr Arbeit (Reorganisation, ${n} ${n === 1 ? 'Block' : 'Blöcke'} verworfen)`,
       nodeId: node.id,
       blockHash: block.hash,
     });

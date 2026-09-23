@@ -33,7 +33,7 @@ Ein Output, der noch nicht ausgegeben wurde, heißt UTXO (unspent transaction ou
 
 Ein Input zeigt auf eine Kiste aus einer früheren Transaktion. Dafür enthält er zwei Angaben. Das Feld `Previous TxID` ist ein Hash-Zeiger auf die frühere Transaktion. Der `Index` sagt, welcher Output darin gemeint ist.
 
-Die Kiste ist aber verschlossen. Deshalb enthält der Input auch einen Schlüssel, das Feld `ScriptSig`. Es beweist, dass der Absender die Bitcoins besitzt. Meist steckt darin eine Signatur aus Kapitel 3.
+Die Kiste ist aber verschlossen. Deshalb enthält der Input auch einen Schlüssel, das Feld `ScriptSig`. Es beweist, dass der Absender die Bitcoins besitzt. Bei den klassischen Skripten aus Kapitel 5 steckt darin eine Signatur aus Kapitel 3. Neuere Transaktionsarten (SegWit) legen die Signatur in ein eigenes Feld, den Witness.
 
 Man kann mehrere Inputs kombinieren, um einen größeren Betrag zu bezahlen.
 
@@ -98,7 +98,7 @@ $$
 3{,}9 \geq 2{,}5 + 1 + 0{,}4 = 3{,}9
 $$
 
-Hier fällt keine Gebühr an. Der Output über 2,5 BTC wurde noch nicht ausgegeben, er ist ein UTXO. Die Coinbase dieses Blocks über 3,125 BTC konnte Person B öffnen.
+Hier fällt keine Gebühr an. Der Output über 2,5 BTC wurde noch nicht ausgegeben, er ist ein UTXO. Die Coinbase dieses Blocks über 3,125 BTC konnte Person B öffnen. In Wirklichkeit dürfen Coinbase-Outputs erst ausgegeben werden, wenn 100 weitere Blöcke folgen. Das Beispiel lässt diese Wartefrist weg.
 
 **Block n+1:** B gibt beide Beträge zusammen aus. Die Inputs ergeben $3{,}125 + 1 = 4{,}125$ BTC. Der Output an C beträgt 4,1 BTC. Die Differenz von 0,025 BTC ist die Gebühr. Die Coinbase dieses Blocks ist deshalb etwas höher als 3,125 BTC.
 
@@ -110,7 +110,7 @@ Hier fällt keine Gebühr an. Der Output über 2,5 BTC wurde noch nicht ausgegeb
 Die Gebühr ist die Summe der Inputs minus die Summe der Outputs:
 
 $$
-4{,}5 - (3{,}75 + 0{,}7) = 0{,}05 	ext{ BTC}
+4{,}5 - (3{,}75 + 0{,}7) = 0{,}05 \text{ BTC}
 $$
 
 </details>

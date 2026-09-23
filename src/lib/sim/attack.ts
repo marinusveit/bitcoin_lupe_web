@@ -127,7 +127,7 @@ export function attackTick(world: World, emit: Emit): void {
       world.attack!.z = z;
       emit({
         kind: 'attack-lead',
-        text: z >= 0 ? `Private Kette des Angreifers: Vorsprung z = ${z}` : `Private Kette des Angreifers: Rückstand ${-z} ${-z === 1 ? 'Block' : 'Blöcke'}`,
+        text: z >= 0 ? `Private Kette des Angreifers: Vorsprung ${z} ${z === 1 ? 'Block' : 'Blöcke'}` : `Private Kette des Angreifers: Rückstand ${-z} ${-z === 1 ? 'Block' : 'Blöcke'}`,
         nodeId: node.id,
       });
     }

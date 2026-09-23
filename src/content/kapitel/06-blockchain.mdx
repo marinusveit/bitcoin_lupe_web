@@ -27,7 +27,7 @@ Ein Block (block) speichert eine begrenzte Anzahl von Transaktionen. Er besteht 
 - `version`: die Versionsnummer der Regeln, nach denen der Block gebaut ist.
 - `previous_block_id`: der Hashwert des vorherigen Blocks.
 - `merkle_root`: die Merkle-Wurzel aller Transaktionen im Body (Kapitel 2).
-- `time`: ein Zeitstempel. Er darf höchstens etwa zwei Stunden von der Zeit der anderen Knoten abweichen.
+- `time`: ein Zeitstempel. Er darf höchstens zwei Stunden in der Zukunft liegen und muss jünger sein als der mittlere Zeitstempel der letzten elf Blöcke.
 - `nBits`: eine kurze Schreibweise für das Target (siehe unten).
 - `nonce`: eine Zahl, die Miner frei verändern dürfen.
 
@@ -39,7 +39,7 @@ Jeder Block enthält die Block-ID seines Vorgängers. So entsteht eine Kette mit
 
 Was passiert, wenn jemand eine alte Transaktion fälscht? Dann ändert sich die Merkle-Wurzel und damit die Block-ID. Der nächste Block zeigt aber noch auf die alte ID. Passt man ihn an, ändert sich auch seine ID. So pflanzt sich eine einzige Änderung bis zum Ende der Kette fort.
 
-<Werkbank aufgabe="Ändere den Text in Block 2 und mine ihn neu. Sag vorher: Werden Block 3 und 4 danach gültig sein?" deutung="Block 3 zeigt noch auf den alten Hash von Block 2. Wer einen Block ändert, muss ihn und alle folgenden neu minen.">
+<Werkbank aufgabe="Ändere den Text in Block 2 und mine ihn neu. Sag vorher: Werden Block 3 und 4 danach gültig sein?" deutung="Nein. Die Demo passt den Zeiger von Block 3 an den neuen Hash von Block 2 an. Dadurch ändert sich auch der Hash von Block 3, und seine alte Nonce passt nicht mehr. Dasselbe gilt für Block 4. Wer einen Block ändert, muss ihn und alle folgenden neu minen.">
   <KettenDemo client:visible />
 </Werkbank>
 

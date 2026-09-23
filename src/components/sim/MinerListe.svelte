@@ -91,7 +91,7 @@
   </div>
   <button type="button" onclick={add}>Miner hinzufügen</button>
   {#if error}<p class="fehler" role="alert">{error}</p>{/if}
-  <p class="hinweis">Ein unehrlicher Miner hält seine Blöcke zurück, bis seine geheime Kette länger ist als die öffentliche.</p>
+  <p class="hinweis">Ein unehrlicher Miner hält seine Blöcke zurück, bis in seiner geheimen Kette mehr Arbeit steckt als in der öffentlichen.</p>
 </section>
 
 <style>

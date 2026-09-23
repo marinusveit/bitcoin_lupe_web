@@ -146,7 +146,7 @@ export interface SimParams {
   defaultFee: number;
   /** Bestätigungen der Opfer-Transaktion, bevor der Angreifer veröffentlicht. */
   attackConfirmations: number;
-  /** Rückstand in Blöcken, ab dem ein Angreifer aufgibt. */
+  /** Rückstand in Blöcken; liegt der Angreifer noch weiter zurück, gibt er auf. */
   attackGiveUpDeficit: number;
   /** Maximale Länge von `world.log`. */
   logLimit: number;

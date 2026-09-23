@@ -35,7 +35,7 @@ $$
 y^2 \equiv x^3 + 7 \mod p
 $$
 
-Dazu kommen drei feste Werte, die jeder kennt: die Primzahl $p$, ein Startpunkt $G$ auf der Kurve und die Zahl $n$. Alle drei sind ungefähr so groß wie $2^{256}$, also Zahlen mit 78 Stellen.
+Dazu kommen drei feste Werte, die jeder kennt: die Primzahl $p$, ein Startpunkt $G$ auf der Kurve und die Zahl $n$. $p$ und $n$ sind ungefähr so groß wie $2^{256}$, also Zahlen mit 78 Stellen. $G$ ist ein Punkt mit zwei fast ebenso großen Koordinaten.
 
 <details class="vertiefung">
 <summary>Vertiefung: Die Zahlen von secp256k1</summary>
@@ -93,7 +93,7 @@ $$
 
 Der private Schlüssel ist dabei einfach eine Zufallszahl zwischen 1 und $n - 1$. Man muss sie mit einem guten Zufallsgenerator erzeugen. Weil es so viele Möglichkeiten gibt, wählen zwei Menschen praktisch nie dieselbe Zahl.
 
-Die Rechnung von $k_{pr}$ nach $K_{pub}$ ist schnell. Der Rückweg ist praktisch unmöglich. Man müsste $G$ immer wieder zu sich selbst addieren, bis man $K_{pub}$ trifft. Bei rund $2^{256}$ Möglichkeiten dauert das länger als das Universum alt ist. Die skalare Multiplikation ist also eine Einwegfunktion.
+Die Rechnung von $k_{pr}$ nach $K_{pub}$ ist schnell. Der Rückweg ist praktisch unmöglich. Der naive Weg wäre, $G$ immer wieder zu sich selbst zu addieren, bis man $K_{pub}$ trifft. Selbst die besten bekannten Verfahren brauchen dafür rund $2^{128}$ Schritte, und das dauert länger als das Universum alt ist. Die skalare Multiplikation ist also eine Einwegfunktion.
 
 <div class="callout merke">
 
@@ -116,7 +116,7 @@ Eine digitale Signatur (digital signature) beweist, dass jemand den privaten Sch
   <figcaption>Links wird eine Signatur erstellt, rechts wird sie geprüft.</figcaption>
 </figure>
 
-Bitcoin nutzt dafür den ECDSA (Elliptic Curve Digital Signature Algorithm). Die Signatur besteht aus zwei Zahlen $r$ und $s$. Signiert wird nicht die Nachricht selbst, sondern ihr Hashwert. In Bitcoin ist das nicht einfach der HASH256-Wert der fertigen Transaktion, sondern der HASH256-Wert einer angepassten Fassung der Transaktion, in der die Signaturen noch fehlen. Diesen Wert nennt man Sighash. Die Demo unten vereinfacht und hasht die Nachricht nur einmal mit SHA-256.
+Bitcoin nutzt dafür den ECDSA (Elliptic Curve Digital Signature Algorithm). Seit dem Taproot-Update von 2021 gibt es zusätzlich Schnorr-Signaturen; hier bleiben wir bei ECDSA. Die Signatur besteht aus zwei Zahlen $r$ und $s$. Signiert wird nicht die Nachricht selbst, sondern ihr Hashwert. In Bitcoin ist das nicht einfach der HASH256-Wert der fertigen Transaktion, sondern der HASH256-Wert einer angepassten Fassung der Transaktion, in der die Signaturen noch fehlen. Diesen Wert nennt man Sighash. Die Demo unten vereinfacht und hasht die Nachricht nur einmal mit SHA-256.
 
 Zum Signieren braucht man den privaten Schlüssel, den Hash der Nachricht und eine geheime Hilfszahl $k$. Zum Prüfen genügen die Nachricht, die Signatur und der öffentliche Schlüssel.
 

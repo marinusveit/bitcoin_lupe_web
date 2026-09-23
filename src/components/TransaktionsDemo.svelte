@@ -337,8 +337,8 @@
           <span><i class="sw fee"></i>Gebühr an den Miner</span>
         </p>
         <p class="muted small bar-note">
-          Beide Reihen sind gleich lang: Was oben hineingeht, kommt unten vollständig wieder heraus. Die Gebühr ist
-          in Wirklichkeit viel schmaler, hier zum Erkennen verbreitert.
+          Beide Reihen sind gleich lang: Was oben hineingeht, kommt unten vollständig wieder heraus.{#if bar.outs.some((s) => s.stretched)}
+          Sehr schmale Teile sind hier zum Erkennen verbreitert.{/if}
         </p>
       </div>
     {/if}

@@ -64,7 +64,7 @@
   {/if}
 
   <div class="legend" aria-live="polite">
-    <span class="lbl">Erfolgschance bei z = {activeZ} Bestätigung{activeZ === 1 ? '' : 'en'}</span>
+    <span class="lbl">Erfolgschance bei z = {activeZ} {activeZ === 1 ? 'Block' : 'Blöcken'} nach der Zahlung</span>
     <ul>
       {#each FIXED as q, i (q)}
         <li><span class="key" style="--mix: {SHADE[i]}%"></span>q = {qLabel(q)}: <strong>{pct(catchUp(q, activeZ))}</strong></li>
@@ -79,7 +79,7 @@
       width={W}
       height={H}
       role="img"
-      aria-label="Erfolgswahrscheinlichkeit eines Angreifers über der Anzahl der Bestätigungen"
+      aria-label="Erfolgswahrscheinlichkeit eines Angreifers über der Zahl der Blöcke nach der Zahlung"
       onpointermove={(e) => (hoverZ = toZ(e))}
       onpointerdown={(e) => (pinnedZ = toZ(e))}
       onpointerleave={() => (hoverZ = null)}
@@ -93,7 +93,7 @@
           <text class="tick" x={x(z)} y={H - M.bottom + 18} text-anchor="middle">{z}</text>
         {/if}
       {/each}
-      <text class="tick" x={W - M.right} y={H - 4} text-anchor="end">Bestätigungen z (Blöcke nach der Zahlung)</text>
+      <text class="tick" x={W - M.right} y={H - 4} text-anchor="end">z = Blöcke nach dem Block mit der Zahlung</text>
 
       <line class="cross" x1={x(activeZ)} x2={x(activeZ)} y1={M.top} y2={H - M.bottom} />
 
@@ -106,11 +106,11 @@
       {/each}
     </svg>
   </div>
-  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte bei einer bestimmten Zahl von Bestätigungen zu sehen.</p>
+  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte für ein bestimmtes z zu sehen.</p>
 
   <table>
-    <caption>Wie viele Bestätigungen für unter 0,1 % Risiko?</caption>
-    <thead><tr><th>Anteil des Angreifers q</th><th class="num">nötige Bestätigungen</th><th class="num">Wartezeit etwa</th></tr></thead>
+    <caption>Wie viele Blöcke abwarten für unter 0,1 % Risiko?</caption>
+    <thead><tr><th>Anteil des Angreifers q</th><th class="num">nötiges z</th><th class="num">Wartezeit etwa</th></tr></thead>
     <tbody>
       {#each table as r (r.q + ':' + r.own)}
         <tr class:own={r.own}>
@@ -126,7 +126,7 @@
       {/each}
     </tbody>
   </table>
-  <p class="hint">Ein Block kommt im Mittel alle zehn Minuten. Viele Händler warten sechs Bestätigungen, also etwa eine Stunde.</p>
+  <p class="hint">Ein Block kommt im Mittel alle zehn Minuten. Viele Händler warten sechs Bestätigungen, also z = 5 und etwa eine Stunde ab der Zahlung.</p>
 </div>
 
 <style>

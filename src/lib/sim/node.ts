@@ -79,7 +79,7 @@ export function checkBlockTxs(block: Block, utxo: UtxoSet, params: SimParams): s
   if (coinbase.txid !== computeTxid(coinbase)) return 'TxID der Coinbase passt nicht';
   if (rest.length > params.maxTxPerBlock) return `Mehr als ${params.maxTxPerBlock} Transaktionen im Block`;
   for (const o of coinbase.outputs) {
-    if (!Number.isSafeInteger(o.value) || o.value <= 0) return 'Coinbase-Wert muss größer als 0 sein';
+    if (!Number.isSafeInteger(o.value) || o.value < 0) return 'Coinbase-Wert darf nicht negativ sein';
   }
   let fees = 0;
   for (const tx of rest) {

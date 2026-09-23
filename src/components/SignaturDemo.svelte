@@ -97,7 +97,7 @@
       </dl>
       <p class="hint">
         Der öffentliche Schlüssel wird aus dem privaten berechnet. Umgekehrt geht es praktisch nicht. Die
-        Adresse ist eine gekürzte Form des öffentlichen Schlüssels.
+        Adresse entsteht aus dem Hash des öffentlichen Schlüssels plus Prüfsumme (Kapitel 5).
       </p>
       <button type="button" class="primary" onclick={rollKey}>Neuen privaten Schlüssel würfeln</button>
     </section>

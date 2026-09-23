@@ -1,11 +1,10 @@
 <script lang="ts">
   import { sha256Hex, startTextMining, type MiningHandle } from '../lib';
 
-  /** Ein Block speichert neben Daten und Nonce den Hash, auf den er zeigt (wie `previous_block_id`). */
+  /** Ein Block speichert Daten und Nonce. Sein Zeiger ist immer der aktuelle Hash des Vorgängers. */
   interface Block {
     data: string;
     nonce: number;
-    prev: string;
   }
 
   const ZEROS = '0000';
@@ -13,39 +12,35 @@
   const hashOf = (height: number, prev: string, data: string, nonce: number) =>
     sha256Hex(`${height}|${prev}|${data}|${nonce}`);
 
-  // Vorab gefundene Nonces, damit die Kette beim Laden sofort gültig ist. Die Zeiger werden
-  // beim Start aus den Hashes abgeleitet.
-  const START_DATA: { data: string; nonce: number }[] = [
+  // Vorab gefundene Nonces, damit die Kette beim Laden sofort gültig ist.
+  const START_DATA: Block[] = [
     { data: 'Coinbase: 50 BTC an Alice', nonce: 65131 },
     { data: 'Alice zahlt Bob 10 BTC', nonce: 16662 },
     { data: 'Bob zahlt Carol 3 BTC', nonce: 65293 },
     { data: 'Carol zahlt Alice 1 BTC', nonce: 39468 },
   ];
 
-  function startChain(): Block[] {
-    const out: Block[] = [];
-    let prev = GENESIS_PREV;
-    START_DATA.forEach((b, i) => {
-      out.push({ ...b, prev });
-      prev = hashOf(i + 1, prev, b.data, b.nonce);
-    });
-    return out;
-  }
+  const startChain = (): Block[] => START_DATA.map((b) => ({ ...b }));
 
   let blocks: Block[] = $state(startChain());
   let mining: number | null = $state(null);
   let tries = $state(0);
   let handle: MiningHandle | null = null;
 
-  /** Pro Block: Hash, Arbeitsnachweis erfüllt, Zeiger passt zum Vorgänger, beides zusammen. */
+  /**
+   * Pro Block: Zeiger (Hash des Vorgängers), eigener Hash, Arbeitsnachweis und Gültigkeit.
+   * Weil der Zeiger aus dem Vorgänger abgeleitet wird, ändert eine Änderung an einem Block die
+   * Hashes aller Nachfolger mit (wie in der Arbeit, Abschnitt Verkettung). Gültig ist ein Block
+   * nur, wenn sein Hash mit den Nullen beginnt und sein Vorgänger gültig ist.
+   */
   const chain = $derived.by(() => {
-    const out: { hash: string; pow: boolean; linked: boolean; valid: boolean; expectedPrev: string }[] = [];
+    const out: { prev: string; hash: string; pow: boolean; prevValid: boolean; valid: boolean }[] = [];
     blocks.forEach((b, i) => {
-      const expectedPrev = i === 0 ? GENESIS_PREV : out[i - 1]!.hash;
-      const hash = hashOf(i + 1, b.prev, b.data, b.nonce);
+      const prev = i === 0 ? GENESIS_PREV : out[i - 1]!.hash;
+      const prevValid = i === 0 ? true : out[i - 1]!.valid;
+      const hash = hashOf(i + 1, prev, b.data, b.nonce);
       const pow = hash.startsWith(ZEROS);
-      const linked = b.prev === expectedPrev;
-      out.push({ hash, pow, linked, valid: pow && linked, expectedPrev });
+      out.push({ prev, hash, pow, prevValid, valid: pow && prevValid });
     });
     return out;
   });
@@ -56,21 +51,14 @@
 
   const leadingZeros = (hash: string) => hash.match(/^0*/)![0].length;
 
-  /**
-   * Repariert den Zeiger auf den Vorgänger und sucht ab der aktuellen Nonce weiter (wie ein
-   * Miner, der hochzählt). Deshalb landet die Suche nie wieder bei der alten Nonce, und die
-   * Folgeblöcke bleiben sichtbar ungültig.
-   */
+  /** Sucht wie ein Miner ab Nonce 0 eine Nonce, mit der der Hash die Nullen erreicht. */
   function mine(i: number) {
     if (mining !== null) return;
     const block = blocks[i]!;
-    block.prev = chain[i]!.expectedPrev;
     mining = i;
     tries = 0;
     // Die Suche läuft im Web Worker, damit die Seite bedienbar bleibt.
-    const h = startTextMining(`${i + 1}|${block.prev}|${block.data}|`, ZEROS.length, (p) => (tries = p.iterations), {
-      startNonce: block.nonce + 1,
-    });
+    const h = startTextMining(`${i + 1}|${chain[i]!.prev}|${block.data}|`, ZEROS.length, (p) => (tries = p.iterations));
     handle = h;
     h.promise.then((outcome) => {
       if (handle !== h) return;
@@ -114,32 +102,29 @@
     {#each blocks as block, i (i)}
       {@const c = chain[i]!}
       {@const z = leadingZeros(c.hash)}
-      {@const behind = c.valid && firstInvalid >= 0 && i > firstInvalid}
       {#if i > 0}
         <!-- Verbinder: der Hash des Vorgängers fließt in das Feld „Zeigt auf“ dieses Blocks. -->
-        <div class="link" class:broken={!c.linked} aria-hidden="true">
+        <div class="link" class:broken={!c.prevValid} aria-hidden="true">
           <svg viewBox="0 0 60 40">
             <path class="line" d="M2 20 H44" />
-            {#if c.linked}
-              <path class="head" d="M40 12 L52 20 L40 28 Z" />
-            {:else}
-              <path class="head" d="M40 12 L52 20 L40 28 Z" />
+            <path class="head" d="M40 12 L52 20 L40 28 Z" />
+            {#if !c.prevValid}
               <path class="cross" d="M20 8 L36 32 M36 8 L20 32" />
             {/if}
           </svg>
-          <span class="link-lbl">{c.linked ? 'Hash passt' : 'Hash passt nicht'}</span>
+          <span class="link-lbl">{c.prevValid ? 'Hash passt' : 'Hash geändert'}</span>
         </div>
       {/if}
-      <div class="block" class:valid={c.valid && !behind} class:invalid={!c.valid} class:behind role="listitem">
+      <div class="block" class:valid={c.valid} class:invalid={!c.valid} role="listitem">
         <div class="top">
           <strong>Block {i + 1}</strong>
-          <span class="state">{c.valid ? (behind ? 'Kette davor gebrochen' : 'gültig') : 'ungültig'}</span>
+          <span class="state">{c.valid ? 'gültig' : 'ungültig'}</span>
         </div>
-        <div class="field prev" class:bad={!c.linked}>
+        <div class="field prev" class:bad={!c.prevValid}>
           <span class="lbl">Zeigt auf (Hash des Vorgängers)</span>
-          <span class="hash" class:broken={!c.linked}>{i === 0 ? 'kein Vorgänger (Genesis, der erste Block)' : block.prev}</span>
-          {#if !c.linked}
-            <span class="why">Block {i} hat inzwischen einen anderen Hash. Der Zeiger ist veraltet.</span>
+          <span class="hash">{i === 0 ? 'kein Vorgänger (Genesis, der erste Block)' : c.prev}</span>
+          {#if !c.prevValid}
+            <span class="why">Block {i} ist ungültig und hat einen neuen Hash. Dieser Zeiger ändert sich mit, und damit auch der eigene Hash.</span>
           {/if}
         </div>
         <label>Daten (Transaktionen)
@@ -152,7 +137,9 @@
           <span class="lbl">Eigener Hash (aus Höhe, Zeiger, Daten und Nonce)</span>
           <span class="hash"><span class="z" class:ok={c.pow}>{c.hash.slice(0, z)}</span>{c.hash.slice(z)}</span>
           {#if !c.pow}
-            <span class="why">Beginnt nicht mit {ZEROS}. Die Nonce passt nicht mehr.</span>
+            <span class="why">Beginnt nicht mit {ZEROS}. Die Nonce passt nicht mehr zu Zeiger und Daten.</span>
+          {:else if !c.prevValid}
+            <span class="why">Beginnt zwar mit {ZEROS}, aber der Block baut auf einem ungültigen Vorgänger auf.</span>
           {/if}
         </div>
         <button
@@ -167,7 +154,8 @@
   </div>
   <p class="note">
     Jeder Hash wird aus Blockhöhe, dem Zeiger auf den Vorgänger, den Daten und der Nonce berechnet. Gültig ist
-    ein Block, wenn sein Hash mit vier Nullen beginnt und sein Zeiger zum aktuellen Hash des Vorgängers passt.
+    ein Block, wenn sein Hash mit vier Nullen beginnt und sein Vorgänger gültig ist. Ändert sich ein Block, ändert
+    sich sein Hash, damit der Zeiger im nächsten Block, damit dessen Hash, und so weiter bis zum Ende der Kette.
   </p>
 </div>
 
@@ -193,8 +181,6 @@
   .field.prev.bad { border-left-color: var(--danger); }
   .block.valid { border-top-color: var(--ok); }
   .block.invalid { border-top-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, var(--bg-elevated)); }
-  .block.behind { border-top-color: var(--warn); }
-  .behind .state { color: var(--warn); }
   .top { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0 0.5rem; }
   .top strong { white-space: nowrap; }
   .state { font-size: 0.85rem; font-weight: 600; text-align: right; }
@@ -205,7 +191,6 @@
   textarea { resize: vertical; }
   .lbl { font-size: 0.85rem; color: var(--fg-muted); }
   .hash { font-size: 0.78rem; line-height: 1.4; }
-  .hash.broken { color: var(--danger); text-decoration: line-through; text-decoration-thickness: 1px; }
   .z { font-weight: 700; color: var(--danger); }
   .z.ok { color: var(--accent-strong); }
   .why { font-size: 0.8rem; color: var(--danger); }

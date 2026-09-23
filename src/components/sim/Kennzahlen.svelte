@@ -31,7 +31,7 @@
 </script>
 
 <dl class="kennzahlen" aria-label="Kennzahlen des Netzes">
-  <div><dt>{compact ? 'Länge der Kette' : 'Höhe'}</dt><dd>{s.height}</dd></div>
+  <div><dt>{compact ? 'Höhe der Kette' : 'Höhe'}</dt><dd>{s.height}</dd></div>
   {#if !compact}
     <div><dt>Difficulty</dt><dd>{formatDifficulty(s.difficulty)}</dd></div>
     <div><dt>Gesamt-Hashrate</dt><dd>{fmtNumber(s.totalHashrate)}</dd></div>

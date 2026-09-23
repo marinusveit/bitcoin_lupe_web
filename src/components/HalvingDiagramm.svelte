@@ -2,7 +2,7 @@
   import { blockSubsidy, HALVING_INTERVAL, SATOSHI_PER_BTC, totalSupply } from '../lib';
 
   const MAX_HEIGHT = 6_930_000;
-  const TODAY = 920_000;
+  const TODAY = 965_000;
   const ERAS = Math.ceil(MAX_HEIGHT / HALVING_INTERVAL);
 
   let width = $state(720);
@@ -20,7 +20,14 @@
   const y1 = (btc: number) => TOP1 + PANEL - (btc / 50) * PANEL;
   const y2 = (mio: number) => TOP2 + PANEL - (mio / 21) * PANEL;
 
-  const year = (h: number) => Math.floor(2009 + (h / HALVING_INTERVAL) * 4);
+  // Echte Halving-Zeitpunkte (Jan 2009, 28.11.2012, 09.07.2016, 11.05.2020, 20.04.2024), danach vier Jahre je Epoche.
+  const ERA_START = [2009.0, 2012.9, 2016.5, 2020.35, 2024.3];
+  const eraStart = (e: number) => (e < ERA_START.length ? ERA_START[e]! : ERA_START[ERA_START.length - 1]! + (e - ERA_START.length + 1) * 4);
+  const year = (h: number) => {
+    const e = Math.floor(h / HALVING_INTERVAL);
+    const f = (h - e * HALVING_INTERVAL) / HALVING_INTERVAL;
+    return Math.floor(eraStart(e) + f * (eraStart(e + 1) - eraStart(e)));
+  };
   const btc = (sat: number) => sat / SATOSHI_PER_BTC;
 
   // Treppe der Blockbelohnung: waagrecht je Epoche, senkrecht bei jeder Halbierung.
@@ -73,7 +80,7 @@
     return {
       era: e + 1,
       first,
-      year: 2009 + e * 4,
+      year: Math.floor(eraStart(e)),
       reward: btc(blockSubsidy(first)),
       supplyEnd: btc(totalSupply(first + HALVING_INTERVAL - 1)),
     };
@@ -85,7 +92,7 @@
     <div><span class="lbl">Blockhöhe</span><strong>{nf(readout.height)}</strong></div>
     <div><span class="lbl">Jahr (ungefähr)</span><strong>{readout.year}</strong></div>
     <div><span class="lbl">Blockbelohnung</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
-    <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, 0)} BTC</strong><span class="lbl">{nf((readout.supply / 21e6) * 100, 2)} % von 21 Mio.</span></div>
+    <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, readout.supply > 20_990_000 ? 4 : 0)} BTC</strong><span class="lbl">{nf(Math.floor((readout.supply / 21e6) * 10000) / 100, 2)} % von 21 Mio.</span></div>
   </div>
 
   <div class="chart" bind:clientWidth={width}>

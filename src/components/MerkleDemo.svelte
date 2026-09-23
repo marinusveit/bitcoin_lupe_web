@@ -334,7 +334,8 @@
   <div class="proof" aria-live="polite">
     {#if selected === null}
       <p class="hint">
-        Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu
+        Wer die Werte von Hand nachrechnen will: Bitcoin dreht die Bytes vor dem Hashen um, wie beim Block-Header in
+        Kapitel 6. Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu
         beweisen, dass diese Transaktion im Block steckt. Ändere danach einen Text: Alle Knoten bis zur
         Wurzel ändern sich mit{headerRoot === null ? '.' : ', und der Beweis passt nicht mehr zur Wurzel im Header.'}
       </p>

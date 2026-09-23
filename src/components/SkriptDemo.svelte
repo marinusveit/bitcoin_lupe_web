@@ -152,7 +152,7 @@
     {/each}
   </div>
   <p class="legend small">
-    <span class="item"><span class="key scriptSig"></span>scriptSig: liefert der Empfänger beim Ausgeben</span>
+    <span class="item"><span class="key scriptSig"></span>scriptSig: liefert, wer den Output ausgibt</span>
     <span class="item"><span class="key scriptPubKey"></span>scriptPubKey: steht im alten Output</span>
   </p>
 

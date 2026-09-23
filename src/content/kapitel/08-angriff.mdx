@@ -39,7 +39,7 @@ Diesen Angriff kannst du im [Simulator mit dem Szenario „Double Spend (51 %)�
 
 </div>
 
-Der Angreifer ist an dieselben Konsensregeln gebunden wie alle anderen. Er kann nur eigene Transaktionen rückgängig machen und so bereits ausgegebene Bitcoins zurückholen.
+Der Angreifer ist an dieselben Konsensregeln gebunden wie alle anderen. Er kann nur eigene Transaktionen rückgängig machen und so bereits ausgegebene Bitcoins zurückholen. Außerdem kann er fremde Transaktionen aus seinen Blöcken heraushalten, solange er die Mehrheit hat.
 
 ## Die Aufholjagd
 
@@ -47,7 +47,7 @@ Stell dir ein Wettrennen vor. Die ehrlichen Miner laufen vorne, der Angreifer li
 
 Bevor wir rechnen, kannst du das Rennen laufen lassen. Jeder neue Block ist ein Würfelwurf: Mit der Wahrscheinlichkeit $q$ findet ihn der Angreifer, sonst ein ehrlicher Miner. Der Händler liefert, sobald die ehrliche Kette $z$ Blöcke nach der Zahlung hat.
 
-<Werkbank aufgabe="Starte ein Rennen mit 30 % und 3 Bestätigungen. Sag vorher: Holt der Angreifer auf? Lass dann „100 Rennen“ und „1000 Rennen“ laufen und vergleiche die Quote mit der Formel. Stelle zum Schluss 60 % ein." deutung="Ein einzelnes Rennen ist Zufall, aber über viele Rennen zeigt sich eine feste Quote. Die Demo zeigt sie als „Formel aus dem Whitepaper“; wie diese Formel zustande kommt, rechnen wir jetzt Schritt für Schritt nach. Mit mehr als der Hälfte der Rechenleistung holt der Angreifer früher oder später jeden Rückstand auf, solange er nicht aufgibt.">
+<Werkbank aufgabe="Starte ein Rennen mit 30 % und z = 3. Sag vorher: Holt der Angreifer auf? Lass dann „100 Rennen“ und „1000 Rennen“ laufen und vergleiche die Quote mit der Formel. Stelle zum Schluss 60 % ein." deutung="Ein einzelnes Rennen ist Zufall, aber über viele Rennen zeigt sich eine feste Quote. Die Demo zeigt sie als „Formel aus dem Whitepaper“; wie diese Formel zustande kommt, rechnen wir jetzt Schritt für Schritt nach. Mit mehr als der Hälfte der Rechenleistung holt der Angreifer früher oder später jeden Rückstand auf, solange er nicht aufgibt.">
   <AngriffsRennen client:visible />
 </Werkbank>
 
@@ -77,7 +77,7 @@ $$
 
 ## Wie lange soll man warten?
 
-Jeder Block, der nach dem Block mit der eigenen Zahlung angehängt wird, heißt Bestätigung (confirmation). Der Empfänger weiß aber nicht, wie viele Blöcke der Angreifer heimlich schon hat. Er muss alle Möglichkeiten zusammenzählen.
+Wallets zählen Bestätigungen (confirmations): Der Block mit der Zahlung ist die erste, jeder Block danach eine weitere. Im Whitepaper heißt $z$ die Zahl der Blöcke nach dem Block mit der Zahlung, $z$ Blöcke danach sind also $z + 1$ Bestätigungen. Der Empfänger weiß aber nicht, wie viele Blöcke der Angreifer heimlich schon hat. Er muss alle Möglichkeiten zusammenzählen.
 
 {/* ERGÄNZT: Der Begriff Bestätigung (confirmation) steht nicht in der Arbeit; sie spricht von z nachfolgenden Blöcken. */}
 
@@ -119,13 +119,13 @@ $$
 
 </details>
 
-Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), der Angreifer hat 10 Prozent der Rechenleistung ($q = 0{,}1$). Seine Erfolgschance beträgt dann etwa 1,3 Prozent. Bei $z = 5$ sind es noch knapp 0,1 Prozent.
+Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), der Angreifer hat 10 Prozent der Rechenleistung ($q = 0{,}1$). Seine Erfolgschance beträgt dann etwa 1,3 Prozent. Bei $z = 5$ sind es noch knapp 0,1 Prozent. Nakamotos Formel ist eine Näherung, die das Risiko ab $z = 2$ etwas unterschätzt: Eine genauere Rechnung von Rosenfeld ergibt für $q = 0{,}1$ und $z = 3$ rund 1,7 statt 1,3 Prozent.
 
 {/* KORRIGIERT gegenüber der Arbeit: Dort stehen für q = 0,1 und z = 3 „0,35 %“. Die Formel ergibt 1,32 % (so auch die Tabelle im Whitepaper, Abschnitt 11); 0,35 % ist der Wert für z = 4. Auch die Kurvendaten in der Abbildung der Arbeit sind um einen Block verschoben. ERGÄNZT: Der Wert für z = 5 (0,09 %) ist nachgerechnet und steht nicht in der Arbeit. */}
 
-Ein Händler legt fest, welches Risiko er hinnimmt, zum Beispiel 0,1 Prozent, also eins zu tausend. Die Tabelle unter dem Diagramm zeigt, wie viele Bestätigungen er dafür abwarten muss. Ab 50 Prozent der Rechenleistung hilft kein Warten mehr, denn dann holt der Angreifer jeden Rückstand auf.
+Ein Händler legt fest, welches Risiko er hinnimmt, zum Beispiel 0,1 Prozent, also eins zu tausend. Die Tabelle unter dem Diagramm zeigt, wie viele Blöcke nach dem Block mit der Zahlung ($z$) er dafür abwarten muss. Ab 50 Prozent der Rechenleistung hilft kein Warten mehr, denn dann holt der Angreifer jeden Rückstand auf.
 
-<Werkbank aufgabe="Die Demo startet mit dem Beispiel: q = 10 % und z = 3, also etwa 1,3 %. Schiebe den Regler auf 45 %. Sag vorher: Wie viele Bestätigungen braucht der Händler jetzt? Schiebe ihn danach über 50 %." deutung="Mit jeder Bestätigung sinkt die Chance des Angreifers. Je mehr Rechenleistung er hat, desto langsamer sinkt sie. Ab 50 % bleibt die Kurve oben: Der Angriff gelingt immer.">
+<Werkbank aufgabe="Die Demo startet mit dem Beispiel: q = 10 % und z = 3, also etwa 1,3 %. Schiebe den Regler auf 45 %. Sag vorher: Wie viele Blöcke muss der Händler jetzt abwarten? Schiebe ihn danach über 50 %." deutung="Mit jeder Bestätigung sinkt die Chance des Angreifers. Je mehr Rechenleistung er hat, desto langsamer sinkt sie. Ab 50 % bleibt die Kurve oben: Der Angriff gelingt immer.">
   <AngriffsDiagramm client:visible />
 </Werkbank>
 

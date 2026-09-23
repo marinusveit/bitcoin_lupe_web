@@ -38,22 +38,23 @@ Ein Opcode ist ein Befehl, der durch eine feste Zahl dargestellt wird. So steht 
 
 ## Wann ist ein Skript erfolgreich?
 
-Ein Skript ist erfolgreich, wenn am Ende genau ein Element auf dem Stack liegt und dieses nicht null ist, meist eine 1. Es scheitert in diesen Fällen:
+Ein Skript ist erfolgreich, wenn es ohne Abbruch bis zum letzten Befehl durchläuft und danach oben auf dem Stack ein Wert ungleich null liegt, meist eine 1. Es scheitert in diesen Fällen:
 
 - Der Stack ist am Ende leer.
-- Das letzte Element ist null.
-- Es liegt mehr als ein Element auf dem Stack.
+- Das oberste Element ist null.
 - Das Skript bricht vor dem letzten Befehl ab.
+
+Dass am Ende genau ein Element übrig bleibt, verlangen die Knoten bei P2PKH nur beim Weiterleiten einer Transaktion, nicht als Konsensregel. Bei den neueren SegWit-Skripten ist es eine Konsensregel.
 
 ## P2PK: der einfachste Fall
 
 Das Skript P2PK (Pay to Public Key) wurde in der Anfangszeit von Bitcoin genutzt. Im ScriptPubKey stehen der öffentliche Schlüssel und `OP_CHECKSIG`, im ScriptSig nur die Signatur. `OP_CHECKSIG` prüft beide und hinterlässt eine 1.
 
-Der Nachteil: Der ganze öffentliche Schlüssel steht im Output. Unkomprimiert braucht er 65 Bytes. Außerdem schützt nichts mehr, falls ECDSA eines Tages gebrochen wird.
+Der Nachteil: Der ganze öffentliche Schlüssel steht im Output. Unkomprimiert braucht er 65 Bytes. Außerdem schützt nichts mehr, falls ECDSA eines Tages gebrochen wird, denn der öffentliche Schlüssel liegt von Anfang an offen.
 
 ## P2PKH Schritt für Schritt
 
-P2PKH (Pay to Public Key Hash) löst diese Probleme. Im ScriptPubKey steht nur der HASH160 des öffentlichen Schlüssels. Das ist ein Commitment aus Kapitel 1. Wird ECDSA gebrochen, schützt die Hashfunktion zusätzlich.
+P2PKH (Pay to Public Key Hash) löst diese Probleme. Im ScriptPubKey steht nur der HASH160 des öffentlichen Schlüssels. Das ist ein Commitment aus Kapitel 1. Wird ECDSA gebrochen, schützt die Hashfunktion zusätzlich, solange der öffentliche Schlüssel noch nicht veröffentlicht ist, also bis zum ersten Ausgeben.
 
 Das ScriptSig enthält die Signatur (Sig) und den öffentlichen Schlüssel (PubKey). Der ScriptPubKey lautet:
 

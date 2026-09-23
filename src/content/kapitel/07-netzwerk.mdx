@@ -64,7 +64,7 @@ Bei Blöcken prüft der Knoten unter anderem diese Punkte:
 
 Ein Full Node speichert die ganze Blockchain und prüft alle Daten. Er muss niemandem vertrauen. Dafür braucht er viel Speicherplatz.
 
-Einen Teil davon kann er zurückgewinnen. Transaktionen, deren Outputs alle ausgegeben sind, braucht er nicht mehr. Er darf sie löschen und behält nur die Merkle-Wurzel und nötige Merkle-Proofs. Das lohnt sich aber nur für Blöcke weit hinten in der Kette. Je tiefer ein Block liegt, desto unwahrscheinlicher ändert er sich noch (siehe Kapitel 8).
+Einen Teil davon kann er zurückgewinnen. Das Whitepaper schlägt vor, Transaktionen zu löschen, deren Outputs alle ausgegeben sind, und nur die Merkle-Wurzel und nötige Merkle-Proofs zu behalten. Bitcoin Core macht es heute anders: Es löscht ganze alte Blockdateien und behält die UTXO-Menge, denn zum Prüfen neuer Transaktionen reicht sie aus. Beides lohnt sich nur für Blöcke weit hinten in der Kette. Je tiefer ein Block liegt, desto unwahrscheinlicher ändert er sich noch (siehe Kapitel 8).
 
 ### SPV-Knoten
 
@@ -81,7 +81,7 @@ Will er wissen, ob eine Transaktion in einem Block steht, fragt er einen Full No
 
 <div class="callout achtung">
 
-**Häufiges Missverständnis:** Ein SPV-Knoten kann Transaktionen nicht selbst auf Gültigkeit prüfen. Er verlässt sich darauf, dass es mehr ehrliche als unehrliche Full Nodes gibt.
+**Häufiges Missverständnis:** Ein SPV-Knoten kann Transaktionen nicht selbst auf Gültigkeit prüfen. Er verlässt sich darauf, dass ehrliche Miner die Mehrheit der Rechenleistung haben.
 
 </div>
 
