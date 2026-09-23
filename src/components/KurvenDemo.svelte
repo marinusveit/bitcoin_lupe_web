@@ -310,7 +310,10 @@
         aria-selected={tab === t}
         tabindex={tab === t ? 0 : -1}
         bind:this={tabEls[t]}
-        onclick={() => (tab = t)}
+        onclick={() => {
+          stopPlay();
+          tab = t;
+        }}
         onkeydown={onTabKey}
       >
         {t === 'finite' ? 'Endlicher Körper (Rechnen modulo p)' : 'Reelle Kurve'}

@@ -98,10 +98,12 @@
     const total = parts.reduce((s, p) => s + p.value, 0);
     if (total <= 0) return [];
     const raw = parts.map((p) => (p.value / total) * 100);
-    const small = raw.map((w) => w > 0 && w < MIN_SEG);
-    const reserved = small.filter(Boolean).length * MIN_SEG;
+    // Nur so viele Teile strecken, dass die großen zusammen mindestens die Hälfte behalten.
+    const minSeg = Math.min(MIN_SEG, 50 / Math.max(1, parts.length));
+    const small = raw.map((w) => w > 0 && w < minSeg);
+    const reserved = small.filter(Boolean).length * minSeg;
     const bigSum = raw.reduce((s, w, i) => (small[i] ? s : s + w), 0);
-    return parts.map((p, i) => ({ ...p, width: small[i] ? MIN_SEG : (raw[i]! / bigSum) * (100 - reserved), stretched: small[i] }));
+    return parts.map((p, i) => ({ ...p, width: small[i] ? minSeg : (raw[i]! / bigSum) * (100 - reserved), stretched: small[i] }));
   }
   const bar = $derived.by(() => {
     if (!latest.from) return null;
@@ -319,7 +321,7 @@
           </div>
         </div>
         <div class="bar-row">
-          <span class="bar-lbl">Outputs</span>
+          <span class="bar-lbl">Outputs + Gebühr</span>
           <div class="bar-track">
             {#each bar.outs as seg, i (i)}
               <div class="seg {seg.kind}" class:stretched={seg.stretched} style="width: {seg.width.toFixed(2)}%" title="{seg.label}: {btc(seg.value)}">

@@ -47,11 +47,11 @@ Stell dir ein Wettrennen vor. Die ehrlichen Miner laufen vorne, der Angreifer li
 
 Bevor wir rechnen, kannst du das Rennen laufen lassen. Jeder neue Block ist ein Würfelwurf: Mit der Wahrscheinlichkeit $q$ findet ihn der Angreifer, sonst ein ehrlicher Miner. Der Händler liefert, sobald die ehrliche Kette $z$ Blöcke nach der Zahlung hat.
 
-<Werkbank aufgabe="Starte ein Rennen mit 30 % und 3 Bestätigungen. Sag vorher: Holt der Angreifer auf? Lass dann „100 Rennen“ laufen und vergleiche die Quote mit der Formel. Stelle zum Schluss 60 % ein." deutung="Ein einzelnes Rennen ist Zufall, aber über viele Rennen zeigt sich eine feste Quote. Genau diese Quote berechnet die Formel unten. Mit mehr als der Hälfte der Rechenleistung gewinnt der Angreifer jedes Rennen irgendwann.">
+<Werkbank aufgabe="Starte ein Rennen mit 30 % und 3 Bestätigungen. Sag vorher: Holt der Angreifer auf? Lass dann „100 Rennen“ und „1000 Rennen“ laufen und vergleiche die Quote mit der Formel. Stelle zum Schluss 60 % ein." deutung="Ein einzelnes Rennen ist Zufall, aber über viele Rennen zeigt sich eine feste Quote. Die Demo zeigt sie als „Formel aus dem Whitepaper“; wie diese Formel zustande kommt, rechnen wir jetzt Schritt für Schritt nach. Mit mehr als der Hälfte der Rechenleistung holt der Angreifer früher oder später jeden Rückstand auf, solange er nicht aufgibt.">
   <AngriffsRennen client:visible />
 </Werkbank>
 
-Dafür definieren wir drei Wahrscheinlichkeiten:
+Um das auszurechnen, definieren wir drei Wahrscheinlichkeiten:
 
 - $p$: Ein ehrlicher Miner findet den nächsten Block.
 - $q$: Der Angreifer findet den nächsten Block. Dabei ist $p + q = 1$.

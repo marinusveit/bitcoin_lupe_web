@@ -104,7 +104,7 @@
   .funnel-lbl { font-size: 0.82rem; color: var(--fg-muted); line-height: 1.3; }
   .funnel-lbl strong { color: var(--fg); }
   .squares { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; min-height: 0.7rem; }
-  .sq { display: block; width: 0.55rem; height: 0.7rem; border-radius: 1px; }
+  .sq { display: block; width: 0.55rem; height: 0.7rem; border-radius: var(--radius-sm); }
   .sq.in { background: var(--fg-muted); opacity: 0.55; }
   .sq.out { background: var(--accent); }
   .more { font-size: 0.78rem; color: var(--fg-muted); margin-left: 0.3rem; }

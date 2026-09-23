@@ -158,7 +158,8 @@
       <p class="hint">
         Zahlen stehen mit dem niedrigsten Byte zuerst (Little Endian), die beiden Hashes in umgekehrter
         Byte-Reihenfolge. Deshalb sehen die Bytes anders aus als die Felder oben. Aus diesen 80 Bytes wird
-        HASH256 berechnet, also zweimal SHA-256. Das Ergebnis ist die Block-ID:
+        HASH256 berechnet, also zweimal SHA-256. Das Ergebnis wird für die Anzeige wieder umgedreht, so
+        entsteht die bekannte Block-ID:
       </p>
       <div class="arrow" aria-hidden="true">HASH256 ↓</div>
     </figure>
@@ -200,7 +201,7 @@
   .strip { margin: 0; display: grid; gap: 0.5rem; }
   .strip-title { margin: 0; font-weight: 600; }
   .bytes { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.7rem, 1fr)); gap: 2px; font-family: var(--font-mono); font-size: 0.78rem; }
-  .byte { text-align: center; padding: 0.15rem 0; border-radius: 2px; background: color-mix(in srgb, var(--fc) 45%, var(--bg-elevated)); border-bottom: 3px solid var(--fc); color: var(--fg); }
+  .byte { text-align: center; padding: 0.15rem 0; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--fc) 45%, var(--bg-elevated)); border-bottom: 3px solid var(--fc); color: var(--fg); }
   .fields { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; font-size: 0.85rem; color: var(--fg-muted); }
   .fld-key { display: inline-flex; align-items: center; gap: 0.35rem; }
   .sw { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: var(--radius-sm); background: var(--fc); }

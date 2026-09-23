@@ -5,6 +5,8 @@
   const START_Q = 0.3;
   const START_Z = 3;
   const STEP_MS = 320;
+  /** Rückstand, bei dem der Angreifer in der Simulation aufgibt (siehe nakamoto.ts). */
+  const GIVE_UP = 20;
 
   let q = $state(START_Q);
   let z = $state(START_Z);
@@ -15,6 +17,7 @@
   let runs = $state(0);
   let wins = $state(0);
   let timer: ReturnType<typeof setInterval> | undefined;
+  let track: HTMLDivElement | undefined = $state();
 
   const motion = typeof matchMedia === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -39,7 +42,7 @@
 
   function startRace() {
     stopTimer();
-    const r = simulateRace(q, z);
+    const r = simulateRace(q, z, { giveUpDeficit: GIVE_UP });
     race = r;
     if (!motion) {
       shown = r.steps.length;
@@ -57,6 +60,14 @@
     }, STEP_MS);
   }
 
+  /** Bricht die Animation ab und zeigt das Ende des laufenden Rennens sofort. */
+  function skipToEnd() {
+    if (!race) return;
+    stopTimer();
+    shown = race.steps.length;
+    finish(race);
+  }
+
   function finish(r: RaceResult) {
     runs++;
     if (r.outcome === 'success') wins++;
@@ -66,7 +77,7 @@
     stopTimer();
     race = null;
     shown = 0;
-    for (let i = 0; i < n; i++) finish(simulateRace(q, z));
+    for (let i = 0; i < n; i++) finish(simulateRace(q, z, { giveUpDeficit: GIVE_UP }));
   }
 
   function resetTally() {
@@ -91,6 +102,12 @@
     resetTally();
   }
 
+  /** Neue Blöcke erscheinen rechts, die Spur scrollt mit. */
+  $effect(() => {
+    void shown;
+    if (track) track.scrollLeft = track.scrollWidth;
+  });
+
   onDestroy(stopTimer);
 </script>
 
@@ -106,13 +123,17 @@
     </label>
   </div>
   <div class="actions">
-    <button class="primary" onclick={startRace} disabled={playing}>{playing ? 'Rennen läuft …' : 'Ein Rennen starten'}</button>
-    <button onclick={() => runBatch(100)} disabled={playing}>100 Rennen ohne Animation</button>
-    <button onclick={() => runBatch(1000)} disabled={playing}>1000 Rennen</button>
+    {#if playing}
+      <button class="primary" onclick={skipToEnd}>Zum Ende springen</button>
+    {:else}
+      <button class="primary" onclick={startRace}>Ein Rennen starten</button>
+    {/if}
+    <button onclick={() => runBatch(100)} disabled={playing} title="ohne Animation">100 Rennen</button>
+    <button onclick={() => runBatch(1000)} disabled={playing} title="ohne Animation">1000 Rennen</button>
     <button onclick={reset}>Zurücksetzen</button>
   </div>
 
-  <div class="track" aria-live="polite">
+  <div class="track" aria-live="polite" bind:this={track}>
     <div class="lane">
       <span class="lane-lbl">Ehrliche Kette</span>
       <div class="blocks">
@@ -148,13 +169,16 @@
       {#if !view.delivered}
         Der Händler wartet noch: {view.honest} von {z} Bestätigungen.
       {:else if lead < 0}
-        Der Händler hat geliefert. Der Angreifer liegt {-lead} {lead === -1 ? 'Block' : 'Blöcke'} zurück und mined weiter.
+        Der Händler hat geliefert. Der Angreifer liegt {-lead} {lead === -1 ? 'Block' : 'Blöcke'} zurück und sucht weiter nach Blöcken.
       {:else}
         Der Angreifer hat aufgeholt!
       {/if}
+    {:else if race.outcome === 'success' && race.steps.length === 0}
+      <strong class="bad">Angriff gelungen:</strong> Der Händler hat ohne Bestätigung geliefert. Der Angreifer muss nichts aufholen
+      und veröffentlicht einfach seine Zahlung an sich selbst.
     {:else if race.outcome === 'success'}
-      <strong class="bad">Angriff gelungen:</strong> Nach {race.steps.length} Blöcken ist die Kette des Angreifers so lang wie die ehrliche.
-      Er veröffentlicht sie, die Zahlung an den Händler verschwindet.
+      <strong class="bad">Angriff gelungen:</strong> Nach {race.steps.length} Blöcken hat die Kette des Angreifers die ehrliche eingeholt.
+      Sobald sie länger ist, wechseln die Knoten zu ihr, und die Zahlung an den Händler verschwindet.
     {:else}
       <strong class="good">Angriff gescheitert:</strong> Der Angreifer liegt {race.honest - race.attacker} Blöcke zurück und gibt auf.
       Die Zahlung bleibt in der Kette.
@@ -169,12 +193,16 @@
   </dl>
   <p class="hint">
     {#if atLeastHalf(q)}
-      Mit mindestens der Hälfte der Rechenleistung holt der Angreifer früher oder später jeden Rückstand auf.
+      Mit mindestens der Hälfte der Rechenleistung holt der Angreifer früher oder später jeden Rückstand auf,
+      wenn er nur lange genug durchhält. In der Simulation gibt er bei {GIVE_UP} Blöcken Rückstand auf, deshalb
+      scheitern hier trotzdem einige Rennen.
     {:else}
       Je mehr Rennen du laufen lässt, desto näher rückt die Quote an die Formel. Ein einzelnes Rennen kann
-      immer anders ausgehen, das ist Zufall. Die Formel selbst ist eine Näherung, ein paar Prozent Abstand bleiben.
+      immer anders ausgehen, das ist Zufall. Die Formel im Whitepaper ist eine Näherung, und der Angreifer
+      gibt in der Simulation bei {GIVE_UP} Blöcken Rückstand auf. Ein paar Prozent Abstand bleiben deshalb.
     {/if}
-    Wie im Whitepaper zählt es als Erfolg, sobald die heimliche Kette gleich lang ist.
+    Wie im Whitepaper zählt es als Erfolg, sobald die heimliche Kette gleich lang ist. Im echten Netz muss
+    sie länger sein, damit die Knoten zu ihr wechseln.
   </p>
 </div>
 
@@ -186,7 +214,7 @@
   .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .track { display: grid; gap: 0.6rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated); overflow-x: auto; }
   .lane { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: 0.6rem; }
-  .lane-lbl { font-size: 0.88rem; color: var(--fg-muted); }
+  .lane-lbl { font-size: 0.88rem; color: var(--fg-muted); position: sticky; left: 0; background: var(--bg-elevated); z-index: 1; }
   .blocks { display: flex; align-items: center; gap: 0.3rem; min-height: 1.7rem; }
   .blk {
     flex: none; width: 1.6rem; height: 1.6rem; border-radius: var(--radius-sm);
