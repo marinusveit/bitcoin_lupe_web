@@ -46,6 +46,12 @@ export function outpointKey(txid: string, vout: number): string {
   return `${txid}:${vout}`;
 }
 
+/** Zerlegt einen Schlüssel aus `outpointKey` wieder in TxID und Output-Nummer. */
+export function parseOutpoint(key: string): { txid: string; vout: number } {
+  const sep = key.lastIndexOf(':');
+  return { txid: key.slice(0, sep), vout: Number(key.slice(sep + 1)) };
+}
+
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (value !== null && typeof value === 'object') {

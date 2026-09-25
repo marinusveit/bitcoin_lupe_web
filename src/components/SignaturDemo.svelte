@@ -1,7 +1,14 @@
 <script lang="ts">
   import { sha256Hex } from '../lib/hash';
-  import { secp256k1 } from '@noble/curves/secp256k1.js';
-  import { addressP2PKH, publicKey, randomPrivateKey, signMessage, verifySignature } from '../lib/keys';
+  import {
+    addressP2PKH,
+    publicKey,
+    publicKeyPoint,
+    randomPrivateKey,
+    signatureToDer,
+    signMessage,
+    verifySignature,
+  } from '../lib/keys';
 
   // Feste Beispielschlüssel, damit Server- und Browser-Darstellung übereinstimmen.
   const START_PRIV = sha256Hex('Beispielschlüssel Hochschule München');
@@ -24,9 +31,9 @@
   const signature = $derived(signMessage(priv, msgHash, 'compact'));
   const sigR = $derived(signature.slice(0, 64));
   const sigS = $derived(signature.slice(64));
-  const signatureDer = $derived(signMessage(priv, msgHash, 'der'));
+  const signatureDer = $derived(signatureToDer(signature));
   // Der öffentliche Schlüssel als Punkt k·G auf der Kurve (komprimiert: 02/03 + x).
-  const pubPoint = $derived(secp256k1.Point.fromHex(pub).toAffine());
+  const pubPoint = $derived(publicKeyPoint(pub));
   const pubX = $derived(pubPoint.x.toString(16).padStart(64, '0'));
   const pubY = $derived(pubPoint.y.toString(16).padStart(64, '0'));
 
@@ -80,7 +87,7 @@
   }
 </script>
 
-<div class="demo">
+<div class="demo demo-card">
   <div class="aktionen">
     <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
@@ -220,12 +227,6 @@
 
 <style>
   .demo {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.2rem;
-    display: grid;
-    gap: 1rem;
     container-type: inline-size;
     min-width: 0;
   }
@@ -288,7 +289,6 @@
   .tag { font-family: var(--font-sans); font-weight: 600; }
   .field { display: grid; gap: 0.3rem; }
   .field textarea { width: 100%; resize: vertical; }
-  .hint { margin: 0; color: var(--fg-muted); font-size: 0.9rem; }
 
   .signature {
     border: 1px solid var(--accent);

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { sha256Hex, toBitString } from '../lib/hash';
+  import { fmtNumber } from '../lib/format';
+  import { hammingDistanceHex, sha256Hex, toBitString } from '../lib/hash';
 
   const START_LEFT = 'Hochschule München';
   const START_RIGHT = 'Hochschule Munchen';
@@ -8,18 +9,20 @@
   let left = $state(START_LEFT);
   let right = $state(START_RIGHT);
 
-  const bitsLeft = $derived(toBitString(sha256Hex(left)));
-  const bitsRight = $derived(toBitString(sha256Hex(right)));
+  const hexLeft = $derived(sha256Hex(left));
+  const hexRight = $derived(sha256Hex(right));
+  const bitsLeft = $derived(toBitString(hexLeft));
+  const bitsRight = $derived(toBitString(hexRight));
   const diff = $derived(Array.from(bitsLeft, (b, i) => b !== bitsRight[i]));
-  const diffCount = $derived(diff.filter(Boolean).length);
-  const percent = $derived(((diffCount / 256) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }));
+  const diffCount = $derived(hammingDistanceHex(hexLeft, hexRight));
+  const percent = $derived(fmtNumber((diffCount / 256) * 100));
 
   const ROWS = [0, 1, 2, 3, 4, 5, 6, 7];
 
   /** Bitunterschiede der bisherigen Zufallsänderungen, für den Mittelwert. */
   let history: number[] = $state([]);
   const mean = $derived(history.length ? history.reduce((a, b) => a + b, 0) / history.length : null);
-  const meanText = $derived(mean === null ? '' : mean.toLocaleString('de-DE', { maximumFractionDigits: 1 }));
+  const meanText = $derived(mean === null ? '' : fmtNumber(mean));
   const lowest = $derived(history.length ? Math.min(...history) : null);
   const highest = $derived(history.length ? Math.max(...history) : null);
 
@@ -43,9 +46,7 @@
     chars[pos] = to;
     right = chars.join('');
     lastChange = { pos: pos + 1, from, to };
-    const newBits = toBitString(sha256Hex(right));
-    const count = Array.from(bitsLeft, (b, i) => b !== newBits[i]).filter(Boolean).length;
-    history = [...history, count];
+    history = [...history, hammingDistanceHex(hexLeft, sha256Hex(right))];
   }
 
   /** Handeingabe: Zeichenänderung und Verlauf beziehen sich auf andere Texte und werden verworfen. */
@@ -62,7 +63,7 @@
   }
 </script>
 
-<div class="demo">
+<div class="demo demo-card">
   <div class="pair">
     {#each [{ id: 'l', label: 'Text A', bits: bitsLeft }, { id: 'r', label: 'Text B', bits: bitsRight }] as side (side.id)}
       <div class="side">
@@ -109,14 +110,6 @@
 </div>
 
 <style>
-  .demo {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.2rem;
-    display: grid;
-    gap: 1rem;
-  }
   .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.2rem; }
   .side { display: grid; gap: 0.6rem; align-content: start; min-width: 0; }
   .field { display: grid; gap: 0.3rem; }
@@ -130,5 +123,4 @@
   .change { display: block; font-size: 0.95rem; margin-top: 0.2rem; }
   .change .hash { color: var(--accent-strong); font-weight: 700; white-space: pre; }
   .stat { display: block; font-size: 0.9rem; color: var(--fg-muted); margin-top: 0.2rem; }
-  .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
 </style>

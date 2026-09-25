@@ -266,6 +266,25 @@ details.klein > summary:focus-visible { outline: 2px solid var(--accent); outlin
 .aktionen { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .aktionen > .reset { margin-left: auto; }
 
+/* Kasten einer Demo außerhalb der Werkbank. Zusammen mit `demo` vergeben (class="demo demo-card"),
+   damit die Werkbank den Kasten weiter neutralisieren kann. */
+.demo-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+/* Erklärender Kleintext unter Reglern, Feldern und Grafiken. */
+.hint { margin: 0; color: var(--fg-muted); font-size: 0.9rem; }
+
+/* Segmentschalter: Knopfgruppe mit role="group", der gewählte Knopf trägt aria-pressed="true". */
+.switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.switch button { border: 0; border-radius: 0; padding: 0.25rem 0.8rem; background: transparent; color: var(--fg-muted); }
+.switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
+
 /* Kasten am Kapitelende: <div class="mitnehmen"> **Das nimmst du mit:** … </div> (Überschrift steht im MDX) */
 .mitnehmen {
   margin: 2.5rem 0 1.5rem;

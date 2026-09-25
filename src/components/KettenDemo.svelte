@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sha256Hex, startTextMining, type MiningHandle } from '../lib';
+  import { fmtNumber, leadingZeroHexDigits, sha256Hex, startTextMining, ZERO_HASH, type MiningHandle } from '../lib';
 
   /** Ein Block speichert Daten und Nonce. Sein Zeiger ist immer der aktuelle Hash des Vorgängers. */
   interface Block {
@@ -8,7 +8,6 @@
   }
 
   const ZEROS = '0000';
-  const GENESIS_PREV = '0'.repeat(64);
   /** Eine Nonce ist eine ganze Zahl ab 0; leere, negative und gebrochene Eingaben werden so gelesen. */
   const cleanNonce = (nonce: number | null) => Math.max(0, Math.trunc(nonce || 0));
   const hashOf = (height: number, prev: string, data: string, nonce: number | null) =>
@@ -38,7 +37,7 @@
   const chain = $derived.by(() => {
     const out: { prev: string; hash: string; pow: boolean; prevValid: boolean; valid: boolean }[] = [];
     blocks.forEach((b, i) => {
-      const prev = i === 0 ? GENESIS_PREV : out[i - 1]!.hash;
+      const prev = i === 0 ? ZERO_HASH : out[i - 1]!.hash;
       const prevValid = i === 0 ? true : out[i - 1]!.valid;
       const hash = hashOf(i + 1, prev, b.data, b.nonce);
       const pow = hash.startsWith(ZEROS);
@@ -50,8 +49,6 @@
   const firstInvalid = $derived(chain.findIndex((c) => !c.valid));
   /** Ab dem ersten ungültigen Block ist die ganze Kette dahinter betroffen. */
   const affected = $derived(firstInvalid < 0 ? 0 : blocks.length - firstInvalid);
-
-  const leadingZeros = (hash: string) => hash.match(/^0*/)![0].length;
 
   /** Sucht wie ein Miner ab Nonce 0 eine Nonce, mit der der Hash die Nullen erreicht. */
   function mine(i: number) {
@@ -103,7 +100,7 @@
   <div class="chain" role="list" aria-label="Blockkette">
     {#each blocks as block, i (i)}
       {@const c = chain[i]!}
-      {@const z = leadingZeros(c.hash)}
+      {@const z = leadingZeroHexDigits(c.hash)}
       {#if i > 0}
         <!-- Verbinder: der Hash des Vorgängers fließt in das Feld „Zeigt auf“ dieses Blocks. Die Beschriftung
              sagt, ob der Vorgänger gültig ist; der Zeiger selbst folgt in der Demo immer dessen Hash. -->
@@ -147,7 +144,7 @@
           disabled={mining !== null || c.valid || i !== firstInvalid}
           title={!c.valid && i !== firstInvalid ? 'Erst den Block davor neu minen' : undefined}
         >
-          {mining === i ? `Suche … ${tries.toLocaleString('de-DE')} Versuche` : 'Block neu minen'}
+          {mining === i ? `Suche … ${fmtNumber(tries)} Versuche` : 'Block neu minen'}
         </button>
       </div>
     {/each}

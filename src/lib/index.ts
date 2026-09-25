@@ -8,3 +8,4 @@ export * from './script';
 export * from './block';
 export * from './mining-client';
 export * from './nakamoto';
+export * from './format';

@@ -19,7 +19,8 @@ export interface MerkleTree {
   root: string;
 }
 
-function toInternal(displayHex: string): Uint8Array {
+/** Wandelt einen 32-Byte-Hash in Anzeige-Hex in die interne Byte-Reihenfolge (umgedreht). */
+export function toInternal(displayHex: string): Uint8Array {
   const bytes = hexToBytes(displayHex);
   if (bytes.length !== 32) throw new Error(`Hash muss 32 Byte lang sein: ${displayHex}`);
   return bytes.reverse();

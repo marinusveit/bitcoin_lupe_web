@@ -1,6 +1,7 @@
 <script lang="ts">
   import { reverseHex, sha256dHex } from '../lib/hash';
-  import { buildMerkleTree, hashPair, merkleProof, verifyMerkleProof } from '../lib/merkle';
+  import { buildMerkleTree } from '../lib/merkle';
+  import { onActivate } from '../lib/ui';
 
   const START_TXS = ['Alice → Bob 2 BTC', 'Bob → Carol 1 BTC', 'Carol → Dave 0,5 BTC', 'Dave → Eve 0,2 BTC'];
   const EXTRA_TXS = [
@@ -15,7 +16,6 @@
   /** TxID in Anzeige-Reihenfolge: Bitcoin zeigt den HASH256-Wert byte-umgedreht an (wie Block-Explorer). */
   const txidOf = (text: string) => reverseHex(sha256dHex(text));
   const START_LEVELS = buildMerkleTree(START_TXS.map(txidOf)).levels;
-  const START_ROOT = START_LEVELS[START_LEVELS.length - 1]![0]!;
 
   // SVG-Maße in viewBox-Einheiten
   const SLOT = 100;
@@ -51,10 +51,10 @@
   let txs = $state<string[]>([...START_TXS]);
   let selected = $state<number | null>(null);
   let flashLeaf = $state<number | null>(null);
-  /** Im Block-Header eingefrorene Wurzel; `null`, solange nichts eingetragen ist. */
-  let headerRoot = $state<string | null>(START_ROOT);
   /** Alle Baum-Ebenen zum Zeitpunkt des Header-Eintrags, um veraltete Beweis-Hashes zu erkennen. */
-  let headerLevels = $state<string[][] | null>(START_LEVELS);
+  let headerLevels = $state<string[][]>(START_LEVELS);
+  /** Im Block-Header eingefrorene Wurzel. */
+  const headerRoot = $derived(headerLevels.at(-1)![0]!);
   /** Wurde eine abweichende Wurzel neu in den Header geschrieben? Dann folgt der Hinweis „anderer Block“. */
   let rewritten = $state(false);
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -172,34 +172,39 @@
     return onPath(flashLeaf, level, index, tree.levels[level]!.length);
   }
 
+  /** Geschwister-Hash des Pfads von Blatt `leaf` auf Ebene k (verdoppelt bei ungerader Ebene); unter der Wurzel keiner. */
+  function siblingAt(levels: string[][], k: number, leaf: number): string | undefined {
+    if (k >= levels.length - 1) return undefined;
+    const level = levels[k]!;
+    const i = Math.floor(leaf / 2 ** k);
+    return i % 2 === 0 ? (level[i + 1] ?? level[i]) : level[i - 1];
+  }
+
+  // Die Beweis-Schritte stehen schon im Baum: eigener Knoten, Geschwister und Elternknoten je Ebene.
   const proofSteps = $derived.by(() => {
-    if (selected === null || selected >= txids.length) return [];
-    const proof = merkleProof(txids, selected);
-    let current = txids[selected]!;
-    return proof.map((step, k) => {
-      const next = step.position === 'left' ? hashPair(step.hash, current) : hashPair(current, step.hash);
-      const row = { level: k, own: current, sibling: step.hash, position: step.position, result: next };
-      current = next;
-      return row;
+    const leaf = selected;
+    if (leaf === null || leaf >= txids.length) return [];
+    return tree.levels.slice(0, -1).map((level, k) => {
+      const i = Math.floor(leaf / 2 ** k);
+      return {
+        level: k,
+        own: level[i]!,
+        sibling: siblingAt(tree.levels, k, leaf)!,
+        position: i % 2 === 0 ? ('right' as const) : ('left' as const),
+        result: tree.levels[k + 1]![Math.floor(i / 2)]!,
+      };
     });
   });
-  // Mit Header-Eintrag prüft der Beweis gegen die eingefrorene Wurzel, sonst gegen die aktuelle.
-  const proofOk = $derived(
-    selected !== null && selected < txids.length
-      ? verifyMerkleProof(txids[selected]!, merkleProof(txids, selected), headerRoot ?? tree.root)
-      : false,
-  );
   const headerMatches = $derived(headerRoot === tree.root);
+  // Der Beweis führt immer zur aktuellen Wurzel; gültig ist er, wenn die im Header steht.
+  const proofOk = $derived(selected !== null && selected < txids.length && headerMatches);
   /** Ist die gewählte Transaktion selbst seit dem Header-Eintrag unverändert? */
-  const ownUnchanged = $derived(
-    selected !== null && headerLevels !== null && headerLevels[0]![selected] === txids[selected],
-  );
+  const ownUnchanged = $derived(selected !== null && headerLevels[0]![selected] === txids[selected]);
   /** Je Beweis-Ebene: Weicht der Geschwister-Hash vom Stand beim Header-Eintrag ab? */
   const staleSiblings = $derived.by(() => {
-    const old = headerLevels;
-    if (selected === null || old === null || selected >= old[0]!.length) return proofSteps.map(() => false);
-    const oldProof = merkleProof(old[0]!, selected);
-    return proofSteps.map((s, k) => oldProof[k]?.hash !== s.sibling);
+    const leaf = selected;
+    if (leaf === null || leaf >= headerLevels[0]!.length) return proofSteps.map(() => false);
+    return proofSteps.map((s, k) => siblingAt(headerLevels, k, leaf) !== s.sibling);
   });
   const staleHashes = $derived(proofSteps.filter((_, k) => staleSiblings[k]).map((s) => short(s.sibling)));
 
@@ -244,12 +249,11 @@
   }
 
   function setHeader() {
-    headerRoot = tree.root;
     headerLevels = tree.levels;
   }
 
   function freezeRoot() {
-    rewritten = headerRoot !== null && !headerMatches;
+    rewritten = !headerMatches;
     setHeader();
   }
 
@@ -259,13 +263,12 @@
     txs = [...START_TXS];
     selected = null;
     flashLeaf = null;
-    headerRoot = START_ROOT;
     headerLevels = START_LEVELS;
     rewritten = false;
   }
 </script>
 
-<div class="demo">
+<div class="demo demo-card">
   <div class="aktionen">
     <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
@@ -291,18 +294,14 @@
     <button type="button" onclick={removeTx} disabled={txs.length <= 1}>Transaktion entfernen</button>
   </div>
 
-  <div class="header-box" class:mismatch={headerRoot !== null && !headerMatches}>
+  <div class="header-box" class:mismatch={!headerMatches}>
     <p class="header-title">Block-Header</p>
-    {#if headerRoot === null}
-      <p class="header-line">Im Header steht noch keine Merkle-Wurzel.</p>
-    {:else}
-      <p class="header-line">
-        Im Header steht: <span class="hash" title={headerRoot}>{headerRoot.slice(0, 16)}…</span>
-        <span class="header-state">
-          {headerMatches ? '(passt zur aktuellen Wurzel)' : '(passt nicht mehr zur aktuellen Wurzel)'}
-        </span>
-      </p>
-    {/if}
+    <p class="header-line">
+      Im Header steht: <span class="hash" title={headerRoot}>{headerRoot.slice(0, 16)}…</span>
+      <span class="header-state">
+        {headerMatches ? '(passt zur aktuellen Wurzel)' : '(passt nicht mehr zur aktuellen Wurzel)'}
+      </span>
+    </p>
     <button type="button" onclick={freezeRoot} disabled={headerMatches}>Wurzel in den Block-Header schreiben</button>
     {#if rewritten && headerMatches}
       <p class="header-note">
@@ -355,12 +354,7 @@
             aria-pressed={selected === n.index}
             aria-label={`Tx ${n.index + 1}: Merkle-Beweis anzeigen`}
             onclick={() => select(n.index)}
-            onkeydown={(ev) => {
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                select(n.index);
-              }
-            }}
+            onkeydown={onActivate(() => select(n.index))}
           >
             <rect x={n.x - NODE_W / 2} y={n.y} width={NODE_W} height={nodeH} rx="6" />
             <text x={n.x} y={n.y + nodeH / 2} class="h">{short(n.hash)}</text>
@@ -397,7 +391,7 @@
       <p class="hint">
         Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu beweisen,
         dass diese Transaktion im Block steckt. Ändere danach einen Text: Alle Knoten bis zur Wurzel ändern sich
-        mit{headerRoot === null ? '.' : ', und der Beweis passt nicht mehr zur Wurzel im Header.'} Bitcoin zeigt
+        mit, und der Beweis passt nicht mehr zur Wurzel im Header. Bitcoin zeigt
         Hashes mit umgedrehter Byte-Reihenfolge an (wie beim Block-Header in Kapitel 6). Wer von Hand nachrechnet,
         muss sie vor dem Aneinanderhängen zurückdrehen.
       </p>
@@ -442,15 +436,7 @@
     <!-- Nur das Urteil wird angesagt, nicht die Hash-Zeilen, die sich bei jedem Tastendruck ändern. -->
     <div aria-live="polite">
     {#if selected !== null && (revealed === null || revealed >= proofSteps.length)}
-      {#if headerRoot === null}
-        <p class="verdict" class:ok={proofOk}>
-          {proofOk ? 'Ergebnis stimmt mit der aktuellen Merkle-Wurzel überein.' : 'Ergebnis weicht von der Wurzel ab.'}
-        </p>
-        <p class="hint">
-          Das beweist noch nichts, denn die Wurzel wurde gerade aus denselben Daten berechnet. Schreibe zuerst
-          die Wurzel in den Block-Header, dann gibt es einen festen Wert, gegen den der Beweis prüft.
-        </p>
-      {:else if proofOk}
+      {#if proofOk}
         <p class="verdict ok">Ergebnis stimmt mit der Wurzel im Header überein: Beweis gültig.</p>
       {:else}
         <p class="verdict">
@@ -477,14 +463,6 @@
 </div>
 
 <style>
-  .demo {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.2rem;
-    display: grid;
-    gap: 1rem;
-  }
   .tx-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
   .tx-list li {
     display: grid;
@@ -571,7 +549,6 @@
   .header-note { margin: 0; flex: 1 1 100%; font-size: 0.9rem; }
 
   .proof { border-top: 1px solid var(--border); padding-top: 0.9rem; }
-  .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
   .proof-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.4rem 1rem; margin-bottom: 0.5rem; }
   .proof-title { margin: 0; font-weight: 600; }
   .steps { margin: 0 0 0.6rem; padding-left: 1.4rem; display: grid; gap: 0.35rem; }
@@ -584,7 +561,4 @@
   .verdict { margin: 0 0 0.3rem; color: var(--danger); font-weight: 600; }
   .verdict.ok { color: var(--ok); }
   .actions.left { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  @media (prefers-reduced-motion: reduce) {
-    .node rect, .edge { transition: none; }
-  }
 </style>

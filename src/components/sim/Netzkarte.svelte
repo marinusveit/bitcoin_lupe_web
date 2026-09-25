@@ -1,5 +1,6 @@
 <script lang="ts">
   import { isChainNode, type SimNode, type World } from '../../lib/sim';
+  import { onActivate } from '../../lib/ui';
   import { minerColor, type Highlight } from './helpers';
 
   interface Props {
@@ -112,15 +113,8 @@
       tabindex: 0,
       'aria-pressed': id === selectedId,
       onclick: () => onselect(id),
-      onkeydown: (e: KeyboardEvent) => onKey(e, id),
+      onkeydown: onActivate(() => onselect(id)),
     };
-  }
-
-  function onKey(e: KeyboardEvent, id: string) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onselect(id);
-    }
   }
 </script>
 
@@ -351,7 +345,10 @@
     stroke-width: 2;
     stroke-dasharray: 4 3;
   }
+  /* Die globale .hint (grau, 0.9rem) gilt hier nicht: der Hinweis sieht aus wie die übrige Legende. */
   .hint {
     margin-left: auto;
+    color: inherit;
+    font-size: inherit;
   }
 </style>

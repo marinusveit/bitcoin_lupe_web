@@ -1,4 +1,4 @@
-import type { SimNode, Tx, World } from '../../lib/sim';
+import type { SimNode, Tx } from '../../lib/sim';
 
 /** Hervorgehobenes Element (per Klick im Protokoll oder in der Kettenansicht). */
 export type Highlight = { kind: 'tx' | 'block'; id: string } | null;
@@ -22,14 +22,6 @@ export function shortName(node: SimNode): string {
   return node.name;
 }
 
-/** Klarname einer Adresse (Wallet oder Miner). */
-export function addressName(world: World, address: string): string {
-  for (const n of Object.values(world.nodes)) {
-    if ((n.kind === 'wallet' || n.kind === 'miner') && n.address === address) return n.name;
-  }
-  return address;
-}
-
 export function isHighlightedTx(h: Highlight, txid: string): boolean {
   return h?.kind === 'tx' && h.id === txid;
 }
@@ -41,8 +33,4 @@ export function isHighlightedBlock(h: Highlight, hash: string): boolean {
 /** Enthält der Block die hervorgehobene Transaktion? */
 export function blockHasTx(h: Highlight, txs: Tx[]): boolean {
   return h?.kind === 'tx' && txs.some((t) => t.txid === h.id);
-}
-
-export function fmtNumber(n: number, digits = 1): string {
-  return n.toLocaleString('de-DE', { maximumFractionDigits: digits });
 }

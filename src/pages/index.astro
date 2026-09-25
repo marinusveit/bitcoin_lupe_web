@@ -2,8 +2,8 @@
 import Base from '../layouts/Base.astro';
 import HashHero from '../components/HashHero.svelte';
 import Bausteine from '../components/Bausteine.astro';
-import { getCollection } from 'astro:content';
-const kapitel = (await getCollection('kapitel', (k) => !k.data.draft)).sort((a, b) => a.data.order - b.data.order);
+import { chapters } from '../lib/nav';
+const kapitel = await chapters();
 const erstes = kapitel[0];
 // Abhängigkeiten wie die Pfeile in Bausteine.astro; bei Änderungen dort mitziehen.
 // Erscheint nur auf schmalen Bildschirmen, wo die Grafik ausgeblendet ist.

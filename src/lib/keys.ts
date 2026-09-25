@@ -42,6 +42,16 @@ export function signMessage(privHex: string, msgHashHex: string, format: Signatu
   return bytesToHex(sig);
 }
 
+/** Kodiert eine kompakte Signatur (r‖s, 128 Hex-Zeichen) ohne neue Kurvenrechnung in DER um. */
+export function signatureToDer(compactHex: string): string {
+  return bytesToHex(secp256k1.Signature.fromBytes(hexToBytes(compactHex), 'compact').toBytes('der'));
+}
+
+/** Koordinaten des Public Keys (komprimiert oder unkomprimiert in Hex) als Punkt auf der Kurve. */
+export function publicKeyPoint(pubHex: string): { x: bigint; y: bigint } {
+  return secp256k1.Point.fromHex(pubHex).toAffine();
+}
+
 /** Prüft eine Signatur (DER oder kompakt, automatisch erkannt); fehlerhafte Eingaben ergeben false. */
 export function verifySignature(pubHex: string, msgHashHex: string, sigHex: string): boolean {
   try {

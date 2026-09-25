@@ -1,6 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { blockSubsidy, HALVING_INTERVAL, SATOSHI_PER_BTC, totalSupply } from '../lib';
+  import {
+    blockSubsidy,
+    fmtNumber,
+    HALVING_INTERVAL,
+    INITIAL_SUBSIDY_SAT,
+    MAX_SUPPLY_BTC,
+    SATOSHI_PER_BTC,
+    totalSupply,
+  } from '../lib';
+  import { svgPoint } from '../lib/ui';
 
   const MAX_HEIGHT = 6_930_000;
   /** Ausschnitt „bis 2048“: zehn Epochen. Dort sind die Stufen gut zu sehen; danach ist der Zuschuss kaum von 0 zu unterscheiden. */
@@ -41,9 +50,12 @@
   const TOP2 = TOP1 + PANEL + 56;
   const H = TOP2 + PANEL + 48;
 
+  /** Blockzuschuss der ersten Epoche (50 BTC) und Obergrenze in Millionen (21): die Höhe der beiden Felder. */
+  const START_BTC = INITIAL_SUBSIDY_SAT / SATOSHI_PER_BTC;
+  const MAX_MIO = MAX_SUPPLY_BTC / 1e6;
   const x = (h: number) => M.left + (h / maxH) * (W - M.left - M.right);
-  const y1 = (btc: number) => TOP1 + PANEL - (btc / 50) * PANEL;
-  const y2 = (mio: number) => TOP2 + PANEL - (mio / 21) * PANEL;
+  const y1 = (btc: number) => TOP1 + PANEL - (btc / START_BTC) * PANEL;
+  const y2 = (mio: number) => TOP2 + PANEL - (mio / MAX_MIO) * PANEL;
 
   // Echte Halving-Zeitpunkte (Jan 2009, 28.11.2012, 09.07.2016, 11.05.2020, 20.04.2024), danach vier Jahre je Epoche.
   const ERA_START = [2009.0, 2012.9, 2016.5, 2020.35, 2024.3];
@@ -57,7 +69,7 @@
 
   // Treppe des Blockzuschusses: waagrecht je Epoche, senkrecht bei jeder Halbierung.
   const rewardPath = $derived.by(() => {
-    let d = `M${x(0)},${y1(50)}`;
+    let d = `M${x(0)},${y1(START_BTC)}`;
     for (let e = 0; e < ERAS; e++) {
       const end = Math.min((e + 1) * HALVING_INTERVAL, maxH);
       d += `H${x(end)}`;
@@ -90,13 +102,11 @@
     supply: btc(totalSupply(active)),
   });
 
-  const nf = (n: number, d = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: d, minimumFractionDigits: 0 });
+  const nf = (n: number, d = 0) => fmtNumber(n, d);
   const heightLabel = (h: number) => (h === 0 ? '0' : `${nf(h / 1e6, 2)} Mio.`);
 
   function toHeight(event: PointerEvent): number {
-    const svg = event.currentTarget as SVGSVGElement;
-    const rect = svg.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * W;
+    const px = svgPoint(event, event.currentTarget as SVGSVGElement)?.x ?? M.left;
     const h = ((px - M.left) / (W - M.left - M.right)) * maxH;
     return Math.round(Math.min(maxH, Math.max(0, h)));
   }
@@ -160,7 +170,7 @@
     <div><span class="lbl">Blockhöhe</span><strong>{nf(readout.height)}</strong></div>
     <div><span class="lbl">Jahr (ungefähr)</span><strong>{readout.year}</strong></div>
     <div><span class="lbl">Blockzuschuss</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
-    <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, readout.supply > 20_990_000 ? 4 : 0)} BTC</strong><span class="lbl">{nf(Math.floor((readout.supply / 21e6) * 10000) / 100, 2)} % von 21 Mio.</span></div>
+    <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, readout.supply > 20_990_000 ? 4 : 0)} BTC</strong><span class="lbl">{nf(Math.floor((readout.supply / MAX_SUPPLY_BTC) * 10000) / 100, 2)} % von 21 Mio.</span></div>
   </div>
 
   <div class="chart" bind:clientWidth={width}>
@@ -194,8 +204,8 @@
         <line class="grid" x1={M.left} x2={W - M.right} y1={y2(t)} y2={y2(t)} />
         <text class="tick" x={M.left - 8} y={y2(t) + 4} text-anchor="end">{t}</text>
       {/each}
-      <line class="cap" x1={M.left} x2={W - M.right} y1={y2(21)} y2={y2(21)} />
-      <text class="cap-label" x={W - M.right} y={y2(21) - 5} text-anchor="end">Obergrenze 21 Mio.</text>
+      <line class="cap" x1={M.left} x2={W - M.right} y1={y2(MAX_MIO)} y2={y2(MAX_MIO)} />
+      <text class="cap-label" x={W - M.right} y={y2(MAX_MIO) - 5} text-anchor="end">Obergrenze 21 Mio.</text>
       <path class="area" d={supplyArea} />
       <path class="series" d={supplyLine} />
 

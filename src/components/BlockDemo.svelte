@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bytesToHex, headerHash, meetsTarget, merkleRoot, nBitsToTarget, serializeHeader } from '../lib';
+  import { bytesToHex, headerHash, leadingZeroHexDigits, MAX_TARGET, meetsTarget, merkleRoot, nBitsToTarget, serializeHeader } from '../lib';
 
   // Werte des Genesis-Blocks vom 3. Januar 2009.
   const GENESIS = {
@@ -17,8 +17,6 @@
   let timestamp = $state(GENESIS.timestamp);
   let nBitsText = $state(GENESIS.nBits);
   let nonce = $state(GENESIS.nonce);
-  /** Größtes erlaubtes Target (nBits 1d00ffff). Ein größeres Target lehnt Bitcoin immer ab. */
-  const MAX_TARGET = nBitsToTarget(0x1d00ffff);
 
   /** Die sechs Felder in der Reihenfolge, in der Bitcoin sie in die 80 Header-Bytes schreibt. */
   const FIELDS = [
@@ -70,6 +68,7 @@
     const header = { version, prevHash: prevHash.trim(), merkleRoot: root, timestamp, nBits, nonce };
     const hash = headerHash(header);
     const targetHex = target.toString(16).padStart(64, '0');
+    // MAX_TARGET ist das größte erlaubte Target (nBits 1d00ffff). Ein größeres lehnt Bitcoin immer ab.
     const tooEasy = target > MAX_TARGET;
     // Die 80 Bytes, die tatsächlich gehasht werden, mit Zuordnung zum Feld.
     const hex = bytesToHex(serializeHeader(header));
@@ -82,10 +81,9 @@
     return { errors: [] as string[], hash, targetHex, ok: meetsTarget(hash, target), tooEasy, bytes };
   });
 
-  const zeros = (hex: string) => hex.match(/^0*/)![0].length;
   /** 64 Hex-Zeichen in zwei Zeilen zu 32, damit Hash und Target Stelle für Stelle untereinander stehen. */
   const halves = (hex: string) => {
-    const z = zeros(hex);
+    const z = leadingZeroHexDigits(hex);
     return [0, 32].map((start) => {
       const line = hex.slice(start, start + 32);
       const n = Math.min(32, Math.max(0, z - start));
@@ -168,16 +166,18 @@
       {#each computed.errors as e (e)}<li>{e}</li>{/each}
     </ul>
   {:else}
-    <figure class="strip">
-      <p class="strip-title">Das wird gehasht: die 80 Bytes des Headers</p>
-      <div class="bytes" aria-label="80 Header-Bytes in Hex, nach Feld gefärbt">
-        {#each computed.bytes as b, i (i)}<span class="byte {b.field}">{b.hex}</span>{/each}
-      </div>
-      <figcaption class="fields">
-        {#each FIELDS as f (f.key)}
-          <span class="fld-key"><i class="sw {f.key}"></i>{f.label} ({f.size} Byte)</span>
-        {/each}
-      </figcaption>
+    <div class="strip">
+      <figure>
+        <p class="strip-title">Das wird gehasht: die 80 Bytes des Headers</p>
+        <div class="bytes" aria-label="80 Header-Bytes in Hex, nach Feld gefärbt">
+          {#each computed.bytes as b, i (i)}<span class="byte {b.field}">{b.hex}</span>{/each}
+        </div>
+        <figcaption class="fields">
+          {#each FIELDS as f (f.key)}
+            <span class="fld-key"><i class="sw {f.key}"></i>{f.label} ({f.size} Byte)</span>
+          {/each}
+        </figcaption>
+      </figure>
       <p class="hint">
         Zahlen stehen mit dem niedrigsten Byte zuerst (Little Endian), die beiden Hashes in umgekehrter
         Byte-Reihenfolge. Deshalb sehen die Bytes anders aus als die Felder oben. Aus diesen 80 Bytes wird
@@ -185,7 +185,7 @@
         entsteht die bekannte Block-ID:
       </p>
       <div class="arrow" aria-hidden="true">HASH256 ↓</div>
-    </figure>
+    </div>
     <div class="compare" class:ok={computed.ok && !computed.tooEasy} class:bad={!computed.ok || computed.tooEasy}>
       <div class="row">
         <span class="lbl">Header-Hash (Block-ID)</span>
@@ -207,7 +207,7 @@
         {/if}
       </p>
       <p class="hint">
-        Der Hash hat {zeros(computed.hash)} führende Nullen, das Target {zeros(computed.targetHex)}. Beide werden als
+        Der Hash hat {leadingZeroHexDigits(computed.hash)} führende Nullen, das Target {leadingZeroHexDigits(computed.targetHex)}. Beide werden als
         Zahl verglichen: Je mehr Nullen vorne, desto kleiner die Zahl.
       </p>
     </div>
@@ -229,14 +229,13 @@
   .time, .sw.time, .byte.time { --fc: color-mix(in srgb, var(--cat-3) 70%, var(--bg-elevated)); }
   .bits, .sw.bits, .byte.bits { --fc: color-mix(in srgb, var(--cat-1) 60%, var(--bg-elevated)); }
   .nonce, .sw.nonce, .byte.nonce { --fc: var(--accent); }
-  .strip { margin: 0; display: grid; gap: 0.5rem; }
+  .strip, .strip figure { margin: 0; display: grid; gap: 0.5rem; }
   .strip-title { margin: 0; font-weight: 600; }
   .bytes { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.7rem, 1fr)); gap: 2px; font-family: var(--font-mono); font-size: 0.78rem; }
   .byte { text-align: center; padding: 0.15rem 0; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--fc) 45%, var(--bg-elevated)); border-bottom: 3px solid var(--fc); color: var(--fg); }
   .fields { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; font-size: 0.85rem; color: var(--fg-muted); }
   .fld-key { display: inline-flex; align-items: center; gap: 0.35rem; }
   .sw { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: var(--radius-sm); background: var(--fc); }
-  .strip .hint { margin: 0; }
   .arrow { font-family: var(--font-mono); font-weight: 700; color: var(--fg-muted); padding-left: 0.2rem; }
   input { width: 100%; }
   input.hash { font-size: 0.85rem; }
@@ -245,7 +244,7 @@
   .txrow input { flex: 1; min-width: 0; }
   .small-btn { font-size: 0.85rem; padding: 0.25rem 0.6rem; justify-self: start; }
   .derived .hash { padding: 0.45rem 0.6rem; background: var(--bg-muted); border-radius: var(--radius); }
-  .hint { font-size: 0.85rem; color: var(--fg-muted); }
+  .hint { font-size: 0.85rem; }
   .errors { color: var(--danger); margin: 0; }
   .compare { border: 1px solid var(--border); border-left: 4px solid; border-radius: var(--radius); padding: 0.9rem 1rem; background: var(--bg-elevated); display: grid; gap: 0.6rem; }
   .compare.ok { border-left-color: var(--ok); }
@@ -261,5 +260,4 @@
   .verdict { margin: 0; }
   .compare.ok .verdict strong { color: var(--ok); }
   .compare.bad .verdict strong { color: var(--danger); }
-  .compare .hint { margin: 0; }
 </style>

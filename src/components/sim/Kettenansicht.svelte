@@ -1,5 +1,6 @@
 <script lang="ts">
   import { formatBtc, type Block } from '../../lib/sim';
+  import { onActivate } from '../../lib/ui';
   import { blockHasTx, isHighlightedBlock, minerColor, type Highlight } from './helpers';
 
   interface Props {
@@ -42,8 +43,10 @@
     b: Block;
     x: number;
     y: number;
-    lane: number;
     cls: 'best' | 'side' | 'orphan' | 'private';
+    /** Tooltip-Text; die erste Zeile dient als Name für Screenreader. */
+    title: string;
+    label: string;
   }
 
   const layout = $derived.by(() => {
@@ -76,13 +79,18 @@
     }
     const tipLines = tips ? Math.max(1, ...shown.map((b) => tips[b.hash]?.length ?? 0)) : 0;
     const rowH = H + GAP_Y - 10 + tipLines * 13;
-    const placed: Placed[] = shown.map((b) => ({
-      b,
-      lane: lane[b.hash]!,
-      x: PAD + (b.height - minH) * (W + GAP_X),
-      y: PAD + lane[b.hash]! * rowH,
-      cls: privateSet?.has(b.hash) ? 'private' : best.has(b.hash) ? 'best' : act.has(b.hash) ? 'side' : 'orphan',
-    }));
+    const placed: Placed[] = shown.map((b) => {
+      const cls: Placed['cls'] = privateSet?.has(b.hash) ? 'private' : best.has(b.hash) ? 'best' : act.has(b.hash) ? 'side' : 'orphan';
+      const text = title(b, cls);
+      return {
+        b,
+        x: PAD + (b.height - minH) * (W + GAP_X),
+        y: PAD + lane[b.hash]! * rowH,
+        cls,
+        title: text,
+        label: text.split('\n')[0]!,
+      };
+    });
     const byHash: Record<string, Placed> = {};
     for (const p of placed) byHash[p.b.hash] = p;
     const edges = placed.flatMap((p) => {
@@ -117,12 +125,6 @@
   function pick(b: Block) {
     onhighlight({ kind: 'block', id: b.hash });
   }
-  function onKey(e: KeyboardEvent, b: Block) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      pick(b);
-    }
-  }
   function title(b: Block, cls: Placed['cls']): string {
     const state = { best: 'beste Kette', side: 'Nebenzweig, noch umkämpft', orphan: 'verwaist', private: 'geheim, noch nicht veröffentlicht' }[cls];
     const reward = b.txs[0]?.outputs[0]?.value ?? 0;
@@ -149,11 +151,11 @@
         style="--mc: {p.b.height === 0 ? 'var(--fg-muted)' : minerColor(p.b.minerId)}"
         role="button"
         tabindex="0"
-        aria-label={title(p.b, p.cls).split('\n')[0]}
+        aria-label={p.label}
         onclick={() => pick(p.b)}
-        onkeydown={(e) => onKey(e, p.b)}
+        onkeydown={onActivate(() => pick(p.b))}
       >
-        <title>{title(p.b, p.cls)}</title>
+        <title>{p.title}</title>
         <rect class="box" width={W} height={H} rx="6" />
         <rect class="stripe" width="6" height={H} rx="3" />
         <text x="12" y="16" class="top">

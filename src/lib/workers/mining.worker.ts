@@ -1,7 +1,10 @@
 import { mineHeader, mineText as mineTextChunk, type BlockHeader } from '../block';
 import type { MiningWorkerRequest, MiningWorkerResponse } from '../mining-client';
 
-/** Web Worker: mint in Abschnitten, meldet Fortschritt und reagiert zwischen den Abschnitten auf „stop“. */
+/**
+ * Web Worker: mint in Abschnitten, meldet Fortschritt und reagiert zwischen den Abschnitten auf „stop“.
+ * Ein Worker bedient alle Läufe der Seite; jeder Lauf hat eine `id`, gleichzeitige Läufe wechseln sich ab.
+ */
 
 interface WorkerScope {
   postMessage(message: MiningWorkerResponse): void;
@@ -9,7 +12,18 @@ interface WorkerScope {
 }
 
 const scope = self as unknown as WorkerScope;
-let runId = 0;
+/** Laufende Läufe; „stop“ entfernt die `id`, der nächste Abschnitt bricht dann ab. */
+const active = new Set<number>();
+
+// Abgabe zwischen Abschnitten über einen MessageChannel statt setTimeout(0): Verschachtelte Timer
+// drosseln Browser auf mindestens 4 ms, Port-Nachrichten nicht. Stopp-Nachrichten kommen trotzdem dazwischen.
+const channel = new MessageChannel();
+const queue: (() => void)[] = [];
+channel.port1.onmessage = () => queue.shift()?.();
+function later(fn: () => void): void {
+  queue.push(fn);
+  channel.port2.postMessage(null);
+}
 
 function mine(header: BlockHeader, chunkSize: number, startNonce: number, target: bigint | undefined, id: number): void {
   let nonce = startNonce;
@@ -18,21 +32,16 @@ function mine(header: BlockHeader, chunkSize: number, startNonce: number, target
   const t0 = performance.now();
   const zeroHist = new Array<number>(17).fill(0);
   const step = (): void => {
-    if (id !== runId) return;
+    if (!active.has(id)) return;
     const r = mineHeader(header, { maxIterations: chunkSize, startNonce: nonce, target });
     total += r.iterations;
     nonce = r.nextNonce;
     r.zeroHist.forEach((c, z) => (zeroHist[z]! += c));
-    const hist = [...zeroHist];
+    const type = r.found ? 'found' : r.exhausted ? 'exhausted' : 'progress';
     const elapsedMs = performance.now() - t0;
-    if (r.found) {
-      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: hist });
-    } else if (r.exhausted) {
-      scope.postMessage({ type: 'exhausted', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: hist });
-    } else {
-      scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: hist });
-      setTimeout(step, 0);
-    }
+    scope.postMessage({ type, id, iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: [...zeroHist] });
+    if (type === 'progress') later(step);
+    else active.delete(id);
   };
   step();
 }
@@ -43,27 +52,28 @@ function mineText(prefix: string, zeros: number, chunkSize: number, startNonce: 
   let total = 0;
   const t0 = performance.now();
   const step = (): void => {
-    if (id !== runId) return;
+    if (!active.has(id)) return;
     const r = mineTextChunk(prefix, zeros, { maxIterations: chunkSize, startNonce: nonce });
     total += r.iterations;
     nonce = r.nextNonce;
-    const elapsedMs = performance.now() - t0;
-    if (r.found) {
-      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs });
-      return;
-    }
-    scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs });
-    setTimeout(step, 0);
+    const type = r.found ? 'found' : 'progress';
+    scope.postMessage({ type, id, iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs: performance.now() - t0 });
+    if (type === 'progress') later(step);
+    else active.delete(id);
   };
   step();
 }
 
 scope.onmessage = (event) => {
   const msg = event.data;
-  runId++;
+  if (msg.type === 'stop') {
+    active.delete(msg.id);
+    return;
+  }
+  active.add(msg.id);
   if (msg.type === 'start') {
-    mine(msg.header, msg.chunkSize ?? 20_000, msg.startNonce ?? msg.header.nonce, msg.target, runId);
-  } else if (msg.type === 'start-text') {
-    mineText(msg.prefix, msg.zeros, msg.chunkSize ?? 5_000, msg.startNonce ?? 0, runId);
+    mine(msg.header, msg.chunkSize ?? 20_000, msg.startNonce ?? msg.header.nonce, msg.target, msg.id);
+  } else {
+    mineText(msg.prefix, msg.zeros, msg.chunkSize ?? 5_000, msg.startNonce ?? 0, msg.id);
   }
 };

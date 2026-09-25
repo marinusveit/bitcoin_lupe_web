@@ -11,8 +11,25 @@
   }
   let { world, version, highlight, onhighlight }: Props = $props();
 
-  const data = $derived.by(() => {
+  /**
+   * Billiger Änderungsschlüssel: Blockanzahl, Tip und letzter geheimer Block je Knoten. Die meisten Ticks
+   * bringen keinen neuen Block; dann bleibt der Schlüssel gleich und der Graph unten wird nicht neu gebaut.
+   * Eine neue Welt (anderes Szenario) baut den Graphen trotzdem neu, weil `data` die Prop `world` liest.
+   */
+  const changeKey = $derived.by(() => {
     void version;
+    let key = '';
+    for (const n of Object.values(world.nodes)) {
+      if (!isChainNode(n)) continue;
+      key += `${n.id}:${Object.keys(n.blocks).length}:${n.tip}`;
+      if (n.kind === 'miner') key += `:${n.privateChain.length}:${n.privateChain.at(-1)?.hash ?? ''}`;
+      key += ';';
+    }
+    return key;
+  });
+
+  const data = $derived.by(() => {
+    void changeKey;
     const all: Record<string, Block> = {};
     const active = new Set<string>();
     const privateSet = new Set<string>();

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { attackWaitText, formatBtc, formatDifficulty, leadText, stats, type World } from '../../lib/sim';
-  import { fmtNumber } from './helpers';
+  import { fmtNumber } from '../../lib/format';
 
   interface Props {
     world: World;

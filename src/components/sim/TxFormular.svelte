@@ -19,7 +19,7 @@
   }
   let { world, version, onmutate }: Props = $props();
 
-  const uid = Math.random().toString(36).slice(2, 8);
+  const uid = $props.id();
   let from = $state('alice');
   let to = $state('bob');
   let amount = $state(2);
@@ -82,7 +82,7 @@
     const confirmed = walletBalance(world, from)?.confirmed ?? 0;
     const res = sendTransaction(world, from, to, btcToSats(amount), btcToSats(fee));
     if (res.ok) {
-      message = { ok: true, text: `Transaktion ${res.value.slice(0, 6)}… ist unterwegs. Verfolge den orangen Punkt.`, world };
+      message = { ok: true, text: `Transaktion ${shortHash(res.value)} ist unterwegs. Verfolge den orangen Punkt.`, world };
       const toNode = world.nodes[to];
       tracked = { txid: res.value, to, toName: toNode ? toNode.name : to, world };
     } else if (confirmed >= needed && (available ?? 0) < needed) {

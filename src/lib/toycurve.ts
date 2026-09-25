@@ -139,3 +139,35 @@ export function pointOrder(G: ToyPoint, p = DEFAULT_P): number {
 export function groupOrder(p = DEFAULT_P): number {
   return pointsOnCurve(p).length + 1;
 }
+
+/** Ergebnis der Punktaddition über den reellen Zahlen (für die Zeichnung der Geraden). */
+export interface RealSum {
+  /** Steigung der Geraden durch P und Q (bzw. der Tangente); `null` bei senkrechter Geraden. */
+  slope: number | null;
+  /** Dritter Schnittpunkt der Geraden mit der Kurve; `null`, wenn die Summe O ist. */
+  third: AffinePoint | null;
+  /** Summe P + Q (Spiegelbild von `third`); `null`, wenn die Summe O ist. */
+  sum: AffinePoint | null;
+}
+
+/** Oberer Ast der reellen Kurve y = √(x³ + b), unterhalb der Spitze 0. */
+export function curveYReal(x: number): number {
+  return Math.sqrt(Math.max(0, x ** 3 + CURVE_B));
+}
+
+/** Addiert zwei Punkte der reellen Kurve y² = x³ + b geometrisch (Sekante bzw. Tangente, Toleranz 1e-9). */
+export function addReal(P: AffinePoint, Q: AffinePoint): RealSum {
+  const same = Math.abs(P.x - Q.x) < 1e-9 && Math.abs(P.y - Q.y) < 1e-9;
+  let slope: number;
+  if (same) {
+    if (Math.abs(P.y) < 1e-9) return { slope: null, third: null, sum: null };
+    slope = (3 * P.x * P.x) / (2 * P.y);
+  } else if (Math.abs(P.x - Q.x) < 1e-9) {
+    return { slope: null, third: null, sum: null };
+  } else {
+    slope = (Q.y - P.y) / (Q.x - P.x);
+  }
+  const x3 = slope * slope - P.x - Q.x;
+  const y3 = slope * (P.x - x3) - P.y;
+  return { slope, third: { x: x3, y: -y3 }, sum: { x: x3, y: y3 } };
+}

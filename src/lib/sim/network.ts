@@ -10,9 +10,26 @@ export function makeEmitter(world: World, sink: SimEvent[]): Emit {
     const full: SimEvent = { tick: world.tick, ...event };
     sink.push(full);
     world.log.push(full);
-    const overflow = world.log.length - world.params.logLimit;
-    if (overflow > 0) world.log.splice(0, overflow);
+    // Erst bei doppelter Länge kürzen, damit nicht jedes Ereignis das ganze Log verschiebt.
+    const limit = world.params.logLimit;
+    if (world.log.length > 2 * limit) world.log.splice(0, world.log.length - limit);
   };
+}
+
+/** Führt `fn` mit einem frischen Ereignis-Sammler aus und liefert die gesammelten Ereignisse. */
+export function collectEvents(world: World, fn: (emit: Emit) => void): SimEvent[] {
+  const events: SimEvent[] = [];
+  fn(makeEmitter(world, events));
+  return events;
+}
+
+/** Wie `collectEvents`, hängt die Ereignisse aber an das Ergebnis von `fn` an (`{ ...ergebnis, events }`). */
+export function withEvents<R extends object>(world: World, fn: (emit: Emit) => R): R & { events: SimEvent[] } {
+  let result!: R;
+  const events = collectEvents(world, (emit) => {
+    result = fn(emit);
+  });
+  return { ...result, events };
 }
 
 export function isChainNode(node: SimNode | undefined): node is ChainNode {

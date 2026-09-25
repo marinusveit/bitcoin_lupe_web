@@ -1,15 +1,15 @@
 import type { Link, Point, SimParams } from './types';
-import { SATS_PER_BTC } from './tx';
+import { SATOSHI_PER_BTC } from '../block';
 
 export const DEFAULT_PARAMS: SimParams = {
   difficulty: 360,
   targetBlockTicks: 60,
   retargetInterval: 10,
   halvingInterval: 20,
-  initialSubsidy: 50 * SATS_PER_BTC,
+  initialSubsidy: 50 * SATOSHI_PER_BTC,
   maxTxPerBlock: 5,
   displayZeroBits: 12,
-  defaultFee: SATS_PER_BTC / 10,
+  defaultFee: SATOSHI_PER_BTC / 10,
   attackConfirmations: 2,
   attackGiveUpDeficit: 6,
   logLimit: 500,

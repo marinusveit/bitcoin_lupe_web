@@ -1,15 +1,16 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getCollection, render } from 'astro:content';
+import { render } from 'astro:content';
+import { chapters } from '../../lib/nav';
 
 export async function getStaticPaths() {
-  const kapitel = await getCollection('kapitel', (k) => !k.data.draft);
+  const kapitel = await chapters();
   return kapitel.map((k) => ({ params: { slug: k.id }, props: { entry: k } }));
 }
 
 const { entry } = Astro.props;
 const { Content } = await render(entry);
-const alle = (await getCollection('kapitel', (k) => !k.data.draft)).sort((a, b) => a.data.order - b.data.order);
+const alle = await chapters();
 const idx = alle.findIndex((k) => k.id === entry.id);
 const prev = idx > 0 ? alle[idx - 1] : undefined;
 const next = idx < alle.length - 1 ? alle[idx + 1] : undefined;

@@ -1,31 +1,24 @@
 <script lang="ts" module>
-  import { atLeastHalf } from '../lib/nakamoto';
-
-  /**
-   * Chance, einen Rückstand von `deficit` Blöcken noch aufzuholen: (q/p)^deficit wie im Whitepaper,
-   * ab der Hälfte der Rechenleistung 1.
-   */
-  export function catchUpChance(q: number, deficit: number): number {
-    if (deficit <= 0 || atLeastHalf(q)) return 1;
-    if (q <= 0) return 0;
-    return (q / (1 - q)) ** deficit;
-  }
+  export { catchUpChance } from '../lib/nakamoto';
 </script>
 
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import {
+    atLeastHalf,
     attackerSuccessProbability,
+    catchUpChance,
+    DEFAULT_GIVE_UP_DEFICIT,
     exactAttackerSuccessProbability,
     simulateRace,
     type RaceResult,
   } from '../lib/nakamoto';
+  import { fmtNumber } from '../lib/format';
+  import { motionAllowed } from '../lib/ui';
 
   const START_Q = 0.3;
   const START_Z = 3;
   const STEP_MS = 320;
-  /** Rückstand, bei dem der Angreifer in der Simulation aufgibt (siehe nakamoto.ts). */
-  const GIVE_UP = 20;
   /** Sperrzeit des Sprung-Knopfs, damit ein Doppelklick auf „Ein Rennen starten“ nicht gleich ans Ende springt. */
   const SKIP_DELAY_MS = 300;
 
@@ -42,9 +35,9 @@
   let skipReady = $state(false);
   let track: HTMLDivElement | undefined = $state();
 
-  const motion = typeof matchMedia === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motion = motionAllowed();
 
-  const pct = (v: number, d = 1) => `${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: d })} %`;
+  const pct = (v: number, d = 1) => `${fmtNumber(v * 100, d)} %`;
   const formula = $derived(attackerSuccessProbability(q, z));
   const exact = $derived(exactAttackerSuccessProbability(q, z));
 
@@ -76,7 +69,7 @@
 
   function startRace() {
     stopTimer();
-    const r = simulateRace(q, z, { giveUpDeficit: GIVE_UP });
+    const r = simulateRace(q, z, { giveUpDeficit: DEFAULT_GIVE_UP_DEFICIT });
     race = r;
     if (!motion) {
       shown = r.steps.length;
@@ -112,7 +105,7 @@
     stopTimer();
     race = null;
     shown = 0;
-    for (let i = 0; i < n; i++) finish(simulateRace(q, z, { giveUpDeficit: GIVE_UP }));
+    for (let i = 0; i < n; i++) finish(simulateRace(q, z, { giveUpDeficit: DEFAULT_GIVE_UP_DEFICIT }));
   }
 
   function resetTally() {
@@ -238,13 +231,13 @@
   <p class="hint">
     {#if atLeastHalf(q)}
       Mit mindestens der Hälfte der Rechenleistung holt der Angreifer früher oder später jeden Rückstand auf,
-      wenn er nur lange genug durchhält. In der Simulation gibt er bei {GIVE_UP} Blöcken Rückstand auf, deshalb
+      wenn er nur lange genug durchhält. In der Simulation gibt er bei {DEFAULT_GIVE_UP_DEFICIT} Blöcken Rückstand auf, deshalb
       scheitern hier trotzdem einige Rennen.
     {:else}
       Je mehr Rennen du laufen lässt, desto stabiler wird die Quote. Ein einzelnes Rennen kann immer anders
       ausgehen, das ist Zufall. Die Formel aus dem Whitepaper ist eine Näherung. Die Simulation rechnet genauer,
       deshalb weichen die Werte etwas ab, je nach Einstellung nach oben oder unten. Außerdem gibt der Angreifer in
-      der Simulation bei {GIVE_UP} Blöcken Rückstand auf.
+      der Simulation bei {DEFAULT_GIVE_UP_DEFICIT} Blöcken Rückstand auf.
     {/if}
     Wie im Whitepaper zählt es als Erfolg, sobald die heimliche Kette gleich lang ist. Im echten Netz muss
     sie länger sein, damit die Knoten zu ihr wechseln.

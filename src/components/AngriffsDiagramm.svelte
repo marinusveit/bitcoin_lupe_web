@@ -5,6 +5,8 @@
     confirmationsFor,
     exactAttackerSuccessProbability,
   } from '../lib/nakamoto';
+  import { fmtNumber } from '../lib/format';
+  import { svgPoint } from '../lib/ui';
 
   const FIXED = [0.1, 0.2, 0.3, 0.4, 0.45];
   // Geordnete Anteile: ein Farbton, von blass (kleines q) nach kräftig (großes q).
@@ -12,6 +14,30 @@
   const Z_MAX = 12;
   const START_Q = 0.1;
   const START_Z = 3;
+
+  interface Row {
+    q: number;
+    own: boolean;
+    z: number | null;
+    zExact: number | null;
+  }
+  const row = (q: number, own: boolean): Row => ({
+    q,
+    own,
+    z: confirmationsFor(q),
+    zExact: confirmationsFor(q, 0.001, exactAttackerSuccessProbability),
+  });
+  /** Die festen Zeilen ändern sich nie; die eigene Zeile wird je Reglerwert nur einmal gerechnet. */
+  const FIXED_ROWS = FIXED.map((q) => row(q, false));
+  const ownRows = new Map<number, Row>();
+  function ownRow(q: number): Row {
+    let r = ownRows.get(q);
+    if (!r) {
+      r = row(q, true);
+      ownRows.set(q, r);
+    }
+    return r;
+  }
 
   let width = $state(720);
   let ownQ = $state(START_Q);
@@ -32,25 +58,18 @@
 
   const activeZ = $derived(hoverZ ?? pinnedZ);
 
-  const pct = (v: number, d = 1) =>
-    `${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: v < 0.001 && v > 0 ? 4 : d })} %`;
+  const pct = (v: number, d = 1) => `${fmtNumber(v * 100, v < 0.001 && v > 0 ? 4 : d)} %`;
   const qLabel = (q: number) => `${Math.round(q * 100)} %`;
   /** Wartezeit ab der Zahlung: der Block mit der Zahlung plus z Blöcke danach, im Mittel zehn Minuten je Block. */
   const waitLabel = (z: number) => {
     const min = (z + 1) * 10;
-    return min < 120 ? `${min} min` : `${(min / 60).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`;
+    return min < 120 ? `${min} min` : `${fmtNumber(min / 60)} h`;
   };
 
-  const table = $derived(
-    [...FIXED.map((q) => ({ q, own: false })), { q: ownQ, own: true }]
-      .sort((a, b) => a.q - b.q || Number(a.own) - Number(b.own))
-      .map((r) => ({ ...r, z: confirmationsFor(r.q), zExact: confirmationsFor(r.q, 0.001, exactAttackerSuccessProbability) })),
-  );
+  const table = $derived([...FIXED_ROWS, ownRow(ownQ)].sort((a, b) => a.q - b.q || Number(a.own) - Number(b.own)));
 
   function toZ(event: PointerEvent): number {
-    const svg = event.currentTarget as SVGSVGElement;
-    const rect = svg.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * W;
+    const px = svgPoint(event, event.currentTarget as SVGSVGElement)?.x ?? M.left;
     return Math.round(Math.min(Z_MAX, Math.max(0, ((px - M.left) / (W - M.left - M.right)) * Z_MAX)));
   }
 

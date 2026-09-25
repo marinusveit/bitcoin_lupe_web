@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { leadingZeroHexDigits, mineText } from '../lib/block';
+  import { fmtNumber } from '../lib/format';
   import { sha256Hex } from '../lib/hash';
 
   const START_TEXT = 'Bitcoin unter der Lupe';
@@ -9,19 +11,15 @@
   let versuche = $state<number | null>(null);
 
   const hex = $derived(sha256Hex(text));
-  const nullen = $derived(hex.match(/^0*/)?.[0].length ?? 0);
+  const nullen = $derived(leadingZeroHexDigits(hex));
 
   /** Hängt eine Zahl an den Text an, bis der Hash mit ZIEL_NULLEN Nullen beginnt (im Mittel 4096 Versuche). */
   function sucheNullen() {
-    const basis = text.replace(/ #\d+$/, '');
-    for (let n = 1; n <= MAX_VERSUCHE; n++) {
-      const kandidat = `${basis} #${n}`;
-      if (sha256Hex(kandidat).startsWith('0'.repeat(ZIEL_NULLEN))) {
-        text = kandidat;
-        versuche = n;
-        return;
-      }
-    }
+    const prefix = `${text.replace(/ #\d+$/, '')} #`;
+    const result = mineText(prefix, ZIEL_NULLEN, { maxIterations: MAX_VERSUCHE, startNonce: 1 });
+    if (!result.found) return;
+    text = prefix + result.nonce;
+    versuche = result.iterations;
   }
 
   function reset() {
@@ -52,7 +50,7 @@
     {#if nullen === 0}
       Keine führende Null. Miner suchen Eingaben, deren Hash mit vielen Nullen beginnt.
     {:else if versuche !== null}
-      {nullen} führende {nullen === 1 ? 'Null' : 'Nullen'} nach {versuche.toLocaleString('de-DE')} Versuchen.
+      {nullen} führende {nullen === 1 ? 'Null' : 'Nullen'} nach {fmtNumber(versuche)} Versuchen.
       Genau diese Suche ist Mining.
     {:else}
       {nullen} führende {nullen === 1 ? 'Null' : 'Nullen'}. Miner suchen genau solche Hashwerte.

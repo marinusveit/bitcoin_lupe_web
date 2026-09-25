@@ -13,7 +13,7 @@
 
   /** Weiterleitungen sind standardmäßig aus, sonst verdrängen sie die wichtigen Zeilen (sim-15). */
   let showRelay = $state(false);
-  const uid = Math.random().toString(36).slice(2, 8);
+  const uid = $props.id();
 
   /** Weiterleitungen: ein Knoten übernimmt etwas, das schon unterwegs war. */
   const RELAY: EventKind[] = ['tx-accepted', 'block-accepted'];

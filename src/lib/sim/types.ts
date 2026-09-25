@@ -150,7 +150,7 @@ export interface SimParams {
   attackConfirmations: number;
   /** Rückstand in Blöcken; liegt der Angreifer noch weiter zurück, gibt er auf. */
   attackGiveUpDeficit: number;
-  /** Maximale Länge von `world.log`. */
+  /** Länge, auf die `world.log` gekürzt wird (gekürzt wird erst ab doppelter Länge). */
   logLimit: number;
 }
 
@@ -173,15 +173,12 @@ export interface AttackState {
   /** Bestätigungen der öffentlichen Zahlung in der öffentlichen Kette des Angreifers (zuletzt gemeldet). */
   conf: number;
   status: AttackStatus;
-  startedAt: number;
   /** Bestätigungen der öffentlichen Zahlung aus Sicht des Opfers, als der Angreifer veröffentlichte. */
   victimConfAtRelease?: number;
 }
 
 export interface World {
   tick: number;
-  seed: number;
-  preset: string;
   nodes: Record<string, SimNode>;
   links: Link[];
   messagesInFlight: Message[];

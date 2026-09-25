@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hash160Hex, sha256Hex, toBitString } from '../lib/hash';
+  import { hammingDistanceHex, hash160Hex, sha256Hex, toBitString } from '../lib/hash';
 
   const START_TEXT = 'Hochschule München';
 
@@ -17,11 +17,7 @@
   let prevHex = $state<string | null>(null);
   const sameHex = $derived(prevHex === null ? [] : [...prevHex].map((c, i) => c === hex[i]));
   const sameHexCount = $derived(sameHex.filter(Boolean).length);
-  const sameBitCount = $derived.by(() => {
-    if (prevHex === null) return 0;
-    const now = toBitString(hex);
-    return [...toBitString(prevHex)].filter((b, i) => b === now[i]).length;
-  });
+  const sameBitCount = $derived(prevHex === null ? 0 : 256 - hammingDistanceHex(prevHex, hex));
 
   function onInput(value: string) {
     prevHex = hex;
@@ -41,7 +37,7 @@
   }
 </script>
 
-<div class="demo">
+<div class="demo demo-card">
   <div class="aktionen">
     <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
@@ -124,14 +120,7 @@
 </div>
 
 <style>
-  .demo {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.2rem;
-    display: grid;
-    gap: 1.1rem;
-  }
+  .demo { gap: 1.1rem; }
   .field { display: grid; gap: 0.3rem; }
   .field input { width: 100%; font-size: 1.05rem; }
   .funnel { display: grid; gap: 0.35rem; }
@@ -149,9 +138,7 @@
   .result { border-top: 1px solid var(--border); padding-top: 0.9rem; }
   .result-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
   .note { color: var(--fg-muted); font-size: 0.88rem; }
-  .switch { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .switch button { border: 0; border-radius: 0; padding: 0.25rem 0.8rem; background: transparent; color: var(--fg-muted); }
-  .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
+  .switch { margin-left: auto; }
   .hex-out { margin: 0; font-size: 0.95rem; line-height: 1.5; }
   .bits { display: grid; gap: 0.1rem; max-width: 34rem; }
   .bit-row { display: grid; grid-template-columns: repeat(32, 1fr); font-size: clamp(0.6rem, 2.7vw, 0.9rem); }
@@ -163,5 +150,4 @@
   .prev-hex { color: var(--fg-muted); word-break: break-all; }
   .prev-hex .same { color: var(--fg); background: var(--accent-soft); font-weight: 700; border-radius: 2px; }
   .count { margin: 0.4rem 0 0; color: var(--fg-muted); font-size: 0.88rem; }
-  .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
 </style>

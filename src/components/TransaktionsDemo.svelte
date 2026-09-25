@@ -4,12 +4,16 @@
     coinbaseTx,
     execute,
     fee as txFee,
+    fmtNumber,
     hash160Hex,
     hexToBytes,
+    INITIAL_SUBSIDY_SAT,
     outpointKey,
+    parseOutpoint,
     p2pkhScriptPubKey,
     p2pkhScriptSig,
     publicKey,
+    SATOSHI_PER_BTC,
     sighash,
     signMessage,
     txid,
@@ -36,7 +40,6 @@
     return { ...p, pub, pkh: hash160Hex(hexToBytes(pub)) };
   });
 
-  const SAT = 100_000_000;
   /** Dust-Grenze für P2PKH-Outputs (Bitcoin Core `GetDustThreshold`): kleinere Outputs leiten Knoten nicht weiter. */
   const DUST_SAT = 546;
 
@@ -54,7 +57,6 @@
     to: string;
     /** Vorherige Outputs der Inputs (für Anzeige von Besitzer und Betrag). */
     prevOuts: TxOutput[];
-    scriptsOk: boolean;
   }
 
   function ownerOf(out: TxOutput): string {
@@ -63,7 +65,7 @@
   }
 
   function btc(sat: number): string {
-    return `${(sat / SAT).toLocaleString('de-DE', { maximumFractionDigits: 8 })} BTC`;
+    return `${fmtNumber(sat / SATOSHI_PER_BTC, 8)} BTC`;
   }
 
   /**
@@ -79,7 +81,7 @@
     if (!m) return 'Bitte eine Zahl wie 2,5 eingeben.';
     const frac = m[3] ?? '';
     if (frac.length > 8) return 'Höchstens 8 Nachkommastellen: Der kleinste Betrag ist 1 Satoshi = 0,00000001 BTC.';
-    const sat = Number(m[2]) * SAT + Number(frac.padEnd(8, '0'));
+    const sat = Number(m[2]) * SATOSHI_PER_BTC + Number(frac.padEnd(8, '0'));
     if (!Number.isSafeInteger(sat)) return 'Diese Zahl ist zu groß.';
     return m[1] ? -sat : sat;
   }
@@ -89,8 +91,8 @@
   }
 
   function initial() {
-    const cb = coinbaseTx(0, 50 * SAT, 0, p2pkhScriptPubKey(people[0]!.pub));
-    const shown: Shown = { tx: cb, id: txid(cb), fee: 0, from: null, to: 'Alice', prevOuts: [], scriptsOk: true };
+    const cb = coinbaseTx(0, INITIAL_SUBSIDY_SAT, 0, p2pkhScriptPubKey(people[0]!.pub));
+    const shown: Shown = { tx: cb, id: txid(cb), fee: 0, from: null, to: 'Alice', prevOuts: [] };
     return { utxos: applyTx(new Map(), cb), history: [shown] };
   }
 
@@ -161,10 +163,7 @@
   /** Signiert eine Transaktion mit den Inputs `keys` für den Absender. */
   function signTx(sender: Person, keys: string[], outputs: TxOutput[]): { tx: Transaction; msg: string } {
     const unsigned: Transaction = {
-      inputs: keys.map((key) => {
-        const [id, vout] = key.split(':');
-        return { txid: id!, vout: Number(vout), scriptSig: [] };
-      }),
+      inputs: keys.map((key) => ({ ...parseOutpoint(key), scriptSig: [] })),
       outputs,
     };
     // Signieren: der Absender unterschreibt den Sighash mit seinem Private Key.
@@ -189,10 +188,10 @@
       return;
     }
     const spentKey = keys.find((k) => !utxos.has(k)) ?? keys[0]!;
-    const [spentTxid, spentVout] = spentKey.split(':');
+    const spent = parseOutpoint(spentKey);
     doubleSpend = {
       attempt,
-      verdict: `Abgelehnt: Output ${short(spentTxid!)}:${spentVout} wurde in Transaktion ${short(latest.id)} schon ausgegeben (nicht mehr in der UTXO-Menge).`,
+      verdict: `Abgelehnt: Output ${short(spent.txid)}:${spent.vout} wurde in Transaktion ${short(latest.id)} schon ausgegeben (nicht mehr in der UTXO-Menge).`,
     };
   }
 
@@ -254,7 +253,7 @@
       (input, i) => execute(input.scriptSig, prevOuts[i]!.scriptPubKey, { messageHash: msg }).ok,
     );
     if (!scriptsOk) return void (error = 'Die Signatur passt nicht zum Sperr-Skript.');
-    const shown: Shown = { tx, id: txid(tx), fee: txFee(utxos, tx), from: sender.name, to: receiver.name, prevOuts, scriptsOk };
+    const shown: Shown = { tx, id: txid(tx), fee: txFee(utxos, tx), from: sender.name, to: receiver.name, prevOuts };
     if (shown.fee === 0) {
       notes.push('Gültig, aber ohne Gebühr leiten die Knoten die Transaktion normalerweise nicht einmal weiter, und kaum ein Miner nähme sie in einen Block auf (Kapitel 6).');
     } else if (shown.fee > value) {
@@ -375,26 +374,18 @@
     </div>
     {#if bar}
       <div class="bar" aria-label="Betragsbalken: Inputs oben, Outputs und Gebühr unten">
-        <div class="bar-row">
-          <span class="bar-lbl">Inputs</span>
-          <div class="bar-track">
-            {#each bar.ins as seg, i (i)}
-              <div class="seg {seg.kind}" style="width: {seg.width.toFixed(2)}%" title="{seg.label}: {btc(seg.value)}">
-                <span>{seg.label} {btc(seg.value)}</span>
-              </div>
-            {/each}
+        {#each [{ label: 'Inputs', segs: bar.ins }, { label: 'Outputs + Gebühr', segs: bar.outs }] as row (row.label)}
+          <div class="bar-row">
+            <span class="bar-lbl">{row.label}</span>
+            <div class="bar-track">
+              {#each row.segs as seg, i (i)}
+                <div class="seg {seg.kind}" class:stretched={seg.stretched} style="width: {seg.width.toFixed(2)}%" title="{seg.label}: {btc(seg.value)}">
+                  <span>{seg.label} {btc(seg.value)}</span>
+                </div>
+              {/each}
+            </div>
           </div>
-        </div>
-        <div class="bar-row">
-          <span class="bar-lbl">Outputs + Gebühr</span>
-          <div class="bar-track">
-            {#each bar.outs as seg, i (i)}
-              <div class="seg {seg.kind}" class:stretched={seg.stretched} style="width: {seg.width.toFixed(2)}%" title="{seg.label}: {btc(seg.value)}">
-                <span>{seg.label} {btc(seg.value)}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
+        {/each}
         <ul class="bar-list small">
           {#each [...bar.ins, ...bar.outs] as seg, i (i)}
             <li>
@@ -442,10 +433,11 @@
                 </li>
               {/each}
               {#each p.rows as r (r.key)}
+                {@const op = parseOutpoint(r.key)}
                 <li class="kiste" class:fresh={freshKeys.includes(r.key)} title={r.key}>
                   <span class="icon lock" aria-hidden="true">{@html LOCK}</span>
                   <span class="amount">{btc(r.value)}</span>
-                  <span class="hash muted">{short(r.key.split(':')[0]!)}:{r.key.split(':')[1]}</span>
+                  <span class="hash muted">{short(op.txid)}:{op.vout}</span>
                 </li>
               {/each}
             </ul>

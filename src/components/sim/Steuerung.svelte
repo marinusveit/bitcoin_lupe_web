@@ -26,7 +26,7 @@
     onpreset,
   }: Props = $props();
 
-  const uid = Math.random().toString(36).slice(2, 8);
+  const uid = $props.id();
 
   const PRESET_LABELS: Record<PresetName, string> = {
     normal: 'Normalbetrieb',

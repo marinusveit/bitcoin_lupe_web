@@ -5,9 +5,24 @@
  * Whitepaper: Die Kette des Angreifers ist so lang wie die ehrliche Kette.
  */
 
+import { createRng, nextRandom } from './sim/rng';
+
+/** Rückstand in Blöcken, bei dem der Angreifer im Wettrennen standardmäßig aufgibt. */
+export const DEFAULT_GIVE_UP_DEFICIT = 20;
+
 /** Ab der Hälfte der Rechenleistung holt der Angreifer immer auf (Toleranz für Reglerwerte wie 0,5000001). */
 export function atLeastHalf(q: number): boolean {
   return q >= 0.5 - 1e-9;
+}
+
+/**
+ * Chance, einen Rückstand von `deficit` Blöcken noch aufzuholen: (q/p)^deficit wie im Whitepaper,
+ * ab der Hälfte der Rechenleistung 1.
+ */
+export function catchUpChance(q: number, deficit: number): number {
+  if (deficit <= 0 || atLeastHalf(q)) return 1;
+  if (q <= 0) return 0;
+  return (q / (1 - q)) ** deficit;
 }
 
 /**
@@ -113,7 +128,7 @@ export interface RaceOptions {
  */
 export function simulateRace(q: number, z: number, options: RaceOptions = {}): RaceResult {
   const random = options.random ?? Math.random;
-  const giveUp = options.giveUpDeficit ?? 20;
+  const giveUp = options.giveUpDeficit ?? DEFAULT_GIVE_UP_DEFICIT;
   const maxSteps = options.maxSteps ?? 600;
   if (!(q >= 0 && q <= 1)) throw new Error('q muss zwischen 0 und 1 liegen.');
   if (!Number.isInteger(z) || z < 0) throw new Error('z muss eine ganze Zahl ≥ 0 sein.');
@@ -137,12 +152,6 @@ export function simulateRace(q: number, z: number, options: RaceOptions = {}): R
 
 /** Kleiner deterministischer Zufallsgenerator (Mulberry32) für Tests und wiederholbare Rennen. */
 export function seededRandom(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  const rng = createRng(seed);
+  return () => nextRandom(rng);
 }

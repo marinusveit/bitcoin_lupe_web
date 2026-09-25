@@ -1,5 +1,8 @@
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes, sha256Hex } from './hash';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes, sha256dBytes } from './hash';
+import { toInternal } from './merkle';
+import { NULL_TXID } from './transaction';
 
 /**
  * Blockheader, Schwierigkeit, Mining und Geldmenge wie in Bitcoin. `prevHash`, `merkleRoot`
@@ -57,8 +60,31 @@ export function leadingZeroNibbles(hash: Uint8Array): number {
   return n;
 }
 
+/** Zählt die führenden Null-Hexzeichen eines Hex-Strings (ohne Obergrenze). */
+export function leadingZeroHexDigits(hex: string): number {
+  return hex.match(/^0*/)![0].length;
+}
+
+/** Ziel für eine Demo-Schwierigkeit: der größte Hash mit `n` führenden Null-Hexzeichen (n Nullen, danach lauter f). */
+export function targetForZeroNibbles(n: number): bigint {
+  return 2n ** BigInt(256 - 4 * n) - 1n;
+}
+
+/** Hat der Hash (Bytes in Anzeige-Reihenfolge) mindestens `zeros` führende Null-Hexzeichen? */
+function hasLeadingZeroNibbles(hash: Uint8Array, zeros: number): boolean {
+  const full = zeros >> 1;
+  for (let i = 0; i < full; i++) if (hash[i] !== 0) return false;
+  return zeros % 2 === 0 || hash[full]! < 16;
+}
+
+/** Null-Hash (64 Nullen), z. B. als Vorgänger des ersten Blocks. */
+export const ZERO_HASH = NULL_TXID;
 /** Satoshi pro Bitcoin. */
 export const SATOSHI_PER_BTC = 100_000_000;
+/** Blockbelohnung der ersten Epoche in Satoshi (50 BTC). */
+export const INITIAL_SUBSIDY_SAT = 5_000_000_000;
+/** Obergrenze der Geldmenge in BTC (gerundet, genau sind es knapp 21 Mio.). */
+export const MAX_SUPPLY_BTC = 21_000_000;
 /** Blöcke zwischen zwei Halbierungen der Blockbelohnung. */
 export const HALVING_INTERVAL = 210_000;
 /** nBits der Mindestschwierigkeit 1 (Genesis-Block). */
@@ -66,19 +92,13 @@ export const MAX_TARGET_NBITS = 0x1d00ffff;
 /** Soll-Dauer einer Schwierigkeitsperiode: 2016 Blöcke à 10 Minuten in Sekunden. */
 export const EXPECTED_RETARGET_SECONDS = 1_209_600;
 
-function reversedHash32(displayHex: string, field: string): Uint8Array {
-  const bytes = hexToBytes(displayHex);
-  if (bytes.length !== 32) throw new Error(`${field} muss 32 Byte (64 Hex-Zeichen) lang sein.`);
-  return bytes.reverse();
-}
-
 /** Serialisiert den Header in die 80 Byte, die Bitcoin hasht (Zahlen Little Endian). */
 export function serializeHeader(header: BlockHeader): Uint8Array {
   const out = new Uint8Array(80);
   const view = new DataView(out.buffer);
   view.setInt32(0, header.version, true);
-  out.set(reversedHash32(header.prevHash, 'prevHash'), 4);
-  out.set(reversedHash32(header.merkleRoot, 'merkleRoot'), 36);
+  out.set(toInternal(header.prevHash), 4);
+  out.set(toInternal(header.merkleRoot), 36);
   view.setUint32(68, header.timestamp, true);
   view.setUint32(72, header.nBits, true);
   view.setUint32(76, header.nonce, true);
@@ -87,7 +107,7 @@ export function serializeHeader(header: BlockHeader): Uint8Array {
 
 /** Berechnet den Blockhash (doppeltes SHA-256) in Anzeige-Reihenfolge. */
 export function headerHash(header: BlockHeader): string {
-  return bytesToHex(sha256(sha256(serializeHeader(header))).reverse());
+  return bytesToHex(sha256dBytes(serializeHeader(header)).reverse());
 }
 
 /** Wandelt das kompakte nBits-Format in das volle 256-Bit-Ziel um. */
@@ -124,23 +144,24 @@ export interface TextMineResult {
 /**
  * Vereinfachtes Mining für Demos: probiert ab `startNonce` bis zu `maxIterations` Nonces, bis
  * SHA-256(prefix + nonce) mit `zeros` Null-Hexzeichen beginnt. In Abschnitten aufrufbar.
+ * Der gleichbleibende Präfix wird nur einmal gehasht (Midstate), Hex nur für das Ergebnis gebildet.
  */
 export function mineText(
   prefix: string,
   zeros: number,
   options: { maxIterations: number; startNonce?: number },
 ): TextMineResult {
-  const want = '0'.repeat(zeros);
+  const midstate = sha256.create().update(utf8ToBytes(prefix));
   let nonce = options.startNonce ?? 0;
-  let hash = '';
+  let last: Uint8Array | null = null;
   let iterations = 0;
   while (iterations < options.maxIterations) {
-    hash = sha256Hex(prefix + nonce);
+    last = midstate.clone().update(utf8ToBytes(String(nonce))).digest();
     iterations++;
-    if (hash.startsWith(want)) return { found: true, nonce, hash, iterations, nextNonce: nonce + 1 };
+    if (hasLeadingZeroNibbles(last, zeros)) return { found: true, nonce, hash: bytesToHex(last), iterations, nextNonce: nonce + 1 };
     nonce++;
   }
-  return { found: false, nonce: nonce - 1, hash, iterations, nextNonce: nonce };
+  return { found: false, nonce: nonce - 1, hash: last ? bytesToHex(last) : '', iterations, nextNonce: nonce };
 }
 
 /** Größtes erlaubtes Ziel (Schwierigkeit 1). */
@@ -170,12 +191,12 @@ export function mineHeader(header: BlockHeader, options: MineOptions): MineResul
   const view = new DataView(bytes.buffer);
   let nonce = options.startNonce ?? header.nonce;
   let lastNonce = nonce;
-  let lastHash = new Uint8Array(32);
+  let lastHash: Uint8Array = new Uint8Array(32);
   let iterations = 0;
   const zeroHist = new Array<number>(17).fill(0);
   while (iterations < options.maxIterations && nonce <= 0xffffffff) {
     view.setUint32(76, nonce, true);
-    const hash = sha256(sha256(bytes)).reverse();
+    const hash = sha256dBytes(bytes).reverse();
     iterations++;
     lastNonce = nonce;
     lastHash = hash;
@@ -208,7 +229,7 @@ export function blockSubsidy(height: number): number {
   if (!Number.isSafeInteger(height) || height < 0) throw new Error('Die Blockhöhe muss eine ganze Zahl ≥ 0 sein.');
   const halvings = Math.floor(height / HALVING_INTERVAL);
   if (halvings >= 64) return 0;
-  return Number(5_000_000_000n >> BigInt(halvings));
+  return Number(BigInt(INITIAL_SUBSIDY_SAT) >> BigInt(halvings));
 }
 
 /** Summe aller Subventionen der Blöcke 0 bis einschließlich `height` in Satoshi. */

@@ -2,6 +2,7 @@
   import {
     addMiner,
     attackBudget,
+    attackInProgress,
     DISHONEST_VICTIM,
     PRESETS,
     removeNode,
@@ -21,7 +22,7 @@
   }
   let { world, version, onmutate, onselect }: Props = $props();
 
-  const uid = Math.random().toString(36).slice(2, 8);
+  const uid = $props.id();
   let error = $state('');
 
   const miners = $derived.by(() => {
@@ -34,7 +35,7 @@
   const busyBy = $derived.by(() => {
     void version;
     const a = world.attack;
-    return a && (a.status === 'running' || a.status === 'released') ? (world.nodes[a.attackerId]?.name ?? a.attackerId) : null;
+    return attackInProgress(a) ? { id: a.attackerId, name: world.nodes[a.attackerId]?.name ?? a.attackerId } : null;
   });
   const opfer = $derived(world.nodes[DISHONEST_VICTIM]?.name ?? 'Bob');
   const total = $derived(miners.reduce((s, m) => s + m.hashrate, 0));
@@ -58,9 +59,11 @@
     onmutate();
   }
   /** Warum der Haken gerade nichts bewirkt, sonst leer. */
-  function blocked(m: { dishonest: boolean; budget: number; name: string }): string {
+  function blocked(m: { id: string; dishonest: boolean; budget: number }): string {
     if (m.dishonest) return '';
-    if (busyBy) return `es läuft schon ein Angriff von ${busyBy}`;
+    // Nach dem Veröffentlichen ist der Angreifer nicht mehr unehrlich, sein Angriff aber noch nicht entschieden.
+    if (busyBy?.id === m.id) return 'sein Angriff ist noch offen';
+    if (busyBy) return `es läuft schon ein Angriff von ${busyBy.name}`;
     if (m.budget <= 0) return 'braucht Guthaben: erst einen Block finden';
     return '';
   }
@@ -82,7 +85,7 @@
   <div class="tabelle">
     <table>
       <thead>
-        <tr><th scope="col">Name</th><th scope="col">Hashrate</th><th scope="col" class="anteil-spalte">Anteil</th><th scope="col">Unehrlich</th><th scope="col"><span class="sr">Entfernen</span></th></tr>
+        <tr><th scope="col">Name</th><th scope="col">Hashrate</th><th scope="col" class="anteil-spalte">Anteil</th><th scope="col">Unehrlich</th><th scope="col"><span class="visually-hidden">Entfernen</span></th></tr>
       </thead>
       <tbody>
         {#each miners as m (m.id)}
@@ -94,7 +97,7 @@
               <span class="anteil-klein">{anteil(m.hashrate)} % Anteil</span>
             </td>
             <td>
-              <label class="sr" for="rate-{uid}-{m.id}">Hashrate von {m.name}</label>
+              <label class="visually-hidden" for="rate-{uid}-{m.id}">Hashrate von {m.name}</label>
               <input
                 id="rate-{uid}-{m.id}"
                 type="number"
@@ -238,13 +241,5 @@
     font-size: 0.85rem;
     color: var(--fg-muted);
     margin: 0.6rem 0 0;
-  }
-  .sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
   }
 </style>

@@ -1,11 +1,7 @@
 import { SATOSHI_PER_BTC } from '../block';
 import { reverseHex, sha256dHex } from '../hash';
+import { outpointKey, parseOutpoint } from '../transaction';
 import type { Tx, TxInput, TxOutput, UtxoSet } from './types';
-
-export { sha256dHex };
-
-/** Alter Name für `SATOSHI_PER_BTC` aus `src/lib/block.ts`. */
-export const SATS_PER_BTC = SATOSHI_PER_BTC;
 
 /** Kanonische Serialisierung: feste Feldreihenfolge, ohne `txid`. */
 export function serializeTx(tx: Omit<Tx, 'txid'>): string {
@@ -26,9 +22,7 @@ export function makeTx(inputs: TxInput[], outputs: TxOutput[], coinbase?: string
   return { txid: computeTxid(body), ...body };
 }
 
-export function outpointKey(txid: string, vout: number): string {
-  return `${txid}:${vout}`;
-}
+export { outpointKey, parseOutpoint };
 
 export function isCoinbase(tx: Tx): boolean {
   return tx.inputs.length === 0;
@@ -107,8 +101,7 @@ export function buildPayment(
   let sum = 0;
   for (const [key, o] of candidates) {
     if (sum >= amount + fee) break;
-    const sep = key.lastIndexOf(':');
-    inputs.push({ txid: key.slice(0, sep), vout: Number(key.slice(sep + 1)) });
+    inputs.push(parseOutpoint(key));
     sum += o.value;
   }
   if (sum < amount + fee) {
@@ -123,12 +116,12 @@ export function buildPayment(
 }
 
 export function btcToSats(btc: number): number {
-  return Math.round(btc * SATS_PER_BTC);
+  return Math.round(btc * SATOSHI_PER_BTC);
 }
 
 /** Formatiert Satoshi als BTC mit deutschem Dezimalkomma, z. B. „2,5 BTC“. */
 export function formatBtc(sats: number): string {
-  const text = (sats / SATS_PER_BTC).toFixed(8).replace(/\.?0+$/, '').replace('.', ',');
+  const text = (sats / SATOSHI_PER_BTC).toFixed(8).replace(/\.?0+$/, '').replace('.', ',');
   return `${text} BTC`;
 }
 

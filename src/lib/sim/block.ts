@@ -1,11 +1,12 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { bytesToHex, hexToBytes, sha256dHex } from '../hash';
+import { ZERO_HASH } from '../block';
 import { merkleRoot as bitcoinMerkleRoot } from '../merkle';
 import type { Block, SimParams, Tx } from './types';
 import { makeTx } from './tx';
 
-export const ZERO_HASH = '0'.repeat(64);
+export { ZERO_HASH };
 
 /**
  * Merkle-Wurzel über die TxIDs in Anzeige-Reihenfolge, dieselbe Rechnung wie in Kapitel 2

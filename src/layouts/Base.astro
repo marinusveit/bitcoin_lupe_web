@@ -5,8 +5,7 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/700.css';
 import '../styles/global.css';
 import 'katex/dist/katex.min.css';
-import { getCollection } from 'astro:content';
-import { extraNav } from '../lib/nav';
+import { chapters, extraNav } from '../lib/nav';
 
 interface Props {
   title: string;
@@ -14,9 +13,7 @@ interface Props {
 }
 const { title, description = 'Die technischen Grundlagen von Bitcoin, anschaulich erklärt.' } = Astro.props;
 
-const kapitel = (await getCollection('kapitel', (k) => !k.data.draft)).sort(
-  (a, b) => a.data.order - b.data.order,
-);
+const kapitel = await chapters();
 const path = Astro.url.pathname;
 const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 ---

@@ -1,14 +1,18 @@
 import type { BlockHeader } from './block';
 
-/** Nachricht an den Mining-Worker: starten (mit Header) oder stoppen. */
-export type MiningWorkerRequest =
+/** Auftrag für einen Mining-Lauf: Header-Mining oder vereinfachtes Text-Mining. */
+type StartRequest =
   | { type: 'start'; header: BlockHeader; chunkSize?: number; startNonce?: number; target?: bigint }
-  | { type: 'start-text'; prefix: string; zeros: number; chunkSize?: number; startNonce?: number }
-  | { type: 'stop' };
+  | { type: 'start-text'; prefix: string; zeros: number; chunkSize?: number; startNonce?: number };
+
+/** Nachricht an den Mining-Worker: Lauf `id` starten oder stoppen. Mehrere Läufe dürfen gleichzeitig laufen. */
+export type MiningWorkerRequest = (StartRequest & { id: number }) | { type: 'stop'; id: number };
 
 /** Nachricht vom Mining-Worker: Fortschritt, Treffer oder alle Nonces erfolglos probiert. */
 export interface MiningWorkerResponse {
   type: 'progress' | 'found' | 'exhausted';
+  /** Lauf, zu dem die Nachricht gehört. */
+  id: number;
   /** Bisher insgesamt probierte Nonces. */
   iterations: number;
   /** Treffer bzw. zuletzt probierter Hash (Anzeige-Hex). */
@@ -61,44 +65,67 @@ export function startTextMining(
   return runWorker({ type: 'start-text', prefix, zeros, ...options }, onProgress);
 }
 
-function runWorker(request: MiningWorkerRequest, onProgress: (progress: MiningWorkerResponse) => void): MiningHandle {
+interface Run {
+  onMessage: (msg: MiningWorkerResponse) => void;
+  fail: (error: Error) => void;
+}
+
+/** Ein gemeinsamer Worker für alle Läufe der Seite, erst beim ersten Lauf geladen. */
+let sharedWorker: Worker | null = null;
+let lastRunId = 0;
+/** Offene Läufe; Nachrichten zu beendeten oder abgebrochenen Läufen werden ignoriert. */
+const runs = new Map<number, Run>();
+
+function getWorker(): Worker {
+  if (sharedWorker) return sharedWorker;
   const worker = new Worker(new URL('./workers/mining.worker.ts', import.meta.url), { type: 'module' });
-  let settle: (outcome: MiningOutcome) => void = () => {};
-  let done = false;
+  worker.onmessage = (event: MessageEvent<MiningWorkerResponse>) => runs.get(event.data.id)?.onMessage(event.data);
+  worker.onerror = (event) => {
+    // Nach einem Fehler ist der Zustand des Workers unklar: alle offenen Läufe abbrechen, beim nächsten Lauf neu laden.
+    worker.terminate();
+    if (sharedWorker === worker) sharedWorker = null;
+    const error = new Error(event.message || 'Fehler im Mining-Worker.');
+    for (const run of [...runs.values()]) run.fail(error);
+  };
+  sharedWorker = worker;
+  return worker;
+}
+
+function runWorker(request: StartRequest, onProgress: (progress: MiningWorkerResponse) => void): MiningHandle {
+  const id = ++lastRunId;
+  const worker = getWorker();
+  let finish: (outcome: MiningOutcome) => void = () => {};
+  let fail: (error: Error) => void = () => {};
   const promise = new Promise<MiningOutcome>((resolve, reject) => {
-    settle = (outcome) => {
-      if (done) return;
-      done = true;
-      worker.terminate();
-      resolve(outcome);
+    finish = (outcome) => {
+      if (runs.delete(id)) resolve(outcome);
     };
-    worker.onerror = (event) => {
-      if (done) return;
-      done = true;
-      worker.terminate();
-      reject(new Error(event.message || 'Fehler im Mining-Worker.'));
+    fail = (error) => {
+      if (runs.delete(id)) reject(error);
     };
   });
-  worker.onmessage = (event: MessageEvent<MiningWorkerResponse>) => {
-    const msg = event.data;
-    onProgress(msg);
-    if (msg.type !== 'progress') {
-      settle({
-        status: msg.type,
-        iterations: msg.iterations,
-        hash: msg.hash,
-        nonce: msg.nonce,
-        elapsedMs: msg.elapsedMs,
-        zeroHist: msg.zeroHist,
-      });
-    }
-  };
-  worker.postMessage(request);
+  runs.set(id, {
+    fail,
+    onMessage: (msg) => {
+      onProgress(msg);
+      if (msg.type !== 'progress') {
+        finish({
+          status: msg.type,
+          iterations: msg.iterations,
+          hash: msg.hash,
+          nonce: msg.nonce,
+          elapsedMs: msg.elapsedMs,
+          zeroHist: msg.zeroHist,
+        });
+      }
+    },
+  });
+  worker.postMessage({ ...request, id } satisfies MiningWorkerRequest);
   return {
     promise,
     cancel: () => {
-      if (!done) worker.postMessage({ type: 'stop' } satisfies MiningWorkerRequest);
-      settle({ status: 'cancelled' });
+      if (runs.has(id)) worker.postMessage({ type: 'stop', id } satisfies MiningWorkerRequest);
+      finish({ status: 'cancelled' });
     },
   };
 }

@@ -1,15 +1,44 @@
 <script lang="ts">
   import {
+    addReal,
+    CURVE_B,
+    curveYReal,
+    DEFAULT_P,
     isInfinity,
     pointOrder,
     pointsOnCurve,
     scalarMul,
     type AffinePoint,
   } from '../lib/toycurve';
+  import { onActivate, svgPoint } from '../lib/ui';
 
   const PRIMES = [17, 37, 97] as const;
-  const START_P = 97;
   const START_K = 5;
+
+  /** Element von `list` mit dem kleinsten Abstand `dist`; `undefined`, wenn keins endlich ist. */
+  function nearest<T>(list: readonly T[], dist: (item: T) => number): T | undefined {
+    let best: T | undefined;
+    let bestD = Infinity;
+    for (const item of list) {
+      const d = dist(item);
+      if (d < bestD) {
+        bestD = d;
+        best = item;
+      }
+    }
+    return best;
+  }
+
+  /** Startgenerator je Primzahl, einmal berechnet: der erste Punkt mit der größten Ordnung. */
+  const generators = new Map<number, AffinePoint>();
+  function defaultGenerator(prime: number): AffinePoint {
+    let best = generators.get(prime);
+    if (!best) {
+      best = nearest(pointsOnCurve(prime), (pt) => -pointOrder(pt, prime))!;
+      generators.set(prime, best);
+    }
+    return best;
+  }
 
   // ---------- Reiter „Endlicher Körper“ ----------
   const uid = $props.id();
@@ -30,8 +59,8 @@
     tab = TABS[next]!;
     tabEls[tab]?.focus();
   }
-  let p = $state<number>(START_P);
-  let G = $state<AffinePoint>(defaultGenerator(START_P));
+  let p = $state<number>(DEFAULT_P);
+  let G = $state<AffinePoint>(defaultGenerator(DEFAULT_P));
   let k = $state(START_K);
   /** Abspielen: k zählt automatisch hoch, bis k·G wieder bei O ankommt. */
   let playing = $state(false);
@@ -54,20 +83,6 @@
   }
 
   $effect(() => stopPlay);
-
-  /** Startgenerator: der erste Punkt mit der größten Ordnung. */
-  function defaultGenerator(prime: number): AffinePoint {
-    let best = pointsOnCurve(prime)[0]!;
-    let bestOrder = 0;
-    for (const pt of pointsOnCurve(prime)) {
-      const o = pointOrder(pt, prime);
-      if (o > bestOrder) {
-        best = pt;
-        bestOrder = o;
-      }
-    }
-    return best;
-  }
 
   const points = $derived(pointsOnCurve(p));
   const order = $derived(pointOrder(G, p));
@@ -126,18 +141,11 @@
   let gridSvgEl = $state<SVGSVGElement | undefined>();
 
   function onGridClick(ev: MouseEvent) {
-    const c = svgCoords(ev, gridSvgEl);
+    const c = gridSvgEl && svgPoint(ev, gridSvgEl);
     if (!c) return;
-    let best: AffinePoint | null = null;
-    let bestD = HIT_R * HIT_R;
-    for (const pt of points) {
-      const d = (gx(pt.x) - c.px) ** 2 + (gy(pt.y) - c.py) ** 2;
-      if (d <= bestD) {
-        bestD = d;
-        best = pt;
-      }
-    }
-    if (best) pickGenerator(best);
+    const dist = (pt: AffinePoint) => (gx(pt.x) - c.x) ** 2 + (gy(pt.y) - c.y) ** 2;
+    const best = nearest(points, dist);
+    if (best && dist(best) <= HIT_R * HIT_R) pickGenerator(best);
   }
 
   function pickGenerator(pt: AffinePoint) {
@@ -164,28 +172,18 @@
   };
 
   function onPointKey(pt: AffinePoint, ev: KeyboardEvent) {
-    if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      pickGenerator(pt);
-      return;
-    }
+    onActivate(() => pickGenerator(pt))(ev);
     const dir = DIRS[ev.key];
     if (!dir) return;
     ev.preventDefault();
-    let best: AffinePoint | null = null;
-    let bestCost = Infinity;
-    for (const q of points) {
+    const best = nearest(points, (q) => {
       const dx = q.x - pt.x;
       const dy = q.y - pt.y;
       const along = dx * dir[0] + dy * dir[1];
-      if (along <= 0) continue;
+      if (along <= 0) return Infinity;
       // Abweichung quer zur Richtung zählt doppelt, damit der Sprung der Pfeilrichtung folgt.
-      const cost = along + 2 * Math.abs(dx * dir[1] - dy * dir[0]);
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = q;
-      }
-    }
+      return along + 2 * Math.abs(dx * dir[1] - dy * dir[0]);
+    });
     if (!best) return;
     rover = best;
     gridSvgEl?.querySelector<SVGCircleElement>(`[data-pt="${ptKey(best)}"]`)?.focus();
@@ -200,12 +198,12 @@
   const Y_MAX = 8;
   const RW = 440;
   const RH = 420;
-  const X0 = -Math.cbrt(7);
+  const X0 = -Math.cbrt(CURVE_B);
   const sx = (x: number) => ((x - X_MIN) / (X_MAX - X_MIN)) * RW;
   const sy = (y: number) => RH / 2 - (y / Y_MAX) * (RH / 2);
   const ux = (px: number) => X_MIN + (px / RW) * (X_MAX - X_MIN);
   const uy = (py: number) => ((RH / 2 - py) / (RH / 2)) * Y_MAX;
-  const f = (x: number) => Math.sqrt(Math.max(0, x ** 3 + 7));
+  const f = curveYReal;
 
   interface RealPoint {
     x: number;
@@ -247,32 +245,18 @@
   let svgEl = $state<SVGSVGElement | undefined>();
 
   function snap(px: number, py: number): RealPoint {
-    let best = samples[0]!;
-    let bestD = Infinity;
-    for (const s of samples) {
-      const d = (sx(s.x) - px) ** 2 + (sy(s.y) - py) ** 2;
-      if (d < bestD) {
-        bestD = d;
-        best = s;
-      }
-    }
+    const best = nearest(samples, (s) => (sx(s.x) - px) ** 2 + (sy(s.y) - py) ** 2)!;
     return { x: best.x, y: best.y };
   }
 
-  function svgCoords(ev: PointerEvent | MouseEvent, el = svgEl): { px: number; py: number } | null {
-    if (!el) return null;
-    const ctm = el.getScreenCTM();
-    if (!ctm) return null;
-    const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
-    return { px: pt.x, py: pt.y };
+  function setPoint(which: 'P' | 'Q', pt: RealPoint) {
+    if (which === 'P') rP = pt;
+    else rQ = pt;
   }
 
   function place(which: 'P' | 'Q', ev: PointerEvent | MouseEvent) {
-    const c = svgCoords(ev);
-    if (!c) return;
-    const pt = snap(c.px, c.py);
-    if (which === 'P') rP = pt;
-    else rQ = pt;
+    const c = svgEl && svgPoint(ev, svgEl);
+    if (c) setPoint(which, snap(c.x, c.y));
   }
 
   function onBackgroundClick(ev: MouseEvent) {
@@ -301,18 +285,10 @@
   const KB_MIN = samples.findIndex((s) => Math.abs(s.y) <= Y_MAX);
   const KB_MAX = samples.findLastIndex((s) => Math.abs(s.y) <= Y_MAX);
 
+  const KB_INDICES = Array.from({ length: KB_MAX - KB_MIN + 1 }, (_, i) => KB_MIN + i);
+
   function sampleIndex(pt: RealPoint): number {
-    let best = KB_MIN;
-    let bestD = Infinity;
-    for (let i = KB_MIN; i <= KB_MAX; i++) {
-      const s = samples[i]!;
-      const d = (s.x - pt.x) ** 2 + (s.y - pt.y) ** 2;
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
-    }
-    return best;
+    return nearest(KB_INDICES, (i) => (samples[i]!.x - pt.x) ** 2 + (samples[i]!.y - pt.y) ** 2) ?? KB_MIN;
   }
 
   function onHandleKey(which: 'P' | 'Q', ev: KeyboardEvent) {
@@ -326,34 +302,10 @@
     else return;
     ev.preventDefault();
     const s = samples[Math.min(KB_MAX, Math.max(KB_MIN, next))]!;
-    if (which === 'P') rP = { x: s.x, y: s.y };
-    else rQ = { x: s.x, y: s.y };
+    setPoint(which, { x: s.x, y: s.y });
   }
 
-  interface RealSum {
-    kind: 'point' | 'infinity';
-    slope: number | null;
-    third: RealPoint | null;
-    sum: RealPoint | null;
-  }
-
-  const realSum = $derived.by((): RealSum => {
-    const a = rP;
-    const b = mode === 'double' ? rP : rQ;
-    const same = Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.y - b.y) < 1e-9;
-    let slope: number;
-    if (same) {
-      if (Math.abs(a.y) < 1e-9) return { kind: 'infinity', slope: null, third: null, sum: null };
-      slope = (3 * a.x * a.x) / (2 * a.y);
-    } else if (Math.abs(a.x - b.x) < 1e-9) {
-      return { kind: 'infinity', slope: null, third: null, sum: null };
-    } else {
-      slope = (b.y - a.y) / (b.x - a.x);
-    }
-    const x3 = slope * slope - a.x - b.x;
-    const y3 = slope * (a.x - x3) - a.y;
-    return { kind: 'point', slope, third: { x: x3, y: -y3 }, sum: { x: x3, y: y3 } };
-  });
+  const realSum = $derived(addReal(rP, mode === 'double' ? rP : rQ));
 
   const lineCoords = $derived.by(() => {
     const s = realSum.slope;
@@ -370,13 +322,8 @@
   const fmtReal = (pt: RealPoint) => `(${r2(pt.x)} | ${r2(pt.y)})`;
 
   function reset() {
-    stopPlay();
-    endPuzzle();
+    changePrime(DEFAULT_P);
     tab = 'finite';
-    p = START_P;
-    G = defaultGenerator(START_P);
-    rover = null;
-    k = START_K;
     mode = 'add';
     rP = { ...START_RP };
     rQ = { ...START_RQ };
@@ -384,7 +331,7 @@
   }
 </script>
 
-<div class="demo">
+<div class="demo demo-card">
   <div class="aktionen">
     <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
@@ -587,40 +534,25 @@
               </text>
             {/if}
           </g>
-          {#if mode === 'add'}
+          {#each mode === 'add' ? (['Q', 'P'] as const) : (['P'] as const) as w (w)}
+            {@const pt = w === 'P' ? rP : rQ}
             <circle
-              cx={sx(rQ.x)}
-              cy={sy(rQ.y)}
+              cx={sx(pt.x)}
+              cy={sy(pt.y)}
               r="9"
-              class="handle q"
+              class="handle {w.toLowerCase()}"
               role="slider"
               tabindex="0"
-              aria-label="Punkt Q auf der Kurve verschieben"
+              aria-label="Punkt {w} auf der Kurve verschieben"
               aria-valuemin={KB_MIN}
               aria-valuemax={KB_MAX}
-              aria-valuenow={sampleIndex(rQ)}
-              aria-valuetext={`Q = ${fmtReal(rQ)}`}
-              onpointerdown={(e) => startDrag('Q', e)}
-              onkeydown={(e) => onHandleKey('Q', e)}
+              aria-valuenow={sampleIndex(pt)}
+              aria-valuetext={`${w} = ${fmtReal(pt)}`}
+              onpointerdown={(e) => startDrag(w, e)}
+              onkeydown={(e) => onHandleKey(w, e)}
             />
-            <text x={sx(rQ.x) - 12} y={sy(rQ.y) - 10} class="plbl">Q</text>
-          {/if}
-          <circle
-            cx={sx(rP.x)}
-            cy={sy(rP.y)}
-            r="9"
-            class="handle p"
-            role="slider"
-            tabindex="0"
-            aria-label="Punkt P auf der Kurve verschieben"
-            aria-valuemin={KB_MIN}
-            aria-valuemax={KB_MAX}
-            aria-valuenow={sampleIndex(rP)}
-            aria-valuetext={`P = ${fmtReal(rP)}`}
-            onpointerdown={(e) => startDrag('P', e)}
-            onkeydown={(e) => onHandleKey('P', e)}
-          />
-          <text x={sx(rP.x) - 12} y={sy(rP.y) - 10} class="plbl">P</text>
+            <text x={sx(pt.x) - 12} y={sy(pt.y) - 10} class="plbl">{w}</text>
+          {/each}
         </svg>
 
         <div class="board">
@@ -654,14 +586,6 @@
 </div>
 
 <style>
-  .demo {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.2rem;
-    display: grid;
-    gap: 1rem;
-  }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.2rem; border-bottom: 1px solid var(--border); }
   .tabs button {
     border: 0;
@@ -707,13 +631,11 @@
   .board dd { margin: 0; }
   .board .result { color: var(--accent-strong); font-weight: 700; font-size: 1rem; }
   .claim { border-left: 3px solid var(--accent); padding: 0.2rem 0 0.2rem 0.8rem; font-weight: 600; }
-  .hint { color: var(--fg-muted); font-size: 0.92rem; margin: 0 0 0.6rem; }
+  .hint { margin-bottom: 0.6rem; }
   .hint.small { font-size: 0.85rem; margin: 0; }
   .hint.step { margin-bottom: 0.6rem; }
 
-  .switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .switch button { border: 0; border-radius: 0; padding: 0.3rem 0.8rem; background: transparent; color: var(--fg-muted); }
-  .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
+  .switch button { padding: 0.3rem 0.8rem; }
 
   .real-svg { touch-action: none; cursor: crosshair; }
   .axis { stroke: var(--border); stroke-width: 1; }

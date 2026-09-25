@@ -2,7 +2,8 @@ import type { Block, MinerNode, SimEvent, Tx, UtxoSet, World } from './types';
 import { assembleBlock, nextDifficulty, subsidy } from './block';
 import { selectTransactions, utxoAfter } from './node';
 import { applyTx, makeTx, txFee, validateTx } from './tx';
-import { blockLabel, label, makeEmitter, receiveBlock, type Emit } from './network';
+import { blockLabel, collectEvents, label, receiveBlock, type Emit } from './network';
+import { isActiveAttacker } from './attack';
 import { nextRandom } from './rng';
 
 /** Findet einen Block im eigenen Knoten oder in der privaten Kette. */
@@ -44,7 +45,7 @@ export function produceBlock(world: World, miner: MinerNode, emit: Emit): Block 
   let fees = 0;
   const attack = world.attack;
   let candidates = Object.values(miner.mempool);
-  if (isPrivate && attack && attack.attackerId === miner.id && attack.status === 'running') {
+  if (isPrivate && attack && isActiveAttacker(world, miner)) {
     candidates = candidates.filter((t) => t.txid !== attack.publicTx.txid);
     const pending = !miner.privateChain.some((b) => b.txs.some((t) => t.txid === attack.privateTx.txid));
     if (pending && validateTx(attack.privateTx, utxo) === null) {
@@ -104,7 +105,7 @@ export function mineTick(world: World, emit: Emit): void {
     if (node.kind !== 'miner') continue;
     const r = nextRandom(world.rng);
     if (node.hashrate <= 0) continue;
-    if (minesPrivately(node) && node.privateChain.length === 0 && !(world.attack?.attackerId === node.id && world.attack.status === 'running')) {
+    if (minesPrivately(node) && node.privateChain.length === 0 && !isActiveAttacker(world, node)) {
       node.privateBase = node.tip;
     }
     const p = node.hashrate / minerDifficulty(world, node);
@@ -116,7 +117,5 @@ export function mineTick(world: World, emit: Emit): void {
 export function forceBlock(world: World, minerId: string): SimEvent[] {
   const miner = world.nodes[minerId];
   if (!miner || miner.kind !== 'miner') throw new Error(`Kein Miner mit ID ${minerId}`);
-  const events: SimEvent[] = [];
-  produceBlock(world, miner, makeEmitter(world, events));
-  return events;
+  return collectEvents(world, (emit) => produceBlock(world, miner, emit));
 }

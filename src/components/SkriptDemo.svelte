@@ -17,6 +17,7 @@
     signMessage,
     type ScriptResult,
   } from '../lib';
+  import { motionAllowed } from '../lib/ui';
 
   type Mode = 'p2pkh' | 'p2pk' | 'frei';
   /** Wer gibt aus: Alice, Mallory mit eigenem Schlüsselpaar, Mallory mit Alices (öffentlichem) Public Key. */
@@ -46,9 +47,7 @@
     [MSG, 'Nachrichten-Hash'],
   ]);
 
-  /** Bewegung nur, wenn das System sie nicht abgeschaltet hat. */
-  const motion = typeof matchMedia === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const DUR = motion ? 260 : 0;
+  const DUR = motionAllowed() ? 260 : 0;
 
   let mode: Mode = $state('p2pkh');
   let tamper = $state(false);
@@ -56,7 +55,6 @@
   let changeTx = $state(false);
   let freeSig = $state('OP_2 OP_3');
   let freePub = $state('OP_ADD OP_5 OP_EQUAL');
-  let pos = $state(0);
 
   function tampered(sig: string): string {
     // Letztes Hex-Zeichen ändern: aus der Signatur wird eine andere Zahl.
@@ -104,15 +102,13 @@
     ...scripts.pub.map((t) => ({ t, phase: 'scriptPubKey' as const })),
   ]);
 
-  // Bei jeder Änderung des Skripts wieder am Anfang beginnen.
-  $effect(() => {
+  // Aktueller Schritt; beginnt bei jeder Änderung des Skripts wieder am Anfang, die Knöpfe überschreiben ihn.
+  let pos = $derived.by(() => {
     void scripts;
     void messageHash;
-    pos = 0;
+    return 0;
   });
-
-  // Auf die Schrittzahl begrenzen, falls sich das Skript vor dem Zurücksetzen von `pos` ändert.
-  const at = $derived(Math.min(pos, result.steps.length));
+  const at = $derived(pos);
   const done = $derived(at >= result.steps.length);
   const stack = $derived(at === 0 ? [] : result.steps[at - 1]!.stackAfter);
   // Ohne Schritte (beide Felder leer oder unlesbares Skript) gibt es nichts zu klicken: Urteil sofort zeigen.

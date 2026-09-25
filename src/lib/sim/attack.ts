@@ -2,15 +2,34 @@ import type { AttackState, MinerNode, Result, SimEvent, World } from './types';
 import { btcToSats, buildPayment, formatBtc, makeTx, mempoolSpent, sumOutputs } from './tx';
 import { PRESETS } from './presets';
 import { confirmations } from './node';
-import { isChainNode, label, makeEmitter, receiveBlock, receiveTx, type Emit } from './network';
+import { collectEvents, isChainNode, label, receiveBlock, receiveTx, withEvents, type Emit } from './network';
 
 function getMiner(world: World, id: string): MinerNode | null {
   const n = world.nodes[id];
   return n && n.kind === 'miner' ? n : null;
 }
 
-function isActiveAttacker(world: World, miner: MinerNode): boolean {
+/** Ist der Miner der Angreifer eines Angriffs, der noch heimlich läuft (Status `running`)? */
+export function isActiveAttacker(world: World, miner: MinerNode): boolean {
   return world.attack?.attackerId === miner.id && world.attack.status === 'running';
+}
+
+/** Läuft der Angriff noch (heimlich oder schon veröffentlicht, aber nicht entschieden)? */
+export function attackInProgress(attack: AttackState | null | undefined): attack is AttackState {
+  return attack?.status === 'running' || attack?.status === 'released';
+}
+
+/** Miner geht in den privaten Modus: hält ab seinem Tip Blöcke zurück. */
+export function goPrivate(miner: MinerNode): void {
+  miner.dishonest = true;
+  miner.privateBase = miner.tip;
+  miner.privateChain = [];
+}
+
+/** Miner arbeitet wieder ehrlich; die private Kette muss vorher veröffentlicht oder verworfen sein. */
+export function goHonest(miner: MinerNode): void {
+  miner.dishonest = false;
+  miner.privateBase = null;
 }
 
 /**
@@ -25,45 +44,40 @@ export function startDoubleSpend(
   amount: number,
   fee = world.params.defaultFee,
 ): Result<AttackState> & { events: SimEvent[] } {
-  const events: SimEvent[] = [];
-  const emit = makeEmitter(world, events);
-  const attacker = getMiner(world, attackerMinerId);
-  const victim = world.nodes[victimWalletId];
-  if (!attacker) return { ok: false, error: 'Angreifer muss ein Miner sein', events };
-  if (!victim || victim.kind !== 'wallet') return { ok: false, error: 'Opfer muss eine Wallet sein', events };
-  if (world.attack && (world.attack.status === 'running' || world.attack.status === 'released')) {
-    return { ok: false, error: 'Es läuft schon ein Angriff', events };
-  }
-  const pay = buildPayment(attacker.utxo, mempoolSpent(attacker.mempool), attacker.address, victim.address, amount, fee);
-  if (!pay.ok) return { ok: false, error: pay.error, events };
-  const publicTx = pay.tx;
-  // Gleiche Inputs, alles (abzüglich Gebühr) zurück an den Angreifer.
-  const privateTx = makeTx(publicTx.inputs, [{ value: sumOutputs(publicTx), address: attacker.address }]);
+  return withEvents(world, (emit): Result<AttackState> => {
+    const attacker = getMiner(world, attackerMinerId);
+    const victim = world.nodes[victimWalletId];
+    if (!attacker) return { ok: false, error: 'Angreifer muss ein Miner sein' };
+    if (!victim || victim.kind !== 'wallet') return { ok: false, error: 'Opfer muss eine Wallet sein' };
+    if (attackInProgress(world.attack)) return { ok: false, error: 'Es läuft schon ein Angriff' };
+    const pay = buildPayment(attacker.utxo, mempoolSpent(attacker.mempool), attacker.address, victim.address, amount, fee);
+    if (!pay.ok) return { ok: false, error: pay.error };
+    const publicTx = pay.tx;
+    // Gleiche Inputs, alles (abzüglich Gebühr) zurück an den Angreifer.
+    const privateTx = makeTx(publicTx.inputs, [{ value: sumOutputs(publicTx), address: attacker.address }]);
 
-  attacker.dishonest = true;
-  attacker.privateChain = [];
-  attacker.privateBase = attacker.tip;
-  const attack: AttackState = {
-    attackerId: attacker.id,
-    victimId: victim.id,
-    amount,
-    publicTx,
-    privateTx,
-    z: 0,
-    conf: 0,
-    status: 'running',
-    startedAt: world.tick,
-  };
-  world.attack = attack;
-  emit({
-    kind: 'attack-start',
-    text: `${label(attacker)} startet einen Double Spend: öffentlich ${formatBtc(amount)} an ${victim.name}, heimlich dieselben Coins an sich selbst`,
-    nodeId: attacker.id,
-    txid: publicTx.txid,
+    goPrivate(attacker);
+    const attack: AttackState = {
+      attackerId: attacker.id,
+      victimId: victim.id,
+      amount,
+      publicTx,
+      privateTx,
+      z: 0,
+      conf: 0,
+      status: 'running',
+    };
+    world.attack = attack;
+    emit({
+      kind: 'attack-start',
+      text: `${label(attacker)} startet einen Double Spend: öffentlich ${formatBtc(amount)} an ${victim.name}, heimlich dieselben Coins an sich selbst`,
+      nodeId: attacker.id,
+      txid: publicTx.txid,
+    });
+    emit({ kind: 'tx-created', text: `${attacker.name} sendet ${formatBtc(amount)} an ${victim.name}`, nodeId: attacker.id, txid: publicTx.txid });
+    receiveTx(world, attacker, publicTx, attacker.id, emit);
+    return { ok: true, value: attack };
   });
-  emit({ kind: 'tx-created', text: `${attacker.name} sendet ${formatBtc(amount)} an ${victim.name}`, nodeId: attacker.id, txid: publicTx.txid });
-  receiveTx(world, attacker, publicTx, attacker.id, emit);
-  return { ok: true, value: attack, events };
 }
 
 /** Opfer des Double Spends, den der Haken „Unehrlich“ startet. */
@@ -92,7 +106,7 @@ export function startDishonestAttack(world: World, minerId: string): Result<Atta
   const miner = getMiner(world, minerId);
   if (!miner) return { ok: false, error: 'Angreifer muss ein Miner sein', events: [] };
   const a = world.attack;
-  if (a && (a.status === 'running' || a.status === 'released')) {
+  if (attackInProgress(a)) {
     const who = world.nodes[a.attackerId];
     return { ok: false, error: `Es läuft schon ein Angriff${who ? ` von ${who.name}` : ''}`, events: [] };
   }
@@ -116,30 +130,26 @@ export function attackWaitText(world: World): string {
 
 /** Schaltet einen Miner ehrlich/unehrlich. Unehrlich = Blöcke zurückhalten, bis die eigene Kette vorn liegt. */
 export function setDishonest(world: World, minerId: string, dishonest: boolean): SimEvent[] {
-  const events: SimEvent[] = [];
-  const emit = makeEmitter(world, events);
-  const miner = getMiner(world, minerId);
-  if (!miner || miner.dishonest === dishonest) return events;
-  if (dishonest) {
-    miner.dishonest = true;
-    miner.privateBase = miner.tip;
-    miner.privateChain = [];
-    emit({ kind: 'config', text: `${label(miner)} arbeitet jetzt unehrlich und hält Blöcke zurück`, nodeId: miner.id });
-    return events;
-  }
-  if (miner.privateChain.length > 0 && privateWork(miner) > miner.work[miner.tip]!) {
-    release(world, miner, emit);
-  } else {
-    miner.privateChain = [];
-  }
-  if (isActiveAttacker(world, miner)) {
-    world.attack!.status = 'abandoned';
-    emit({ kind: 'attack-abandoned', text: `Angriff abgebrochen: ${label(miner)} arbeitet wieder ehrlich`, nodeId: miner.id });
-  }
-  miner.dishonest = false;
-  miner.privateBase = null;
-  emit({ kind: 'config', text: `${label(miner)} arbeitet wieder ehrlich`, nodeId: miner.id });
-  return events;
+  return collectEvents(world, (emit) => {
+    const miner = getMiner(world, minerId);
+    if (!miner || miner.dishonest === dishonest) return;
+    if (dishonest) {
+      goPrivate(miner);
+      emit({ kind: 'config', text: `${label(miner)} arbeitet jetzt unehrlich und hält Blöcke zurück`, nodeId: miner.id });
+      return;
+    }
+    if (miner.privateChain.length > 0 && privateWork(miner) > miner.work[miner.tip]!) {
+      release(world, miner, emit);
+    } else {
+      miner.privateChain = [];
+    }
+    if (isActiveAttacker(world, miner)) {
+      world.attack!.status = 'abandoned';
+      emit({ kind: 'attack-abandoned', text: `Angriff abgebrochen: ${label(miner)} arbeitet wieder ehrlich`, nodeId: miner.id });
+    }
+    goHonest(miner);
+    emit({ kind: 'config', text: `${label(miner)} arbeitet wieder ehrlich`, nodeId: miner.id });
+  });
 }
 
 function privateWork(miner: MinerNode): number {
@@ -197,8 +207,7 @@ export function attackTick(world: World, emit: Emit): void {
       node.privateChain = [];
       if (attacking) {
         world.attack!.status = 'abandoned';
-        node.dishonest = false;
-        node.privateBase = null;
+        goHonest(node);
         emit({ kind: 'attack-abandoned', text: `Angriff aufgegeben: ${label(node)} liegt ${-z} Blöcke zurück`, nodeId: node.id });
       } else {
         node.privateBase = node.tip;
@@ -211,8 +220,7 @@ export function attackTick(world: World, emit: Emit): void {
       release(world, node, emit);
       if (attacking) {
         world.attack!.status = 'released';
-        node.dishonest = false;
-        node.privateBase = null;
+        goHonest(node);
       } else {
         node.privateBase = node.tip;
       }

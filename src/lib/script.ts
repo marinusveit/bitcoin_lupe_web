@@ -35,22 +35,6 @@ export interface ScriptResult {
   error?: string;
 }
 
-/** Alle unterstützten Opcodes. */
-export const OPCODES = [
-  'OP_0',
-  ...Array.from({ length: 16 }, (_, i) => `OP_${i + 1}`),
-  'OP_DUP',
-  'OP_HASH160',
-  'OP_SHA256',
-  'OP_EQUAL',
-  'OP_EQUALVERIFY',
-  'OP_VERIFY',
-  'OP_CHECKSIG',
-  'OP_ADD',
-  'OP_SUB',
-  'OP_RETURN',
-] as const;
-
 class ScriptError extends Error {}
 
 /** Kodiert eine Zahl wie Bitcoin Script (Little Endian, Vorzeichen im höchsten Bit) als Hex. */

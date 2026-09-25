@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { sha256dHex, startMining, targetToNBits, type BlockHeader, type MiningHandle } from '../lib';
+  import { fmtNumber, sha256dHex, startMining, targetForZeroNibbles, targetToNBits, type BlockHeader, type MiningHandle } from '../lib';
 
   interface Find {
     zeros: number;
@@ -48,13 +48,10 @@
     return r;
   }
 
-  const target = $derived(2n ** BigInt(256 - 4 * zeros) - 1n);
+  const target = $derived(targetForZeroNibbles(zeros));
   const expected = $derived(16 ** zeros);
 
-  /** Target als 64 Hex-Zeichen: n Nullen, danach lauter f. */
-  const targetHex = (n: number) => '0'.repeat(n) + 'f'.repeat(64 - n);
-
-  const fmt = (n: number, digits = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: digits });
+  const fmt = (n: number, digits = 0) => fmtNumber(n, digits);
   /** Kurzform für schmale Balken: 39 Tsd., 1,2 Mio.; unter 10 mit einer Nachkommastelle. */
   function fmtShort(n: number): string {
     const units: [number, string][] = [[1e9, 'Mrd.'], [1e6, 'Mio.'], [1e3, 'Tsd.']];
@@ -80,7 +77,8 @@
       : `bei deinem Rechner ${duration(expected / lastRate)}`,
   );
 
-  function start() {
+  /** Setzt die Anzeige des letzten Laufs zurück (vor einem neuen Lauf und beim Zurücksetzen). */
+  function clearRun() {
     error = '';
     iterations = 0;
     rate = null;
@@ -88,6 +86,17 @@
     currentHash = '';
     lastFind = null;
     zeroHist = [];
+  }
+
+  /** Räumt nach dem Ende eines Laufs auf. */
+  function finish() {
+    running = false;
+    handle = null;
+    announce = '';
+  }
+
+  function start() {
+    clearRun();
     const n = zeros;
     announce = `Mining gestartet, Stufe ${n}.`;
     const t = target;
@@ -116,9 +125,7 @@
     h.promise
       .then((outcome) => {
         if (handle !== h) return;
-        running = false;
-        handle = null;
-        announce = '';
+        finish();
         if (outcome.status === 'found') {
           const seconds = outcome.elapsedMs / 1000;
           const find = { zeros: n, iterations: outcome.iterations, seconds, nonce: outcome.nonce, hash: outcome.hash };
@@ -136,9 +143,7 @@
         }
       })
       .catch((e: unknown) => {
-        running = false;
-        handle = null;
-        announce = '';
+        finish();
         error = `Fehler im Mining-Worker: ${e instanceof Error ? e.message : String(e)}`;
       });
   }
@@ -159,14 +164,8 @@
   function reset() {
     stop();
     zeros = START_ZEROS;
-    iterations = 0;
-    rate = null;
-    elapsed = 0;
-    currentHash = '';
-    lastFind = null;
+    clearRun();
     history = [];
-    error = '';
-    zeroHist = [];
     announce = '';
   }
 
@@ -184,11 +183,9 @@
     const maxCount = Math.max(1, ...zeroHist);
     return Array.from({ length: last + 1 }, (_, z) => {
       const count = zeroHist[z] ?? 0;
-      const expected = histTotal / 16 ** z;
       return {
         z,
         count,
-        expected,
         // Logarithmische Höhe, damit auch 1 Treffer neben 60 000 Nieten sichtbar bleibt.
         h: count > 0 ? Math.max(0.06, Math.log10(count + 1) / Math.log10(maxCount + 1)) : 0,
         valid: z >= histZeros,
@@ -212,7 +209,7 @@
 
   <div class="target">
     <span class="lbl">Target (Obergrenze): der Hash muss als Zahl kleiner oder gleich sein</span>
-    <span class="hash"><span class="z">{'0'.repeat(zeros)}</span>{targetHex(zeros).slice(zeros)}</span>
+    <span class="hash"><span class="z">{'0'.repeat(zeros)}</span>{'f'.repeat(64 - zeros)}</span>
     <span class="hint">Das echte Target ist keine so runde Zahl wie hier, siehe nBits weiter unten.</span>
   </div>
 
@@ -227,7 +224,7 @@
       <dd class="hash">{#if lastFind && !running}<span class="z">{lastFind.hash.slice(0, lastFind.zeros)}</span>{lastFind.hash.slice(lastFind.zeros)}{:else}{currentHash || '–'}{/if}</dd>
       {#if lastFind && !running}
         <dt>Target zum Vergleich</dt>
-        <dd class="hash"><span class="z">{'0'.repeat(lastFind.zeros)}</span>{targetHex(lastFind.zeros).slice(lastFind.zeros)}</dd>
+        <dd class="hash"><span class="z">{'0'.repeat(lastFind.zeros)}</span>{'f'.repeat(64 - lastFind.zeros)}</dd>
       {/if}
     </div>
   </dl>
@@ -317,7 +314,6 @@
   .bar-z { font-family: var(--font-mono); font-size: 0.72rem; color: var(--fg-muted); white-space: nowrap; overflow: hidden; max-width: 100%; }
   .bar-count .kurz { display: none; }
   .bar-lbl { font-size: 0.76rem; color: var(--fg-muted); text-align: center; line-height: 1.2; }
-  @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
   .error { color: var(--danger); margin: 0; }
   .muted { color: var(--fg-muted); margin: 0; }
   table { margin: 0; }

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { createWorld, step, PRESETS, type PresetName, type World } from '../../lib/sim';
+  import { fmtNumber } from '../../lib/format';
+  import { prefersReducedMotion } from '../../lib/ui';
   import type { Highlight } from './helpers';
   import Steuerung from './Steuerung.svelte';
   import Netzkarte from './Netzkarte.svelte';
@@ -39,7 +41,7 @@
    * Bei „Bewegung reduzieren“ gleiten die Nachrichten nicht, sondern springen je Tick eine Stufe weiter.
    * Sie stehen dann auf der Mitte der Verbindung, weil die Knoten sie an den Enden verdecken.
    */
-  const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = prefersReducedMotion();
   const restFrac = reduceMotion ? 0.5 : 0;
   /** Anteil des laufenden Ticks (0 bis 1) für die Bewegung der Nachrichten. */
   let frac = $state(restFrac);
@@ -98,7 +100,7 @@
     const spec = PRESETS[preset];
     const miners = spec.nodes.filter((n) => n.kind === 'miner');
     const name = (id: string) => spec.nodes.find((n) => n.id === id)?.name ?? id;
-    const rates = miners.map((m) => fmt(m.hashrate));
+    const rates = miners.map((m) => fmtNumber(m.hashrate, 3));
     if (preset === 'fork') {
       const slow = Math.max(...spec.links.map((l) => l.latencyTicks));
       return {
@@ -114,7 +116,7 @@
       const conf = world.params.attackConfirmations;
       return {
         titel: 'Double Spend',
-        text: `${name(spec.attack.attackerId)} hat ${share} % der Rechenleistung. Er zahlt ${victim} öffentlich ${fmt(spec.attack.amount)} BTC und baut heimlich eine Kette, in der dieselben Coins an ihn selbst gehen; veröffentlichen will er sie erst, wenn die Zahlung an ${victim} ${conf} ${conf === 1 ? 'Bestätigung' : 'Bestätigungen'} hat, denn erst dann liefert ${victim} die Ware. Beobachte ${victim}s Bestätigungen rechts, auf dem Handy unter der Karte.`,
+        text: `${name(spec.attack.attackerId)} hat ${share} % der Rechenleistung. Er zahlt ${victim} öffentlich ${fmtNumber(spec.attack.amount, 3)} BTC und baut heimlich eine Kette, in der dieselben Coins an ihn selbst gehen; veröffentlichen will er sie erst, wenn die Zahlung an ${victim} ${conf} ${conf === 1 ? 'Bestätigung' : 'Bestätigungen'} hat, denn erst dann liefert ${victim} die Ware. Beobachte ${victim}s Bestätigungen rechts, auf dem Handy unter der Karte.`,
       };
     }
     return {
@@ -122,10 +124,6 @@
       text: `${miners.length} Miner mit den Hashraten ${rates.join(', ').replace(/, ([^,]*)$/, ' und $1')} rechnen um die Wette, alle Verbindungen sind schnell. Gabelungen kommen deshalb nur selten vor.`,
     };
   });
-
-  function fmt(n: number): string {
-    return n.toLocaleString('de-DE');
-  }
 
   function toggleHighlight(h: Highlight) {
     highlight = h && highlight && h.kind === highlight.kind && h.id === highlight.id ? null : h;

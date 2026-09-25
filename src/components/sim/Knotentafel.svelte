@@ -1,14 +1,18 @@
 <script lang="ts">
   import {
+    addressName,
     chainHashes,
     chainNodeOf,
     confirmations,
+    describePayment,
     formatBtc,
     isChainNode,
     minerDifficulty,
     formatDifficulty,
+    outpointKey,
     privateLead,
     leadText,
+    shortHash,
     txFee,
     walletBalance,
     withPendingOutputs,
@@ -16,8 +20,9 @@
     type Tx,
     type World,
   } from '../../lib/sim';
+  import { fmtNumber } from '../../lib/format';
   import Kettenansicht from './Kettenansicht.svelte';
-  import { addressName, isHighlightedTx, minerColor, type Highlight } from './helpers';
+  import { isHighlightedTx, minerColor, type Highlight } from './helpers';
 
   interface Props {
     world: World;
@@ -30,11 +35,10 @@
 
   function describe(tx: Tx, utxo: Record<string, { value: number; address: string }>): string {
     const first = tx.inputs[0];
-    const sender = first ? utxo[`${first.txid}:${first.vout}`]?.address : undefined;
-    const parts = tx.outputs
-      .filter((o) => o.address !== sender)
-      .map((o) => `${formatBtc(o.value)} an ${addressName(world, o.address)}`);
-    return `${sender ? addressName(world, sender) : 'Unbekannt'}: ${parts.join(', ') || 'an sich selbst'}`;
+    const sender = first ? utxo[outpointKey(first.txid, first.vout)]?.address : undefined;
+    // Zahlung nur an sich selbst: hier ohne Betrag, anders als der Text von `describePayment`.
+    const parts = tx.outputs.some((o) => o.address !== sender) ? describePayment(world, tx, sender ?? '') : 'an sich selbst';
+    return `${sender ? addressName(world, sender) : 'Unbekannt'}: ${parts}`;
   }
 
   const view = $derived.by(() => {
@@ -49,7 +53,7 @@
       const lookup = via ? withPendingOutputs(via.utxo, Object.values(via.mempool)) : {};
       const pending = via
         ? Object.values(via.mempool)
-            .filter((tx) => tx.outputs.some((o) => o.address === n.address) || tx.inputs.some((i) => lookup[`${i.txid}:${i.vout}`]?.address === n.address))
+            .filter((tx) => tx.outputs.some((o) => o.address === n.address) || tx.inputs.some((i) => lookup[outpointKey(i.txid, i.vout)]?.address === n.address))
             .map((tx) => ({ txid: tx.txid, text: describe(tx, lookup) }))
         : [];
       let attack: { conf: number; gone: boolean; attacker: string; amount: number; seen: number | undefined } | null = null;
@@ -160,15 +164,15 @@
       {#if view.miner?.dishonest}<span class="badge boese">unehrlich</span>{/if}
     </h3>
     <p class="status">
-      Spitze: Block {view.tip.height} (<span class="hash">{view.tip.hash.slice(0, 10)}…</span>), kennt {view.known}
+      Spitze: Block {view.tip.height} (<span class="hash">{shortHash(view.tip.hash, 10)}</span>), kennt {view.known}
       {view.known === 1 ? 'Block' : 'Blöcke'}, verbunden mit {view.peers.join(', ')}.
     </p>
     {#if view.miner}
       <p class="status">
-        Hashrate {view.miner.hashrate}, Difficulty {formatDifficulty(view.miner.difficulty, world.params.difficulty)}, Chance je Tick {(
-          (view.miner.hashrate / view.miner.difficulty) *
-          100
-        ).toLocaleString('de-DE', { maximumFractionDigits: 2 })} %{#if view.miner.balance}, Guthaben {formatBtc(view.miner.balance.confirmed)}{/if}.
+        Hashrate {view.miner.hashrate}, Difficulty {formatDifficulty(view.miner.difficulty, world.params.difficulty)}, Chance je Tick {fmtNumber(
+          (view.miner.hashrate / view.miner.difficulty) * 100,
+          2,
+        )} %{#if view.miner.balance}, Guthaben {formatBtc(view.miner.balance.confirmed)}{/if}.
         {#if view.miner.dishonest}
           Geheime Kette: {view.miner.privateLen} {view.miner.privateLen === 1 ? 'Block' : 'Blöcke'},
           {leadText(view.miner.lead)}.
