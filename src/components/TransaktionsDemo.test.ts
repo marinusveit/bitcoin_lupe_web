@@ -47,3 +47,51 @@ describe('TransaktionsDemo: verbrauchte Kiste nach dem Senden', () => {
     expect(screen.queryByText(/ausgegeben in/)).toBeNull();
   });
 });
+
+/** Sendet Alice → Bob mit Betrag und Gebühr und liefert den Text aller Hinweise. */
+async function sendWithFee(amount: string, feeText: string): Promise<string> {
+  render(TransaktionsDemo);
+  await fireEvent.input(screen.getByLabelText('Betrag in BTC'), { target: { value: amount } });
+  await fireEvent.input(screen.getByLabelText('Gebühr in BTC'), { target: { value: feeText } });
+  await fireEvent.click(screen.getByRole('button', { name: 'Signieren und senden' }));
+  return document.querySelector('.hints')?.textContent?.replace(/\s+/g, ' ') ?? '';
+}
+
+describe('TransaktionsDemo: Hinweise zu Gebühr und Wechselgeld', () => {
+  afterEach(cleanup);
+
+  it('sendet mit Gebühr 0, weist aber auf den fehlenden Anreiz für Miner hin', async () => {
+    const hints = await sendWithFee('10', '0');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText(/Zuletzt: Alice zahlt Bob/)).toBeTruthy();
+    expect(hints).toMatch(/ohne Gebühr/i);
+  });
+
+  it('schlägt Wechselgeld unter 546 Satoshi der Gebühr zu und sagt das', async () => {
+    // 50 BTC − 49,999899 − 0,0001 = 100 Satoshi Wechselgeld
+    const hints = await sendWithFee('49,999899', '0,0001');
+    expect(hints).toMatch(/100 Satoshi/);
+    expect(hints).toMatch(/546 Satoshi/);
+    expect(screen.queryByText(/Wechselgeld an den Absender/)).toBeNull();
+    expect(screen.getByText('Gebühr', { selector: 'dt' }).nextElementSibling!.textContent).toMatch(/^0,000101 BTC/);
+  });
+
+  it('warnt, wenn die Gebühr größer als der Betrag ist', async () => {
+    const hints = await sendWithFee('10', '20');
+    expect(hints).toMatch(/Gebühr ist größer als der Betrag/);
+  });
+
+  it('gibt bei üblicher Gebühr keinen Hinweis', async () => {
+    expect(await sendWithFee('10', '0,0001')).toBe('');
+  });
+});
+
+describe('TransaktionsDemo: Betragsbalken', () => {
+  afterEach(cleanup);
+
+  it('trennt die Sätze der Balkennotiz mit einem Leerzeichen', async () => {
+    expect(await sendAmount('10')).toBeNull();
+    const note = document.querySelector('.bar-note')!.textContent!.replace(/\s+/g, ' ');
+    expect(note).toContain('heraus. Sehr schmale');
+  });
+});

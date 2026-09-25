@@ -8,6 +8,7 @@
     minerDifficulty,
     formatDifficulty,
     privateLead,
+    leadText,
     txFee,
     walletBalance,
     withPendingOutputs,
@@ -51,7 +52,7 @@
             .filter((tx) => tx.outputs.some((o) => o.address === n.address) || tx.inputs.some((i) => lookup[`${i.txid}:${i.vout}`]?.address === n.address))
             .map((tx) => ({ txid: tx.txid, text: describe(tx, lookup) }))
         : [];
-      let attack: { conf: number; gone: boolean; attacker: string; amount: number } | null = null;
+      let attack: { conf: number; gone: boolean; attacker: string; amount: number; seen: number | undefined } | null = null;
       const a = world.attack;
       if (a && via && (a.victimId === n.id || a.attackerId === n.id)) {
         attack = {
@@ -59,6 +60,7 @@
           gone: !!via.txIndex[a.privateTx.txid],
           attacker: world.nodes[a.attackerId]?.name ?? a.attackerId,
           amount: a.amount,
+          seen: a.victimId === n.id ? a.victimConfAtRelease : undefined,
         };
       }
       return { kind: 'wallet' as const, n, via, bal, utxos, pending, attack };
@@ -115,6 +117,9 @@
       <p class="angriff" class:weg={view.attack.gone}>
         {#if view.attack.gone}
           Die Zahlung von {view.attack.attacker} über {formatBtc(view.attack.amount)} ist aus der Kette verschwunden.
+          {#if view.attack.seen}
+            Vorher hatte {view.n.name} schon {view.attack.seen} {view.attack.seen === 1 ? 'Bestätigung' : 'Bestätigungen'} gesehen.
+          {/if}
         {:else}
           Zahlung von {view.attack.attacker} über {formatBtc(view.attack.amount)}:
           {view.attack.conf === 0 ? 'noch unbestätigt' : `${view.attack.conf} ${view.attack.conf === 1 ? 'Bestätigung' : 'Bestätigungen'}`}
@@ -166,7 +171,7 @@
         ).toLocaleString('de-DE', { maximumFractionDigits: 2 })} %{#if view.miner.balance}, Guthaben {formatBtc(view.miner.balance.confirmed)}{/if}.
         {#if view.miner.dishonest}
           Geheime Kette: {view.miner.privateLen} {view.miner.privateLen === 1 ? 'Block' : 'Blöcke'},
-          {view.miner.lead >= 0 ? `Vorsprung ${view.miner.lead}` : `Rückstand ${-view.miner.lead}`}.
+          {leadText(view.miner.lead)}.
         {/if}
       </p>
     {/if}

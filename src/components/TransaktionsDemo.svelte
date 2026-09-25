@@ -37,6 +37,8 @@
   });
 
   const SAT = 100_000_000;
+  /** Dust-Grenze für P2PKH-Outputs (Bitcoin Core `GetDustThreshold`): kleinere Outputs leiten Knoten nicht weiter. */
+  const DUST_SAT = 546;
 
   // Kleine Symbole für die Kisten-Metapher: Schloss (verschlossener Output) und Schlüssel (Input).
   const LOCK =
@@ -100,6 +102,8 @@
   let amount = $state('10');
   let feeText = $state('0,0001');
   let error = $state('');
+  /** Hinweise zur zuletzt gesendeten Transaktion: gültig, aber auffällig (keine Gebühr, Dust, hohe Gebühr). */
+  let hints: string[] = $state.raw([]);
   /** Ergebnis des Versuchs, einen schon verbrauchten Output noch einmal auszugeben. */
   let doubleSpend: { attempt: string; verdict: string } | null = $state(null);
   /** Nach dem Senden kurz sichtbar: verbrauchte Kisten (durchgestrichen) und die neuen Kisten (hervorgehoben). */
@@ -195,6 +199,7 @@
   function send(event: SubmitEvent) {
     event.preventDefault();
     error = '';
+    hints = [];
     doubleSpend = null;
     const sender = people.find((p) => p.name === from)!;
     const receiver = people.find((p) => p.name === to)!;
@@ -224,7 +229,19 @@
       sum += entry[1].value;
     }
     const outputs: TxOutput[] = [{ value, scriptPubKey: p2pkhScriptPubKey(receiver.pub) }];
-    if (sum - need > 0) outputs.push({ value: sum - need, scriptPubKey: p2pkhScriptPubKey(sender.pub) });
+    const change = sum - need;
+    const notes: string[] = [];
+    if (value < DUST_SAT) {
+      notes.push(
+        `Der Betrag liegt mit ${value} Satoshi unter der Dust-Grenze von ${DUST_SAT} Satoshi. Transaktionen mit so kleinen Outputs leiten Knoten nicht weiter; die Demo nimmt sie trotzdem an.`,
+      );
+    }
+    if (change >= DUST_SAT) outputs.push({ value: change, scriptPubKey: p2pkhScriptPubKey(sender.pub) });
+    else if (change > 0) {
+      notes.push(
+        `Das Wechselgeld wäre nur ${change} Satoshi, weniger als die Dust-Grenze von ${DUST_SAT} Satoshi. Transaktionen mit so kleinen Outputs leiten Knoten nicht weiter, darum schlägt die Demo es wie eine Wallet der Gebühr zu.`,
+      );
+    }
     const { tx, msg } = signTx(
       sender,
       chosen.map(([key]) => key),
@@ -238,6 +255,12 @@
     );
     if (!scriptsOk) return void (error = 'Die Signatur passt nicht zum Sperr-Skript.');
     const shown: Shown = { tx, id: txid(tx), fee: txFee(utxos, tx), from: sender.name, to: receiver.name, prevOuts, scriptsOk };
+    if (shown.fee === 0) {
+      notes.push('Gültig, aber ohne Gebühr leiten die Knoten die Transaktion normalerweise nicht einmal weiter, und kaum ein Miner nähme sie in einen Block auf (Kapitel 6).');
+    } else if (shown.fee > value) {
+      notes.push('Achtung: Die Gebühr ist größer als der Betrag. Sie geht vollständig an den Miner und kommt nicht zurück.');
+    }
+    hints = notes;
     utxos = applyTx(utxos, tx);
     history = [...history, shown];
     clearMarks();
@@ -255,6 +278,7 @@
     amount = '10';
     feeText = '0,0001';
     error = '';
+    hints = [];
     doubleSpend = null;
     clearMarks();
   }
@@ -287,6 +311,11 @@
       <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
     </div>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
+    {#if hints.length}
+      <div class="hints" role="status">
+        {#each hints as h (h)}<p>{h}</p>{/each}
+      </div>
+    {/if}
     {#if doubleSpend}
       <div class="rejected" role="status">
         <p class="small">{doubleSpend.attempt}</p>
@@ -366,6 +395,15 @@
             {/each}
           </div>
         </div>
+        <ul class="bar-list small">
+          {#each [...bar.ins, ...bar.outs] as seg, i (i)}
+            <li>
+              <i class="sw {seg.kind}"></i>
+              <span>{seg.kind === 'in' ? `Input von ${seg.label}` : seg.kind === 'out' ? `Output an ${seg.label}` : seg.label}</span>
+              <span class="amount">{btc(seg.value)}</span>
+            </li>
+          {/each}
+        </ul>
         <p class="legend small">
           <span><i class="sw in"></i>Input (alte Kiste)</span>
           <span><i class="sw out"></i>Output an den Empfänger</span>
@@ -373,8 +411,7 @@
           <span><i class="sw fee"></i>Gebühr an den Miner</span>
         </p>
         <p class="muted small bar-note">
-          Beide Reihen sind gleich lang: Was oben hineingeht, kommt unten vollständig wieder heraus.{#if bar.outs.some((s) => s.stretched)}
-          Sehr schmale Teile sind hier zum Erkennen verbreitert.{/if}
+          Beide Reihen sind gleich lang: Was oben hineingeht, kommt unten vollständig wieder heraus.{#if bar.outs.some((s) => s.stretched)}{' '}Sehr schmale Teile sind hier zum Erkennen verbreitert.{/if}
         </p>
       </div>
     {/if}
@@ -443,6 +480,9 @@
   .fields input, .fields select { width: 100%; }
   .aktionen { margin-top: 0.9rem; }
   .error { color: var(--danger); margin: 0.7rem 0 0; font-weight: 600; }
+  .hints { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--radius); background: var(--bg-elevated); }
+  .hints p { margin: 0 0 0.3rem; }
+  .hints p:last-child { margin: 0; }
   .rejected { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--radius); background: var(--bg-elevated); }
   .rejected p { margin: 0 0 0.3rem; }
   .rejected p:last-child { margin: 0; }
@@ -473,6 +513,8 @@
   .seg.fee { background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 0 0.2rem; justify-content: center; }
   .seg.fee span { font-size: 0.72rem; }
   .bar-note { margin: 0; }
+  .bar-list { display: none; list-style: none; margin: 0.2rem 0 0; padding: 0; gap: 0.2rem; }
+  .bar-list li { display: grid; grid-template-columns: auto 1fr auto; gap: 0.5rem; align-items: center; }
   .legend { margin: 0.2rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; color: var(--fg-muted); }
   .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .sw { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: var(--radius-sm); }
@@ -508,5 +550,8 @@
   @media (max-width: 560px) {
     .flow { grid-template-columns: 1fr; }
     .arrow { justify-self: center; transform: rotate(90deg); }
+    /* Auf schmalen Bildschirmen würden die Beschriftungen abgeschnitten: Balken nur als Farbe, Beträge als Liste. */
+    .seg span { display: none; }
+    .bar-list { display: grid; }
   }
 </style>

@@ -173,6 +173,8 @@ export interface AttackState {
   conf: number;
   status: AttackStatus;
   startedAt: number;
+  /** Bestätigungen der öffentlichen Zahlung aus Sicht des Opfers, als der Angreifer veröffentlichte. */
+  victimConfAtRelease?: number;
 }
 
 export interface World {
@@ -187,6 +189,8 @@ export interface World {
   rng: RngState;
   attack: AttackState | null;
   nextMessageId: number;
+  /** Nummer für den nächsten neuen Miner (`m7`, „M7“); IDs werden nie wiederverwendet. */
+  nextMinerNo: number;
   genesisHash: string;
 }
 

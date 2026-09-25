@@ -49,9 +49,10 @@
   </div>
 
   <div class="gruppe tempo">
-    <label for="speed-{uid}">Tempo</label>
+    <!-- „Tick“ ist der Zeitschritt der Simulation; die Beschriftung sagt es in Worten (k7-07). -->
+    <label for="speed-{uid}">Tempo (Zeitschritte pro Sekunde)</label>
     <input id="speed-{uid}" type="range" min="1" max="20" step="1" bind:value={speed} />
-    <output for="speed-{uid}" class="mono">{speed} Ticks/s</output>
+    <output for="speed-{uid}" class="mono">{speed}</output>
   </div>
 
   {#if !compact}
@@ -64,8 +65,10 @@
       </select>
     </div>
     <div class="gruppe">
-      <label for="seed-{uid}" title="Gleicher Startwert ergibt beim Zurücksetzen denselben Ablauf">Zufall</label>
-      <input id="seed-{uid}" type="number" min="1" step="1" bind:value={seed} class="seed" onchange={onreset} />
+      <label for="seed-{uid}">Zufall</label>
+      <input id="seed-{uid}" type="number" min="1" step="1" bind:value={seed} class="seed" onchange={onreset} aria-describedby="seed-hilfe-{uid}" />
+      <!-- Sichtbar statt nur als title, der auf Touch-Geräten nicht erscheint (sim-17). -->
+      <span id="seed-hilfe-{uid}" class="hilfe">Gleiche Zahl = gleicher Ablauf. Ändern startet neu.</span>
     </div>
   {/if}
 
@@ -99,7 +102,12 @@
   output {
     font-size: 0.85rem;
     color: var(--fg-muted);
-    min-width: 5.5rem;
+    min-width: 1.5rem;
+  }
+  .hilfe {
+    flex-basis: 100%;
+    font-size: 0.75rem;
+    color: var(--fg-muted);
   }
   .seed {
     width: 4.2rem;

@@ -5,6 +5,16 @@ import Bausteine from '../components/Bausteine.astro';
 import { getCollection } from 'astro:content';
 const kapitel = (await getCollection('kapitel', (k) => !k.data.draft)).sort((a, b) => a.data.order - b.data.order);
 const erstes = kapitel[0];
+// Abhängigkeiten wie die Pfeile in Bausteine.astro; bei Änderungen dort mitziehen.
+// Erscheint nur auf schmalen Bildschirmen, wo die Grafik ausgeblendet ist.
+const bautAuf: Record<string, string> = {
+  '02-merkle-baum': 'baut auf Kapitel 1 und 4 auf',
+  '04-transaktionen': 'baut auf Kapitel 3 auf',
+  '05-skripte': 'baut auf Kapitel 4 auf',
+  '06-blockchain': 'baut auf Kapitel 1 und 2 auf',
+  '07-netzwerk': 'baut auf Kapitel 6 auf',
+  '08-angriff': 'baut auf Kapitel 7 auf',
+};
 ---
 
 <Base title="Start">
@@ -46,6 +56,7 @@ const erstes = kapitel[0];
         <li>
           <a href={`/kapitel/${k.id}/`}>{k.data.title}</a>
           <p>{k.data.summary}</p>
+          {bautAuf[k.id] && <p class="baut-auf">{bautAuf[k.id]}</p>}
         </li>
       ))}
     </ol>
@@ -69,11 +80,17 @@ const erstes = kapitel[0];
   .weg li:last-child { border-bottom: 1px solid var(--border); }
   .weg li::before {
     content: counter(weg);
-    grid-row: span 2;
+    grid-row: span 3;
     font-family: var(--font-mono); font-weight: 700; color: var(--fg-muted); padding-top: 0.05rem;
   }
   .weg a { font-weight: 600; }
   .weg p { margin: 0.2rem 0 0; color: var(--fg-muted); font-size: 0.95rem; }
+  .weg .baut-auf { display: none; font-size: 0.88rem; }
+  /* Unter 560 px ist die Grafik zu klein: Abschnitt ausblenden, die Liste nennt die Abhängigkeiten. */
+  @media (max-width: 559.98px) {
+    .bausteine-abschnitt { display: none; }
+    .weg .baut-auf { display: block; }
+  }
   .aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; }
   .btn.primary { padding: 0.6rem 1.1rem; }
   .nebenlink { color: var(--fg-muted); }

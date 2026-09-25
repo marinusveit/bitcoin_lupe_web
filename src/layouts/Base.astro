@@ -31,6 +31,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
     <title>{title} · Bitcoin unter der Lupe</title>
   </head>
   <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
     <header class="site-header">
       <div class="container bar">
         <a href="/" class="brand" aria-label="Bitcoin unter der Lupe, Startseite">
@@ -59,7 +60,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       </div>
     </header>
 
-    <main class="container">
+    <main id="inhalt" class="container">
       <slot />
     </main>
 
@@ -77,11 +78,26 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
         const open = nav?.classList.toggle('open');
         toggle.setAttribute('aria-expanded', String(!!open));
       });
+      // Escape schließt das offene Menü und gibt den Fokus an den Menüknopf zurück.
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || !nav?.classList.contains('open')) return;
+        nav.classList.remove('open');
+        toggle?.setAttribute('aria-expanded', 'false');
+        toggle?.focus();
+      });
     </script>
   </body>
 </html>
 
 <style>
+  /* Sprunglink: außerhalb des Bildes, bei Tastaturfokus oben links über der Kopfzeile. */
+  .skip {
+    position: absolute; left: var(--gutter); top: 0.5rem; z-index: 30;
+    transform: translateY(-200%);
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0.45rem 0.9rem;
+  }
+  .skip:focus { transform: none; }
   .site-header {
     position: sticky; top: 0; z-index: 20;
     background: var(--bg);
@@ -120,10 +136,15 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
     .bar { flex-wrap: wrap; }
     .menu-toggle { display: inline-block; }
     .site-nav { display: none; flex: none; width: 100%; flex-direction: column; align-items: stretch; padding-bottom: 0.8rem; }
-    .site-nav.open { display: flex; }
+    /* Offenes Menü scrollt in sich, damit im Querformat alle Einträge erreichbar bleiben. */
+    .site-nav.open { display: flex; max-height: calc(100dvh - 3.4rem); overflow-y: auto; }
     .site-nav ol, .site-nav ul { flex-direction: column; }
     .site-nav a { display: block; border-bottom: 0; border-left: 2px solid transparent; padding: 0.45rem 0.6rem; }
     .site-nav a:hover { border-left-color: var(--border); }
     .site-nav a[aria-current="page"] { border-left-color: var(--accent); }
+  }
+
+  @media (max-width: 900px) and (min-width: 560px) {
+    .site-nav ol { display: grid; grid-template-columns: 1fr 1fr; }
   }
 </style>

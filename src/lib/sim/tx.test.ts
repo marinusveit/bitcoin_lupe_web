@@ -23,7 +23,7 @@ describe('Transaktionsprüfung', () => {
     const spendTooMuch = makeTx([{ txid: genesis.txid, vout: 1 }], [{ value: 21, address: 'alice' }]);
     expect(validateTx(spendTooMuch, utxo())).toBe('Outputs sind größer als Inputs');
     const unknown = makeTx([{ txid: genesis.txid, vout: 7 }], [{ value: 1, address: 'alice' }]);
-    expect(validateTx(unknown, utxo())).toMatch(/ist nicht unverbraucht/);
+    expect(validateTx(unknown, utxo())).toMatch(/ist unbekannt oder schon ausgegeben/);
     const zero = makeTx([{ txid: genesis.txid, vout: 1 }], [{ value: 0, address: 'alice' }]);
     expect(validateTx(zero, utxo())).toBe('Output-Wert muss größer als 0 sein');
     const ok = makeTx([{ txid: genesis.txid, vout: 1 }], [{ value: 1, address: 'alice' }]);

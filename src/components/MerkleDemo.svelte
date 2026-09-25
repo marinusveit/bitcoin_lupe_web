@@ -9,7 +9,9 @@
     'Grace → Heidi 0,7 BTC',
     'Heidi → Alice 1,5 BTC',
   ];
-  const MAX_TX = 8;
+  /** Feste Reihenfolge: Entfernen und Wieder-Hinzufügen bringt dieselben Transaktionen zurück. */
+  const ALL_TXS = [...START_TXS, ...EXTRA_TXS];
+  const MAX_TX = ALL_TXS.length;
   /** TxID in Anzeige-Reihenfolge: Bitcoin zeigt den HASH256-Wert byte-umgedreht an (wie Block-Explorer). */
   const txidOf = (text: string) => reverseHex(sha256dHex(text));
   const START_LEVELS = buildMerkleTree(START_TXS.map(txidOf)).levels;
@@ -18,7 +20,9 @@
   // SVG-Maße in viewBox-Einheiten
   const SLOT = 100;
   const NODE_W = 84;
-  const NODE_H = 30;
+  /** Knotenhöhe: schmale Bildschirme bekommen größere Knoten und Schrift (CSS-Media-Query unten). */
+  const NODE_H_WIDE = 30;
+  const NODE_H_NARROW = 38;
   const LEVEL_H = 72;
   const PAD_X = 12;
   const PAD_TOP = 34;
@@ -57,6 +61,17 @@
   /** Beim schrittweisen Beweis: bis zu welcher Ebene die Rechnung schon gezeigt wird (null = alles). */
   let revealed = $state<number | null>(null);
   let revealTimer: ReturnType<typeof setInterval> | undefined;
+  let narrow = $state(false);
+  const nodeH = $derived(narrow ? NODE_H_NARROW : NODE_H_WIDE);
+
+  $effect(() => {
+    if (typeof matchMedia !== 'function') return;
+    const mq = matchMedia('(max-width: 520px)');
+    const update = () => (narrow = mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  });
 
   function stopReveal() {
     clearInterval(revealTimer);
@@ -103,7 +118,7 @@
     });
     const maxSlot = Math.max(...xs.flat());
     const width = PAD_X * 2 + (maxSlot + 1) * SLOT;
-    const height = PAD_TOP + top * LEVEL_H + NODE_H + PAD_BOTTOM;
+    const height = PAD_TOP + top * LEVEL_H + nodeH + PAD_BOTTOM;
     const toX = (slot: number) => PAD_X + slot * SLOT + SLOT / 2;
     const toY = (k: number) => PAD_TOP + (top - k) * LEVEL_H;
 
@@ -121,7 +136,7 @@
             x1: toX(slot),
             y1: toY(k),
             x2: toX(parentSlot),
-            y2: toY(k + 1) + NODE_H,
+            y2: toY(k + 1) + nodeH,
             ghost,
             childLevel: k,
             childIndex: i,
@@ -216,7 +231,7 @@
   function addTx() {
     if (txs.length >= MAX_TX) return;
     const followed = headerMatches;
-    txs.push(EXTRA_TXS[(txs.length - START_TXS.length + EXTRA_TXS.length) % EXTRA_TXS.length]!);
+    txs.push(ALL_TXS[txs.length]!);
     if (followed) setHeader();
   }
 
@@ -306,7 +321,7 @@
     >
     <svg
       viewBox={`0 0 ${layout.width} ${layout.height}`}
-      style={`max-width: ${Math.max(layout.width, 320) * 1.15}px`}
+      style={`max-width: ${layout.width * 1.15}px`}
       role="group"
       aria-label="Merkle-Baum: Blätter unten, Wurzel oben"
     >
@@ -347,14 +362,17 @@
               }
             }}
           >
-            <rect x={n.x - NODE_W / 2} y={n.y} width={NODE_W} height={NODE_H} rx="6" />
-            <text x={n.x} y={n.y + NODE_H / 2 + 4.5} class="h">{short(n.hash)}</text>
-            <text x={n.x} y={n.y + NODE_H + 17} class="lbl">Tx {n.index + 1}</text>
+            <rect x={n.x - NODE_W / 2} y={n.y} width={NODE_W} height={nodeH} rx="6" />
+            <text x={n.x} y={n.y + nodeH / 2} class="h">{short(n.hash)}</text>
+            <text x={n.x} y={n.y + nodeH + 17} class="lbl">Tx {n.index + 1}</text>
+            {#if n.level === layout.top}
+              <text x={n.x} y={n.y - 10} class="lbl root-lbl">Merkle-Wurzel</text>
+            {/if}
           </g>
         {:else}
           <g class={cls}>
-            <rect x={n.x - NODE_W / 2} y={n.y} width={NODE_W} height={NODE_H} rx="6" />
-            <text x={n.x} y={n.y + NODE_H / 2 + 4.5} class="h">{short(n.hash)}</text>
+            <rect x={n.x - NODE_W / 2} y={n.y} width={NODE_W} height={nodeH} rx="6" />
+            <text x={n.x} y={n.y + nodeH / 2} class="h">{short(n.hash)}</text>
             {#if n.level === layout.top}
               <text x={n.x} y={n.y - 10} class="lbl root-lbl">Merkle-Wurzel</text>
             {/if}
@@ -374,13 +392,14 @@
     </figcaption>
   </figure>
 
-  <div class="proof" aria-live="polite">
+  <div class="proof">
     {#if selected === null}
       <p class="hint">
-        Bitcoin zeigt Hashes mit umgedrehter Byte-Reihenfolge an (wie beim Block-Header in Kapitel 6). Wer von Hand
-        nachrechnet, muss sie vor dem Aneinanderhängen zurückdrehen. Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu
-        beweisen, dass diese Transaktion im Block steckt. Ändere danach einen Text: Alle Knoten bis zur
-        Wurzel ändern sich mit{headerRoot === null ? '.' : ', und der Beweis passt nicht mehr zur Wurzel im Header.'}
+        Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu beweisen,
+        dass diese Transaktion im Block steckt. Ändere danach einen Text: Alle Knoten bis zur Wurzel ändern sich
+        mit{headerRoot === null ? '.' : ', und der Beweis passt nicht mehr zur Wurzel im Header.'} Bitcoin zeigt
+        Hashes mit umgedrehter Byte-Reihenfolge an (wie beim Block-Header in Kapitel 6). Wer von Hand nachrechnet,
+        muss sie vor dem Aneinanderhängen zurückdrehen.
       </p>
     {:else if proofSteps.length === 0}
       <p class="hint">Bei nur einer Transaktion ist ihre TxID selbst schon die Merkle-Wurzel.</p>
@@ -420,6 +439,8 @@
         {/each}
       </ol>
     {/if}
+    <!-- Nur das Urteil wird angesagt, nicht die Hash-Zeilen, die sich bei jedem Tastendruck ändern. -->
+    <div aria-live="polite">
     {#if selected !== null && (revealed === null || revealed >= proofSteps.length)}
       {#if headerRoot === null}
         <p class="verdict" class:ok={proofOk}>
@@ -450,6 +471,7 @@
         {/if}
       {/if}
     {/if}
+    </div>
   </div>
 
 </div>
@@ -479,6 +501,9 @@
   @media (max-width: 520px) {
     .tx-list li { grid-template-columns: 2.6rem minmax(0, 1fr); }
     .txid { grid-column: 2; }
+    /* Der Baum wird hier stark verkleinert: größere Schrift in viewBox-Einheiten, Knotenhöhe siehe NODE_H_NARROW. */
+    .node .h { font-size: 16px; }
+    .node .lbl { font-size: 15px; }
   }
 
   .tree { margin: 0; min-width: 0; } /* Grid-Kind: sonst wächst es mit dem scrollbaren Baum */
@@ -497,7 +522,13 @@
     stroke-width: 1.2;
     transition: fill 0.9s ease-out, stroke 0.9s ease-out;
   }
-  .node .h { font-family: var(--font-mono); font-size: 13px; fill: var(--fg); text-anchor: middle; }
+  .node .h {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    fill: var(--fg);
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
   .node .lbl { font-family: var(--font-sans); font-size: 12px; fill: var(--fg-muted); text-anchor: middle; }
   .node .root-lbl { font-weight: 600; fill: var(--fg); }
   .node.leaf { cursor: pointer; }

@@ -128,6 +128,15 @@ function pop(stack: string[], token: string): string {
   return top;
 }
 
+/** Hilfe für häufige Tippfehler: Dezimalzahl statt OP_n, Hex-Daten mit ungerader Länge. */
+function unknownHint(token: string): string {
+  if (/^\d+$/.test(token)) {
+    return Number(token) <= 16 ? `. Zahlen als OP_${Number(token)} schreiben.` : '. Zahlen gibt es als Opcode nur von OP_0 bis OP_16.';
+  }
+  if (/^[0-9A-F]+$/.test(token)) return '. Hex-Daten brauchen eine gerade Zahl an Zeichen.';
+  return '';
+}
+
 function run(token: string, stack: string[], ctx: ScriptContext | undefined): string {
   if (isData(token)) {
     stack.push(token.toLowerCase());
@@ -136,7 +145,7 @@ function run(token: string, stack: string[], ctx: ScriptContext | undefined): st
   const small = /^OP_(\d+)$/.exec(token);
   if (small) {
     const n = Number(small[1]);
-    if (n > 16) throw new ScriptError(`Unbekannter Opcode: ${token}`);
+    if (n > 16) throw new ScriptError(`Unbekannter Opcode: ${token}. Zahlen gibt es als Opcode nur von OP_0 bis OP_16.`);
     stack.push(encodeScriptNum(n));
     return `Zahl ${n} auf den Stapel legen.`;
   }
@@ -186,9 +195,9 @@ function run(token: string, stack: string[], ctx: ScriptContext | undefined): st
       return `${a} ${token === 'OP_ADD' ? '+' : '-'} ${b} = ${r}`;
     }
     case 'OP_RETURN':
-      throw new ScriptError('OP_RETURN: Dieser Output kann nie ausgegeben werden.');
+      throw new ScriptError('OP_RETURN beendet das Skript immer als ungültig.');
     default:
-      throw new ScriptError(`Unbekannter Opcode: ${token}`);
+      throw new ScriptError(`Unbekannter Opcode: ${token}${unknownHint(token)}`);
   }
 }
 

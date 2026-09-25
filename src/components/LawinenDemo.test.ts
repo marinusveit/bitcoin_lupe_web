@@ -33,4 +33,21 @@ describe('LawinenDemo', () => {
     expect(differingPositions(a!.value, b!.value)).toHaveLength(1);
     expect(screen.getByText(new RegExp(`geändertem Zeichen ${pos! + 1}:`))).toBeTruthy();
   });
+
+  it('leert den Verlauf der Zufallsänderungen, sobald man selbst in Text A oder B tippt', async () => {
+    render(LawinenDemo);
+    const [a, b] = screen.getAllByRole('textbox') as HTMLInputElement[];
+    const button = screen.getByRole('button', { name: /Ein Zeichen/ });
+    await fireEvent.click(button);
+    await fireEvent.click(button);
+    expect(screen.getByText(/Nach 2 Änderungen/)).toBeTruthy();
+
+    await fireEvent.input(b!, { target: { value: 'Hochschule München' } });
+    expect(screen.queryByText(/Nach \d+ Änderung/)).toBeNull();
+
+    await fireEvent.click(button);
+    expect(screen.getByText(/Nach 1 Änderung:/)).toBeTruthy();
+    await fireEvent.input(a!, { target: { value: 'Hallo' } });
+    expect(screen.queryByText(/Nach \d+ Änderung/)).toBeNull();
+  });
 });

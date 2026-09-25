@@ -11,7 +11,8 @@
   }
   let { world, version, limit, highlight, onhighlight }: Props = $props();
 
-  let hideRelay = $state(false);
+  /** Weiterleitungen sind standardmäßig aus, sonst verdrängen sie die wichtigen Zeilen (sim-15). */
+  let showRelay = $state(false);
   const uid = Math.random().toString(36).slice(2, 8);
 
   /** Weiterleitungen: ein Knoten übernimmt etwas, das schon unterwegs war. */
@@ -41,7 +42,7 @@
     const out = [];
     for (let i = world.log.length - 1; i >= 0 && out.length < limit; i--) {
       const e = world.log[i]!;
-      if (hideRelay && RELAY.includes(e.kind)) continue;
+      if (!showRelay && RELAY.includes(e.kind)) continue;
       out.push({ key: idOf(e), e, tone: tone(e.kind) });
     }
     return out;
@@ -51,12 +52,13 @@
 <section class="card protokoll" aria-labelledby="log-titel-{uid}">
   <div class="kopf">
     <h3 id="log-titel-{uid}">Ereignisse</h3>
-    <label class="filter"><input type="checkbox" bind:checked={hideRelay} /> Weiterleitungen ausblenden</label>
+    <label class="filter"><input type="checkbox" bind:checked={showRelay} /> Weiterleitungen zeigen</label>
   </div>
   {#if rows.length === 0}
     <p class="leer">Noch nichts passiert. Drücke Start oder sende eine Transaktion.</p>
   {/if}
-  <ol role="log" aria-live="polite" aria-relevant="additions" aria-labelledby="log-titel-{uid}">
+  <!-- Mit Weiterleitungen wäre die Live-Region eine Dauerdurchsage; dann sagt sie nichts an. -->
+  <ol role="log" aria-live={showRelay ? 'off' : 'polite'} aria-relevant="additions" aria-labelledby="log-titel-{uid}">
     {#each rows as r (r.key)}
       <li class={r.tone}>
         <span class="tick mono">{r.e.tick}</span>

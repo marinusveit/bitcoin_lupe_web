@@ -116,6 +116,7 @@
     endPuzzle();
     p = next;
     G = defaultGenerator(next);
+    rover = null;
     k = Math.min(START_K, pointOrder(G, next));
   }
 
@@ -143,7 +144,51 @@
     stopPlay();
     endPuzzle();
     G = pt;
+    rover = pt;
     k = Math.min(k, pointOrder(pt, p));
+  }
+
+  // Tastatur im Punktfeld (roving tabindex): Nur ein Punkt ist per Tab erreichbar, die Pfeiltasten
+  // wandern zum nächstgelegenen Punkt in der jeweiligen Richtung, Enter oder Leertaste wählt ihn als G.
+  let rover = $state<AffinePoint | null>(null);
+  let focusedPt = $state<AffinePoint | null>(null);
+  const activePt = $derived(
+    rover && points.some((pt) => pt.x === rover!.x && pt.y === rover!.y) ? rover : G,
+  );
+  const ptKey = (pt: AffinePoint) => `${pt.x}-${pt.y}`;
+  const DIRS: Record<string, [number, number]> = {
+    ArrowRight: [1, 0],
+    ArrowLeft: [-1, 0],
+    ArrowUp: [0, 1],
+    ArrowDown: [0, -1],
+  };
+
+  function onPointKey(pt: AffinePoint, ev: KeyboardEvent) {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      pickGenerator(pt);
+      return;
+    }
+    const dir = DIRS[ev.key];
+    if (!dir) return;
+    ev.preventDefault();
+    let best: AffinePoint | null = null;
+    let bestCost = Infinity;
+    for (const q of points) {
+      const dx = q.x - pt.x;
+      const dy = q.y - pt.y;
+      const along = dx * dir[0] + dy * dir[1];
+      if (along <= 0) continue;
+      // Abweichung quer zur Richtung zählt doppelt, damit der Sprung der Pfeilrichtung folgt.
+      const cost = along + 2 * Math.abs(dx * dir[1] - dy * dir[0]);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = q;
+      }
+    }
+    if (!best) return;
+    rover = best;
+    gridSvgEl?.querySelector<SVGCircleElement>(`[data-pt="${ptKey(best)}"]`)?.focus();
   }
 
   const fmt = (pt: { x: number; y: number } | { infinity: true }) =>
@@ -186,6 +231,13 @@
 
   const START_RP: RealPoint = { x: -1.6, y: f(-1.6) };
   const START_RQ: RealPoint = { x: 0.4, y: f(0.4) };
+  // Startpunkt für den Tangentenmodus: Bei x = 1 liegt 2P ≈ (−1,72 | −1,39) im Bild.
+  const START_DP: RealPoint = { x: 1, y: f(1) };
+
+  function setMode(next: 'add' | 'double') {
+    if (next === 'double' && mode !== 'double') rP = { ...START_DP };
+    mode = next;
+  }
 
   let mode = $state<'add' | 'double'>('add');
   let rP = $state<RealPoint>({ ...START_RP });
@@ -323,6 +375,7 @@
     tab = 'finite';
     p = START_P;
     G = defaultGenerator(START_P);
+    rover = null;
     k = START_K;
     mode = 'add';
     rP = { ...START_RP };
@@ -351,7 +404,7 @@
         }}
         onkeydown={onTabKey}
       >
-        {t === 'finite' ? 'Endlicher Körper (Rechnen modulo p)' : 'Reelle Kurve'}
+        {t === 'finite' ? 'Modulo p' : 'Reelle Kurve'}
       </button>
     {/each}
   </div>
@@ -385,8 +438,8 @@
         >
           <rect x={PAD} y={PAD} width={GRID} height={GRID} class="frame" />
           {#each axisTicks as t (t)}
-            <text x={gx(t)} y={PAD + GRID + 17} class="tick">{t}</text>
-            <text x={PAD - 6} y={gy(t) + 4} class="tick end">{t}</text>
+            <text x={gx(t)} y={PAD + GRID + 21} class="tick">{t}</text>
+            <text x={PAD - 4} y={gy(t) + 5} class="tick end">{t}</text>
           {/each}
           <!-- Trefferfläche für Maus und Touch; Tastatur bedient die Punkte selbst. -->
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -401,18 +454,27 @@
               class="pt"
               class:g={isG}
               class:visited={pathPoints.some((s) => s.x === pt.x && s.y === pt.y)}
+              data-pt={ptKey(pt)}
               role="button"
-              tabindex="0"
+              tabindex={pt.x === activePt.x && pt.y === activePt.y ? 0 : -1}
               aria-label={`Punkt (${pt.x} | ${pt.y}) als G wählen`}
               onclick={() => pickGenerator(pt)}
-              onkeydown={(ev) => {
-                if (ev.key === 'Enter' || ev.key === ' ') {
-                  ev.preventDefault();
-                  pickGenerator(pt);
-                }
+              onkeydown={(ev) => onPointKey(pt, ev)}
+              onfocus={(ev) => {
+                rover = pt;
+                focusedPt = ev.currentTarget.matches(':focus-visible') ? pt : null;
               }}
+              onblur={() => (focusedPt = null)}
             />
           {/each}
+          {#if focusedPt}
+            <circle
+              cx={gx(focusedPt.x)}
+              cy={gy(focusedPt.y)}
+              r={Math.max(8, dotR + 4)}
+              class="focus-ring"
+            />
+          {/if}
           {#if puzzlePoint && !isInfinity(puzzlePoint)}
             <circle cx={gx(puzzlePoint.x)} cy={gy(puzzlePoint.y)} r={dotR + 7} class="target" />
             <text x={gx(puzzlePoint.x) + dotR + 10} y={gy(puzzlePoint.y) + 5} class="target-lbl">K</text>
@@ -427,10 +489,14 @@
         <div class="board">
           <dl>
             <dt>Generator G</dt><dd class="hash">{fmt(G)}</dd>
-            <dt>Ordnung von G</dt><dd>{order}</dd>
+            <dt>Ordnung von G (bei Bitcoin: n)</dt><dd>{order}</dd>
             <dt>k</dt><dd>{k}</dd>
             <dt>k·G</dt><dd class="hash result">{fmt(mul.result)}</dd>
           </dl>
+          <p class="hint small step">
+            Die Ordnung sagt, wie viele Punkte man von G aus erreicht, O mitgezählt. Danach beginnt die Reihe
+            von vorn.
+          </p>
           {#if k > 1 && !isInfinity(mul.result)}
             {@const prev = mul.steps[k - 2]!}
             <p class="hint small step">
@@ -460,7 +526,7 @@
             Aus k und G ist k·G leicht zu berechnen, aus G und k·G ist k schwer zu finden.
           </p>
           <p class="hint">
-            Klicke auf einen Punkt, um ihn als G zu wählen. Die dünne Linie verbindet G, 2·G, 3·G … bis k·G.
+            Klicke auf einen Punkt, um ihn als G zu wählen (Tastatur: Pfeiltasten, dann Enter). Die dünne Linie verbindet G, 2·G, 3·G … bis k·G.
             Die Punkte springen scheinbar zufällig herum. Bei Bitcoin hat p 78 Stellen, dort hilft kein
             Ausprobieren mehr.
           </p>
@@ -471,8 +537,8 @@
     <div class="real" role="tabpanel" id={`${uid}-panel-real`} aria-labelledby={`${uid}-tab-real`}>
       <div class="controls">
         <div class="switch" role="group" aria-label="Rechenart wählen">
-          <button type="button" aria-pressed={mode === 'add'} onclick={() => (mode = 'add')}>P + Q (Sekante)</button>
-          <button type="button" aria-pressed={mode === 'double'} onclick={() => (mode = 'double')}>
+          <button type="button" aria-pressed={mode === 'add'} onclick={() => setMode('add')}>P + Q (Sekante)</button>
+          <button type="button" aria-pressed={mode === 'double'} onclick={() => setMode('double')}>
             P + P (Tangente)
           </button>
         </div>
@@ -572,13 +638,13 @@
           <p class="hint">
             {#if mode === 'add'}
               Die Gerade durch P und Q (Sekante) trifft die Kurve in genau einem dritten Punkt (hohl).
-              Spiegelt man ihn an der x-Achse, erhält man P + Q.
+              Spiegelt man ihn an der x-Achse, erhält man P + Q. Liegen beide Punkte senkrecht übereinander,
+              gibt es keinen dritten Punkt: Das Ergebnis ist der Punkt im Unendlichen O.
             {:else}
               Um P zu sich selbst zu addieren, nimmt man die Tangente in P. Sie trifft die Kurve in einem
-              weiteren Punkt (hohl). Gespiegelt ergibt er 2P.
+              weiteren Punkt (hohl). Gespiegelt ergibt er 2P. Liegt P auf der x-Achse, steht die Tangente
+              senkrecht: 2P = O.
             {/if}
-            Liegen beide Punkte senkrecht übereinander, gibt es keinen dritten Punkt: Das Ergebnis ist der
-            Punkt im Unendlichen O.
           </p>
         </div>
       </div>
@@ -618,13 +684,14 @@
   svg { display: block; width: 100%; height: auto; max-width: 34rem; }
 
   .frame { fill: var(--bg); stroke: var(--border); }
-  .tick { font-size: 11px; fill: var(--fg-muted); text-anchor: middle; font-family: var(--font-mono); }
+  .tick { font-size: 16px; fill: var(--fg-muted); text-anchor: middle; font-family: var(--font-mono); }
   .tick.end { text-anchor: end; }
   .pt { fill: var(--fg-muted); cursor: pointer; opacity: 0.55; transition: opacity 0.2s; }
   .pt:hover, .pt:focus-visible { opacity: 1; fill: var(--accent); outline: none; }
   .pt.visited { fill: var(--info); opacity: 0.9; }
   .pt.g { fill: var(--accent-strong); opacity: 1; }
   .hit { fill: transparent; }
+  .focus-ring { fill: none; stroke: var(--fg); stroke-width: 2; pointer-events: none; }
   .walk { pointer-events: none; fill: none; stroke: var(--info); stroke-width: 1; stroke-opacity: 0.45; stroke-linejoin: round; }
   .kg { fill: none; stroke: var(--accent); stroke-width: 3; pointer-events: none; }
   .kg-lbl, .g-lbl { font-size: 14px; font-weight: 700; text-anchor: middle; fill: var(--fg); pointer-events: none; }

@@ -11,6 +11,7 @@ import {
   createWorld,
   forceBlock,
   isChainNode,
+  leadText,
   removeNode,
   sendTransaction,
   setHashrate,
@@ -290,6 +291,30 @@ describe('Netz ändern', () => {
     expect(world.links.some((l) => l.a === 'm2' || l.b === 'm2')).toBe(false);
     run(world, 200);
   });
+
+  it('vergibt die ID eines entfernten Miners nicht neu', () => {
+    const world = createWorld('normal', 4, NO_MINING);
+    expect(removeNode(world, 'm2').ok).toBe(true);
+    const res = addMiner(world);
+    if (!res.ok) throw new Error(res.error);
+    expect(res.value).not.toBe('m2');
+    expect(world.nodes[res.value]!.name).not.toBe('M2');
+  });
+
+  it('setzt neue Miner nicht auf vorhandene Knoten (Abstand mindestens zwei Knotenradien)', () => {
+    const world = createWorld('normal', 4, NO_MINING);
+    for (let i = 0; i < 3; i++) {
+      const res = addMiner(world);
+      if (!res.ok) throw new Error(res.error);
+    }
+    const nodes = Object.values(world.nodes);
+    for (const a of nodes) {
+      for (const b of nodes) {
+        if (a.id >= b.id) continue;
+        expect(Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y), `${a.id}–${b.id}`).toBeGreaterThanOrEqual(52);
+      }
+    }
+  });
 });
 
 describe('Double Spend', () => {
@@ -300,6 +325,12 @@ describe('Double Spend', () => {
     setHashrate(world, 'm2', honest[1]);
     return world;
   }
+
+  it('nennt einen Vorsprung von 0 Blöcken „Gleichstand“', () => {
+    expect(leadText(0)).toBe('Gleichstand');
+    expect(leadText(1)).toBe('Vorsprung 1 Block');
+    expect(leadText(-2)).toBe('Rückstand 2 Blöcke');
+  });
 
   it('Preset attack: Angreifer hat 55 % der Hashrate, Opfer ist Bob', () => {
     const world = createWorld('attack', 1);
@@ -324,6 +355,11 @@ describe('Double Spend', () => {
     expect(world.attack!.status).toBe('succeeded');
     expect(maxConf).toBeGreaterThanOrEqual(world.params.attackConfirmations);
     expect(world.log.some((e) => e.kind === 'attack-success' && e.text.startsWith('Angriff gelungen'))).toBe(true);
+    // Die Erfolgsmeldung nennt die Bestätigungen, die Bob beim Veröffentlichen gesehen hatte (sim-04).
+    const conf = world.attack!.victimConfAtRelease;
+    expect(conf).toBeGreaterThan(0);
+    const success = world.log.find((e) => e.kind === 'attack-success')!;
+    expect(success.text).toContain(`Bob hatte schon ${conf} ${conf === 1 ? 'Bestätigung' : 'Bestätigungen'} gesehen`);
     for (const node of chainNodes(world)) {
       if (node.id === 'm3') continue;
       expect(node.txIndex[txid]).toBeUndefined();

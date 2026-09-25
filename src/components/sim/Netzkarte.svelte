@@ -8,9 +8,11 @@
     frac: number;
     selectedId: string | null;
     highlight: Highlight;
+    /** Kapitel-Fassung ohne Knotentafel: Knoten sind nicht wählbar, der Hinweis darauf entfällt. */
+    compact?: boolean;
     onselect: (id: string) => void;
   }
-  let { world, version, frac, selectedId, highlight, onselect }: Props = $props();
+  let { world, version, frac, selectedId, highlight, compact = false, onselect }: Props = $props();
 
   const R = 26;
   const PAD = 90;
@@ -73,7 +75,8 @@
     const links = world.links
       .map((l) => ({ l, a: world.nodes[l.a], b: world.nodes[l.b] }))
       .filter((x): x is { l: (typeof world.links)[number]; a: SimNode; b: SimNode } => !!x.a && !!x.b);
-    return { viewBox: `${minX} ${minY} ${w} ${h}`, w, list, links };
+    const hasSlow = links.some((x) => x.l.latencyTicks >= SLOW);
+    return { viewBox: `${minX} ${minY} ${w} ${h}`, w, list, links, hasSlow };
   });
 
   // Auf schmalen Bildschirmen wird die Karte stark verkleinert; Knoten und Schrift wachsen
@@ -101,6 +104,18 @@
     });
   });
 
+  /** Im Kapitel sind Knoten nur Bild (role="img"), sonst Umschaltknöpfe für die Knotentafel. */
+  function nodeAttrs(id: string) {
+    if (compact) return { role: 'img' };
+    return {
+      role: 'button',
+      tabindex: 0,
+      'aria-pressed': id === selectedId,
+      onclick: () => onselect(id),
+      onkeydown: (e: KeyboardEvent) => onKey(e, id),
+    };
+  }
+
   function onKey(e: KeyboardEvent, id: string) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -119,6 +134,13 @@
       {/each}
     </g>
 
+    <!-- Nachrichten unter den Knoten, damit sie die Knotenkürzel nicht verdecken (k7-11). -->
+    <g class="msgs" aria-hidden="true">
+      {#each messages as m (m.id)}
+        <circle class="msg {m.kind}" class:hl={m.hl} cx={m.x} cy={m.y} r={(m.hl ? 9 : 6.5) * k} />
+      {/each}
+    </g>
+
     <g class="nodes">
       {#each view.list as v (v.node.id)}
         <g
@@ -126,13 +148,10 @@
           class:selected={v.node.id === selectedId}
           class:dishonest={v.dishonest}
           class:knows={v.knows}
+          class:waehlbar={!compact}
           transform="translate({v.x} {v.y})"
-          role="button"
-          tabindex="0"
           aria-label={v.label}
-          aria-pressed={v.node.id === selectedId}
-          onclick={() => onselect(v.node.id)}
-          onkeydown={(e) => onKey(e, v.node.id)}
+          {...nodeAttrs(v.node.id)}
           style={v.node.kind === 'miner' ? `--mc: ${minerColor(v.node.id)}` : undefined}
         >
           {#if v.node.kind === 'wallet'}
@@ -176,19 +195,18 @@
       {/each}
     </g>
 
-    <g class="msgs" aria-hidden="true">
-      {#each messages as m (m.id)}
-        <circle class="msg {m.kind}" class:hl={m.hl} cx={m.x} cy={m.y} r={(m.hl ? 9 : 6.5) * k} />
-      {/each}
-    </g>
   </svg>
   <figcaption>
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" class="msg tx" /></svg>Transaktion</span>
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" class="msg block" /></svg>Block</span>
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" class="mp" /></svg>Tx im Mempool</span>
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2" style="fill: var(--miner-1)" /></svg>Kästchen bei „Höhe“: Farbe = Miner des obersten Blocks</span>
-    <span class="key"><svg viewBox="0 0 24 12" aria-hidden="true"><line x1="0" y1="6" x2="24" y2="6" class="slowkey" /></svg>langsame Verbindung</span>
-    <span class="hint">Klicke auf einen Knoten für Details.</span>
+    {#if view.hasSlow}
+      <span class="key"><svg viewBox="0 0 24 12" aria-hidden="true"><line x1="0" y1="6" x2="24" y2="6" class="slowkey" /></svg>langsame Verbindung</span>
+    {/if}
+    {#if !compact}
+      <span class="hint">Klicke auf einen Knoten für Details.</span>
+    {/if}
   </figcaption>
 </figure>
 
@@ -214,8 +232,10 @@
     stroke-dasharray: 8 7;
   }
   .node {
-    cursor: pointer;
     outline: none;
+  }
+  .node.waehlbar {
+    cursor: pointer;
   }
   .node .shape {
     fill: var(--bg-elevated);
@@ -253,7 +273,7 @@
     stroke: var(--accent);
     stroke-width: 4;
   }
-  .node:hover .shape {
+  .node.waehlbar:hover .shape {
     filter: brightness(1.05);
   }
   text {

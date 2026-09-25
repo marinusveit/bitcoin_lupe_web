@@ -36,10 +36,15 @@
 
   const isHash = (s: string) => /^[0-9a-fA-F]{64}$/.test(s.trim());
   const isUint32 = (n: number) => Number.isInteger(n) && n >= 0 && n <= 0xffffffff;
+  /** Die Version steht als vorzeichenbehaftete 32-Bit-Zahl im Header. */
+  const isInt32 = (n: number) => Number.isInteger(n) && n >= -(2 ** 31) && n <= 2 ** 31 - 1;
+
+  // Die Merkle-Wurzel hängt nur von den TxIDs ab; ein Fehler in einem anderen Feld soll sie nicht verdecken.
+  const root = $derived(txids.every(isHash) ? merkleRoot(txids.map((t) => t.trim())) : '');
 
   const computed = $derived.by(() => {
     const errors: string[] = [];
-    if (!Number.isInteger(version)) errors.push('Die Version muss eine ganze Zahl sein.');
+    if (!isInt32(version)) errors.push('Die Version muss eine ganze Zahl zwischen −2 147 483 648 und 2 147 483 647 sein.');
     if (!isHash(prevHash)) errors.push('Der vorherige Hash braucht genau 64 Hex-Zeichen.');
     txids.forEach((t, i) => {
       if (!isHash(t)) errors.push(`TxID ${i + 1} braucht genau 64 Hex-Zeichen.`);
@@ -47,9 +52,11 @@
     if (!isUint32(timestamp)) errors.push('Der Zeitstempel muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!isUint32(nonce)) errors.push('Die Nonce muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!/^[0-9a-fA-F]{1,8}$/.test(nBitsText.trim())) errors.push('nBits braucht 1 bis 8 Hex-Zeichen, z. B. 1d00ffff.');
-    const failed = (errors: string[]) => ({ errors, root: '', hash: '', targetHex: '', ok: false, tooEasy: false, bytes: [] as Byte[] });
+    const failed = (errors: string[]) => ({ errors, hash: '', targetHex: '', ok: false, tooEasy: false, bytes: [] as Byte[] });
     if (errors.length) return failed(errors);
     const nBits = parseInt(nBitsText.trim(), 16);
+    // Bit 0x00800000 ist das Vorzeichen der Mantisse; ein negatives Target gibt es in Bitcoin nicht.
+    if (nBits & 0x00800000) return failed(['Das zweite Byte von nBits darf höchstens 7f sein, sonst wäre das Target negativ.']);
     let target: bigint;
     try {
       target = nBitsToTarget(nBits);
@@ -60,7 +67,6 @@
     if (target >= 1n << 256n) {
       return failed(['Diese nBits ergeben ein Target mit mehr als 256 Bit. So ein Target gibt es in Bitcoin nicht. Wähle einen kleineren Exponenten (das erste Byte).']);
     }
-    const root = merkleRoot(txids.map((t) => t.trim()));
     const header = { version, prevHash: prevHash.trim(), merkleRoot: root, timestamp, nBits, nonce };
     const hash = headerHash(header);
     const targetHex = target.toString(16).padStart(64, '0');
@@ -73,10 +79,19 @@
       for (let i = 0; i < f.size; i++) bytes.push({ hex: hex.slice((offset + i) * 2, (offset + i) * 2 + 2), field: f.key });
       offset += f.size;
     }
-    return { errors: [] as string[], root, hash, targetHex, ok: meetsTarget(hash, target), tooEasy, bytes };
+    return { errors: [] as string[], hash, targetHex, ok: meetsTarget(hash, target), tooEasy, bytes };
   });
 
   const zeros = (hex: string) => hex.match(/^0*/)![0].length;
+  /** 64 Hex-Zeichen in zwei Zeilen zu 32, damit Hash und Target Stelle für Stelle untereinander stehen. */
+  const halves = (hex: string) => {
+    const z = zeros(hex);
+    return [0, 32].map((start) => {
+      const line = hex.slice(start, start + 32);
+      const n = Math.min(32, Math.max(0, z - start));
+      return { zeros: line.slice(0, n), rest: line.slice(n) };
+    });
+  };
 
   const date = $derived(
     isUint32(timestamp)
@@ -109,10 +124,11 @@
       <input type="text" class="hash" bind:value={prevHash} spellcheck="false" />
     </label>
     <div class="f-wide txs">
-      <span class="lbl">TxIDs der Transaktionen im Block (1 bis 4)</span>
+      <span class="lbl">TxIDs der Transaktionen im Block (1 bis 4, die erste ist immer die Coinbase-Transaktion)</span>
       {#each txids as _, i (i)}
         <div class="txrow">
-          <input type="text" class="hash" bind:value={txids[i]} aria-label="TxID {i + 1}" spellcheck="false" />
+          {#if i === 0}<span class="tag">Coinbase</span>{/if}
+          <input type="text" class="hash" bind:value={txids[i]} aria-label={i === 0 ? 'TxID 1 (Coinbase)' : `TxID ${i + 1}`} spellcheck="false" />
           {#if txids.length > 1}
             <button type="button" class="small-btn" onclick={() => (txids = txids.filter((__, j) => j !== i))} aria-label="TxID {i + 1} entfernen">Entfernen</button>
           {/if}
@@ -124,7 +140,10 @@
     </div>
     <div class="f-wide derived fld root">
       <span class="lbl">Merkle-Wurzel (aus den TxIDs berechnet)</span>
-      <span class="hash">{computed.root || '–'}</span>
+      <span class="hash">{root || '–'}</span>
+      {#if txids.length === 1 && root}
+        <span class="hint">Nur eine Transaktion: Die Wurzel ist ihre TxID selbst.</span>
+      {/if}
     </div>
     <label class="fld time">Zeitstempel
       <input type="number" bind:value={timestamp} />
@@ -170,11 +189,11 @@
     <div class="compare" class:ok={computed.ok && !computed.tooEasy} class:bad={!computed.ok || computed.tooEasy}>
       <div class="row">
         <span class="lbl">Header-Hash (Block-ID)</span>
-        <span class="hash big"><span class="z">{computed.hash.slice(0, zeros(computed.hash))}</span>{computed.hash.slice(zeros(computed.hash))}</span>
+        <span class="hash big">{#each halves(computed.hash) as l, j (j)}<span class="line"><span class="z">{l.zeros}</span>{l.rest}</span>{/each}</span>
       </div>
       <div class="row">
         <span class="lbl">Target aus nBits</span>
-        <span class="hash big"><span class="z">{computed.targetHex.slice(0, zeros(computed.targetHex))}</span>{computed.targetHex.slice(zeros(computed.targetHex))}</span>
+        <span class="hash big">{#each halves(computed.targetHex) as l, j (j)}<span class="line"><span class="z">{l.zeros}</span>{l.rest}</span>{/each}</span>
       </div>
       <p class="verdict" role="status">
         Hash höchstens so groß wie das Target?
@@ -232,7 +251,12 @@
   .compare.ok { border-left-color: var(--ok); }
   .compare.bad { border-left-color: var(--danger); }
   .row { display: grid; gap: 0.15rem; }
-  .big { font-size: 0.95rem; letter-spacing: 0.02em; }
+  .big { font-size: min(0.95rem, 4.9cqi); letter-spacing: 0.02em; }
+  /* Zwei feste Zeilen zu 32 Zeichen: Die Schrift schrumpft mit der Kartenbreite (32 Zeichen ≈ 20 em), damit
+     Hash und Target Stelle für Stelle untereinander stehen. */
+  .compare { container-type: inline-size; }
+  .big .line { display: block; }
+  .tag { align-self: center; font-size: 0.78rem; color: var(--fg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.05rem 0.35rem; }
   .z { color: var(--accent-strong); font-weight: 700; }
   .verdict { margin: 0; }
   .compare.ok .verdict strong { color: var(--ok); }

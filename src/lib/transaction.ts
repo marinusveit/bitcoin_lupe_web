@@ -103,7 +103,11 @@ function sum(values: number[]): number {
   return values.reduce((a, b) => a + b, 0);
 }
 
-/** Prüft Struktur und Beträge einer Transaktion gegen die UTXO-Menge (Skripte prüft `script.ts`). */
+/**
+ * Prüft Struktur und Beträge einer Transaktion gegen die UTXO-Menge (Skripte prüft `script.ts`).
+ * Eine Coinbase gilt hier nach der Betragsprüfung der Outputs als gültig: Dass sie die erste Transaktion
+ * im Block ist und höchstens Blockzuschuss plus Gebühren auszahlt, muss der Aufrufer mit dem Blockkontext prüfen.
+ */
 export function validateTx(utxos: UtxoSet, tx: Transaction): ValidationResult {
   if (tx.outputs.length === 0) return { ok: false, error: 'Die Transaktion hat keine Outputs.' };
   for (const [i, out] of tx.outputs.entries()) {

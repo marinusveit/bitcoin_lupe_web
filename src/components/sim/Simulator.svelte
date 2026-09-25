@@ -35,9 +35,17 @@
   let version = $state(0);
   let running = $state(false);
   let speed = $state(5);
+  /**
+   * Bei „Bewegung reduzieren“ gleiten die Nachrichten nicht, sondern springen je Tick eine Stufe weiter.
+   * Sie stehen dann auf der Mitte der Verbindung, weil die Knoten sie an den Enden verdecken.
+   */
+  const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const restFrac = reduceMotion ? 0.5 : 0;
   /** Anteil des laufenden Ticks (0 bis 1) für die Bewegung der Nachrichten. */
-  let frac = $state(0);
-  let selectedId: string | null = $state('alice');
+  let frac = $state(restFrac);
+  // Im Kapitel gibt es keine Knotentafel, also auch keine Auswahl (k7-10).
+  const startSelection = () => (compact ? null : 'alice');
+  let selectedId: string | null = $state(startSelection());
   let highlight: Highlight = $state(null);
   let stepMs = $state(0);
   const tick = $derived.by(() => {
@@ -62,15 +70,17 @@
 
   function stepOnce() {
     doStep();
-    frac = 0;
+    frac = restFrac;
     touch();
   }
 
+  /** Neue Welt im Zustand „Start“: angehalten, ohne Hervorhebung. */
   function reset() {
+    running = false;
     world = makeWorld(preset, seed);
-    frac = 0;
+    frac = restFrac;
     highlight = null;
-    if (selectedId && !world.nodes[selectedId]) selectedId = 'alice';
+    if (selectedId && !world.nodes[selectedId]) selectedId = startSelection();
     touch();
   }
 
@@ -145,10 +155,12 @@
     if (match && match !== preset) loadPreset(match);
   });
 
-  onMount(() => {
+  // Die Bildschleife läuft nur, solange die Simulation läuft, und bei „Bewegung reduzieren“ gar nicht.
+  $effect(() => {
+    if (!running || reduceMotion) return;
     let raf = 0;
     const frame = (now: number) => {
-      if (running) frac = Math.min(1, Math.max(0, (now - lastStepAt) / (1000 / speed)));
+      frac = Math.min(1, Math.max(0, (now - lastStepAt) / (1000 / speed)));
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -207,6 +219,7 @@
           {world}
           {version}
           {frac}
+          {compact}
           {selectedId}
           {highlight}
           onselect={(id) => (selectedId = id)}

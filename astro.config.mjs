@@ -13,5 +13,7 @@ export default defineConfig({
   markdown: {
     // Astro 7 nutzt standardmäßig Sätteri; für remark-math/KaTeX wird der unified-Prozessor gesetzt.
     processor: unified({ remarkPlugins: [remarkMath], rehypePlugins: [rehypeKatex] }),
+    // Code-Blöcke im hellen Modus hell; die dunklen Farben schaltet global.css per --shiki-dark um.
+    shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' } },
   },
 });

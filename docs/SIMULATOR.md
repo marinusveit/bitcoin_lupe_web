@@ -49,7 +49,9 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   einmal; ehrliche Knoten reorganisieren. Die Engine meldet je Tick den Vorsprung (`z`) und ob der Angriff
   gelungen ist. Veröffentlicht wird erst, wenn die öffentliche Zahlung in der Sicht des Angreifers
   `attackConfirmations` (Standard 2) Bestätigungen hat; Kennzahl und Protokoll nennen den Wartegrund
-  („läuft, Vorsprung 3, wartet, bis die Zahlung an Bob 2 Bestätigungen hat (aus seiner Sicht jetzt 0)“, `attackWaitText`).
+  („läuft, Vorsprung 3 Blöcke, wartet, bis die Zahlung an Bob 2 Bestätigungen hat (aus seiner Sicht jetzt 0)“, `attackWaitText`;
+  Vorsprung 0 heißt „Gleichstand“, `leadText`). Beim Veröffentlichen merkt sich die Engine die Bestätigungen aus
+  Sicht des Opfers (`attack.victimConfAtRelease`); die Meldung „Angriff gelungen“ und Bobs Tafel nennen sie.
 - **Haken „Unehrlich“** (`startDishonestAttack`): startet einen Double Spend gegen Bob mit `attackBudget`
   (bestätigtes, nicht im Mempool gebundenes Guthaben des Miners minus Gebühr, höchstens der Betrag aus dem Preset
   `attack`, 10 BTC). Ohne Guthaben ist der Haken gesperrt, daneben steht „braucht Guthaben: erst einen Block
@@ -59,7 +61,8 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   (`setDishonest(…, true)`) bleibt in der Engine möglich, verhält sich aber wie ein ehrlicher, weil er ohne
   Wartebedingung sofort veröffentlicht; die Oberfläche bietet ihn deshalb nicht an.
 - **API**: `createWorld(preset, seed)`, `step(world)` (ein Tick, mutiert und liefert Ereignisse), `sendTransaction(world,
-  fromWallet, toWallet, amount)`, `addMiner`, `removeNode`, `setHashrate`, `setDishonest`, `startDoubleSpend(world,
+  fromWallet, toWallet, amount)`, `addMiner` (fortlaufende ID über `world.nextMinerNo`, nie wiederverwendet; Platz
+  mit mindestens 100 Einheiten Abstand zu allen Knoten), `removeNode`, `setHashrate`, `setDishonest`, `startDoubleSpend(world,
   attackerMinerId, victimWalletId, amount)`, `bestChain(node)`, `balances(node)`, `stats(world)`.
 - **Presets**: `normal` (3 Wallets Alice 50 / Bob 20 / Carol 10 in der Genesis, 4 Full Nodes im Ring mit Querverbindung,
   3 Miner mit Hashrate 3/2/1), `fork` (zwei Miner mit gleicher Hashrate, hohe Latenz zwischen zwei Netzhälften),
@@ -83,8 +86,11 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
 ## Oberfläche (Svelte)
 - **Netzkarte** (SVG, links): Knoten als Kreise (Wallet mit Anfangsbuchstabe, Full Node als Sechseck, Miner als
   Sechseck mit Hashrate-Balken), Links als Linien, Nachrichten als bewegte Punkte (Tx orange, Block blau) zwischen
-  Absende- und Ankunftstick interpoliert. Klick wählt einen Knoten aus. Angreifer rot umrandet.
-- **Steuerung** (Aktionsleiste, „Zurücksetzen“ rechtsbündig zuletzt): Start/Pause, Ein Tick, Tick-Zähler, Geschwindigkeit (1 bis 20 Ticks pro Sekunde), Szenario-Auswahl
+  Absende- und Ankunftstick interpoliert und unter den Knoten gezeichnet. Bei „Bewegung reduzieren“ springen die
+  Punkte je Tick (Mitte der Verbindung); die Bildschleife läuft nur, solange die Simulation läuft. Klick wählt einen
+  Knoten aus (nicht in der Kapitelfassung, dort ohne Auswahl und ohne Hinweis darauf). Die Legende „langsame
+  Verbindung“ steht nur da, wenn es eine gibt. Angreifer rot umrandet.
+- **Steuerung** (Aktionsleiste, „Zurücksetzen“ rechtsbündig zuletzt): Start/Pause, Ein Tick, Tick-Zähler, „Tempo (Zeitschritte pro Sekunde)“ 1 bis 20, Szenario-Auswahl
   (Normalbetrieb, Gleichzeitiger Fund, Double Spend), Formular „Neue Transaktion“ (von, an, Betrag, Gebühr), Miner
   hinzufügen/entfernen, Hashrate je Miner, Schalter „unehrlich“.
 - **Detailtafel** rechts für den gewählten Knoten: Wallet zeigt Guthaben bestätigt/unbestätigt und UTXO-Liste;
@@ -96,6 +102,10 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   Knoten nur hinterherhängen (ihr Tip liegt auf der besten Kette); „Gabelung“ in Warnfarbe, wenn ein Tip nicht auf
   der besten Kette liegt (z. B. zwei Blöcke gleicher Höhe).
 - **Ereignisprotokoll**: letzte 50 Ereignisse mit Tick, neueste oben, klickbare Tx/Block-Kürzel heben das Element hervor.
+  Weiterleitungen („übernimmt“, „nimmt … in den Mempool“) sind ausgeblendet, Haken „Weiterleitungen zeigen“; mit
+  Weiterleitungen sagt die Live-Region nichts an.
+- **Zurücksetzen** (auch Szenariowechsel und neuer Zufallswert): neue Welt, angehalten, Formularmeldung geleert.
+  Neben dem Feld „Zufall“ steht sichtbar „Gleiche Zahl = gleicher Ablauf. Ändern startet neu.“
 - **Szenarien**: Der Erklärkasten beginnt mit zwei bis drei Sätzen zum gewählten Szenario, Zahlen aus `presets.ts`
   (Normalbetrieb: Hashraten; Gleichzeitiger Fund: zwei Netzhälften, langsame Verbindungen mit Latenz; Double
   Spend: Anteil des Angreifers, Betrag, Wartebedingung, „Beobachte Bobs Bestätigungen rechts“). Beim Laden eines

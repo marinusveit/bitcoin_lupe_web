@@ -15,9 +15,9 @@ Wer darf Bitcoins ausgeben? Bei einer Bank prüft die Bank. Bei Bitcoin gibt es 
 
 Jeder Nutzer hat ein Schlüsselpaar. Es besteht aus einem privaten und einem öffentlichen Schlüssel.
 
-Der private Schlüssel (private key) $k_{pr}$ ist vergleichbar mit einem Passwort für das Bankkonto. Er gibt Zugriff auf das Guthaben und muss geheim bleiben. Geht er verloren, sind die Bitcoins für immer weg. Wird er gestohlen, kann der Dieb das Guthaben ausgeben.
+Der private Schlüssel (private key) $k_{\text{pr}}$ ist vergleichbar mit einem Passwort für das Bankkonto. Er gibt Zugriff auf das Guthaben und muss geheim bleiben. Geht er verloren, sind die Bitcoins für immer weg. Wird er gestohlen, kann der Dieb das Guthaben ausgeben.
 
-Der öffentliche Schlüssel (public key) $K_{pub}$ ist vergleichbar mit einer Kontonummer. Man darf ihn anderen zeigen. Genauer gesagt übernimmt die Adresse, die aus dem öffentlichen Schlüssel entsteht, die Rolle der Kontonummer (siehe unten).
+Der öffentliche Schlüssel (public key) $K_{\text{pub}}$ ist vergleichbar mit einer Kontonummer. Man darf ihn anderen zeigen. Genauer gesagt übernimmt die Adresse, die aus dem öffentlichen Schlüssel entsteht, die Rolle der Kontonummer (siehe unten).
 
 ## Die elliptische Kurve secp256k1
 
@@ -88,12 +88,12 @@ Statt 24 Additionen braucht man nur sechs Schritte. Bei 256-Bit-Zahlen sind es h
 Den öffentlichen Schlüssel erhält man, indem man den Generatorpunkt $G$ mit dem privaten Schlüssel multipliziert:
 
 $$
-K_{pub} = k_{pr} \cdot G
+K_{\text{pub}} = k_{\text{pr}} \cdot G
 $$
 
 Der private Schlüssel ist dabei einfach eine Zufallszahl zwischen 1 und $n - 1$. Man muss sie mit einem guten Zufallsgenerator erzeugen. Weil es so viele Möglichkeiten gibt, wählen zwei Menschen praktisch nie dieselbe Zahl.
 
-Die Rechnung von $k_{pr}$ nach $K_{pub}$ ist schnell. Der Rückweg ist praktisch unmöglich. Der naive Weg wäre, $G$ immer wieder zu sich selbst zu addieren, bis man $K_{pub}$ trifft. Selbst die besten bekannten Verfahren brauchen dafür rund $2^{128}$ Schritte, und das dauert länger als das Universum alt ist. Die skalare Multiplikation ist also eine Einwegfunktion.
+Die Rechnung von $k_{\text{pr}}$ nach $K_{\text{pub}}$ ist schnell. Der Rückweg ist praktisch unmöglich. Der naive Weg wäre, $G$ immer wieder zu sich selbst zu addieren, bis man $K_{\text{pub}}$ trifft. Selbst die besten bekannten Verfahren brauchen dafür rund $2^{128}$ Schritte, und das dauert länger als das Universum alt ist. Die skalare Multiplikation ist also eine Einwegfunktion.
 
 <div class="callout merke">
 
@@ -142,13 +142,13 @@ So entsteht die Signatur aus der Nachricht $M$:
 3. Man verbindet $r$, den privaten Schlüssel und den Hash der Nachricht zur Zahl $s$:
 
 $$
-s \equiv k^{-1} \cdot \big(r \cdot k_{pr} + \text{HASH256}(M)\big) \mod n
+s \equiv k^{-1} \cdot \big(r \cdot k_{\text{pr}} + \text{HASH256}(M)\big) \mod n
 $$
 
 Zum Prüfen berechnet der Prüfer zwei Punkte und addiert sie:
 
 $$
-R' = \big(s^{-1} \cdot \text{HASH256}(M)\big) \cdot G + \big(s^{-1} \cdot r\big) \cdot K_{pub}
+R' = \big(s^{-1} \cdot \text{HASH256}(M)\big) \cdot G + \big(s^{-1} \cdot r\big) \cdot K_{\text{pub}}
 $$
 
 Stimmt die x-Koordinate von $R'$ modulo $n$ mit $r$ überein, ist die Signatur gültig. Sonst ist sie ungültig.

@@ -55,6 +55,7 @@ export function createWorld(preset: PresetName | PresetSpec, seed = 1, overrides
     rng: createRng(seed),
     attack: null,
     nextMessageId: 0,
+    nextMinerNo: 1 + Math.max(0, ...spec.nodes.map((n) => Number(/^m(\d+)$/.exec(n.id)?.[1] ?? 0))),
     genesisHash: genesis.hash,
   };
   for (const n of spec.nodes) {
@@ -161,6 +162,29 @@ export interface AddMinerOptions {
   pos?: Point;
 }
 
+/**
+ * Mindestabstand eines neuen Miners zu allen Knoten in Kartenkoordinaten. Die Karte zeichnet Knoten mit
+ * Radius 26 und vergrößert sie auf dem Handy bis auf das 1,9-Fache; 100 hält sie auch dort getrennt.
+ */
+const MIN_NODE_GAP = 100;
+
+/**
+ * Platz für einen neuen Miner nahe `center` (Mitte seiner Peers): zuerst 90 Einheiten darüber, sonst der
+ * erste Punkt auf Kreisen um die Mitte, der zu allen Knoten mindestens `MIN_NODE_GAP` Abstand hat.
+ */
+function freeSpot(world: World, center: Point): Point {
+  const nodes = Object.values(world.nodes);
+  const free = (p: Point) => nodes.every((n) => Math.hypot(n.pos.x - p.x, n.pos.y - p.y) >= MIN_NODE_GAP);
+  for (const radius of [90, 150, 210, 270, 330]) {
+    for (let k = 0; k < 12; k++) {
+      const a = -Math.PI / 2 + (k % 2 === 0 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 6);
+      const p = { x: Math.round(center.x + radius * Math.cos(a)), y: Math.round(center.y + radius * Math.sin(a)) };
+      if (free(p)) return p;
+    }
+  }
+  return { x: center.x, y: center.y - 90 };
+}
+
 /** Fügt einen ehrlichen Miner hinzu; er übernimmt die Kette seines ersten Peers. */
 export function addMiner(world: World, opts: AddMinerOptions = {}): Result<string> & { events: SimEvent[] } {
   const events: SimEvent[] = [];
@@ -176,8 +200,10 @@ export function addMiner(world: World, opts: AddMinerOptions = {}): Result<strin
   const first = peers[0] ? world.nodes[peers[0]] : undefined;
   if (!isChainNode(first)) return { ok: false, error: 'Neuer Miner braucht mindestens einen Knoten als Peer', events };
   if (peers.some((p) => !isChainNode(world.nodes[p]))) return { ok: false, error: 'Peers müssen Knoten oder Miner sein', events };
-  let i = 1;
+  // Fortlaufende Nummer statt erster freier ID: Blöcke und Coins eines entfernten Miners bleiben ihm zugeordnet.
+  let i = world.nextMinerNo;
   while (world.nodes[`m${i}`]) i++;
+  world.nextMinerNo = i + 1;
   const id = `m${i}`;
   const avg = peers.reduce((s, p) => ({ x: s.x + world.nodes[p]!.pos.x, y: s.y + world.nodes[p]!.pos.y }), { x: 0, y: 0 });
   const miner: MinerNode = {
@@ -185,7 +211,7 @@ export function addMiner(world: World, opts: AddMinerOptions = {}): Result<strin
     name: opts.name ?? `M${i}`,
     kind: 'miner',
     peers: [],
-    pos: opts.pos ?? { x: avg.x / peers.length, y: avg.y / peers.length - 90 },
+    pos: opts.pos ?? freeSpot(world, { x: avg.x / peers.length, y: avg.y / peers.length }),
     ...copyChainState(first),
     hashrate: opts.hashrate ?? 1,
     dishonest: false,

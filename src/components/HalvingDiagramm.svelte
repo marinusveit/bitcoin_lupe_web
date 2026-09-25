@@ -101,6 +101,31 @@
     return Math.round(Math.min(maxH, Math.max(0, h)));
   }
 
+  const valueText = (h: number) =>
+    `Blockhöhe ${nf(h)}, Jahr etwa ${year(h)}, Blockzuschuss ${nf(btc(blockSubsidy(h)), 8)} BTC, insgesamt ${nf(btc(totalSupply(h)), 0)} BTC`;
+  // Angesagt wird nur nach Klick oder Tippen, nicht bei jeder Mausbewegung. Bei den Pfeiltasten sagt der
+  // Screenreader den Wert über aria-valuetext des Schiebereglers an.
+  let announcement = $state('');
+
+  function pin(h: number) {
+    pinned = h;
+    announcement = valueText(h);
+  }
+
+  /** Pfeiltasten springen um eine Epoche (zum Epochenbeginn), Pos1 und Ende an den Rand. */
+  function onKey(event: KeyboardEvent) {
+    const era = Math.floor(pinned / HALVING_INTERVAL);
+    let h: number;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') h = (era + 1) * HALVING_INTERVAL;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') h = pinned % HALVING_INTERVAL === 0 ? pinned - HALVING_INTERVAL : era * HALVING_INTERVAL;
+    else if (event.key === 'Home') h = 0;
+    else if (event.key === 'End') h = maxH;
+    else return;
+    event.preventDefault();
+    hover = null;
+    pinned = Math.min(maxH, Math.max(0, h));
+  }
+
   function setRange(r: 'short' | 'full') {
     range = r;
     hover = null;
@@ -130,7 +155,8 @@
     <button class="reset" onclick={() => { range = 'short'; pinned = Math.min(today, SHORT_HEIGHT); hover = null; }}>Zurücksetzen</button>
   </div>
 
-  <div class="readout" aria-live="polite">
+  <p class="visually-hidden" aria-live="polite">{announcement}</p>
+  <div class="readout">
     <div><span class="lbl">Blockhöhe</span><strong>{nf(readout.height)}</strong></div>
     <div><span class="lbl">Jahr (ungefähr)</span><strong>{readout.year}</strong></div>
     <div><span class="lbl">Blockzuschuss</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
@@ -142,10 +168,16 @@
       viewBox="0 0 {W} {H}"
       width={W}
       height={H}
-      role="img"
+      tabindex="0"
+      role="slider"
       aria-label="Blockzuschuss und Gesamtmenge an Bitcoin über der Blockhöhe"
+      aria-valuemin={0}
+      aria-valuemax={maxH}
+      aria-valuenow={pinned}
+      aria-valuetext={valueText(pinned)}
+      onkeydown={onKey}
       onpointermove={(e) => (hover = toHeight(e))}
-      onpointerdown={(e) => (pinned = toHeight(e))}
+      onpointerdown={(e) => pin(toHeight(e))}
       onpointerleave={() => (hover = null)}
     >
       <!-- Feld 1: Blockzuschuss -->
@@ -190,7 +222,7 @@
     </svg>
   </div>
 
-  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre. Zum Zuschuss kommen die Gebühren der Transaktionen, sie sind hier nicht eingezeichnet.</p>
+  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Mit der Tastatur springen die Pfeiltasten um je eine Epoche, Pos1 und Ende an den Anfang und ans Ende. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre. Zum Zuschuss kommen die Gebühren der Transaktionen, sie sind hier nicht eingezeichnet.</p>
 
   <details class="klein">
     <summary>Als Tabelle anzeigen (erste elf Epochen)</summary>
@@ -215,7 +247,8 @@
   .switch button { border: 0; border-radius: 0; padding: 0.25rem 0.8rem; background: transparent; color: var(--fg-muted); }
   .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
   .chart { width: 100%; touch-action: pan-y; }
-  svg { display: block; width: 100%; height: auto; user-select: none; }
+  svg { display: block; width: 100%; height: auto; user-select: none; border-radius: var(--radius-sm); }
+  svg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .grid { stroke: var(--border); stroke-width: 1; }
   .axis { stroke: var(--fg-muted); stroke-width: 1; }
   .tick { fill: var(--fg-muted); font-size: 12px; font-variant-numeric: tabular-nums; }

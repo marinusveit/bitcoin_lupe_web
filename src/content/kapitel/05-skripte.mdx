@@ -126,7 +126,10 @@ Für eine P2PKH-Adresse hängt man drei Teile aneinander. Vorne steht die Versio
 {/* ERGÄNZT: Die Erklärung, welche Zeichen in Base58 fehlen, steht nicht in der Arbeit. Korrigiert: Die Arbeit schreibt HASH256(Version + Schlüssel); die Prüfsumme wird über Version + HASH160(Schlüssel) gebildet, am Beispiel nachgerechnet. */}
 
 $$
-\text{Adresse} = \text{Base58}\big(\text{Version} + \text{HASH160}(K_{pub}) + \text{Prüfsumme}\big)
+\begin{aligned}
+&\text{Adresse} = \text{Base58}\big(\text{Version} + {} \\
+&\qquad \text{HASH160}(K_{\text{pub}}) + \text{Prüfsumme}\big)
+\end{aligned}
 $$
 
 <figure>

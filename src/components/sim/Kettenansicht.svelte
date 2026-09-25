@@ -54,7 +54,7 @@
     const lane: Record<string, number> = {};
     // Welche Spur ist an einer Höhe schon belegt?
     const used = new Set<string>();
-    let nextLane = 1;
+    let maxLane = 0;
     for (const b of shown) if (best.has(b.hash)) {
       lane[b.hash] = 0;
       used.add(`${b.height}:0`);
@@ -65,9 +65,14 @@
       if (parentLane !== undefined && parentLane > 0 && !used.has(`${b.height}:${parentLane}`)) {
         lane[b.hash] = parentLane;
       } else {
-        lane[b.hash] = nextLane++;
+        // Neuer Zweig: erste Spur, die an dieser und der Höhe davor frei ist. Höhere Blöcke sind noch nicht
+        // verteilt, also bleibt die Spur für die Fortsetzung des Zweigs frei (sim-16).
+        let l = 1;
+        while (used.has(`${b.height}:${l}`) || used.has(`${b.height - 1}:${l}`)) l++;
+        lane[b.hash] = l;
       }
       used.add(`${b.height}:${lane[b.hash]}`);
+      maxLane = Math.max(maxLane, lane[b.hash]!);
     }
     const tipLines = tips ? Math.max(1, ...shown.map((b) => tips[b.hash]?.length ?? 0)) : 0;
     const rowH = H + GAP_Y - 10 + tipLines * 13;
@@ -91,7 +96,7 @@
       return [{ id: p.b.hash, d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, cls: p.cls }];
     });
     const cols = maxH - minH + 1;
-    const lanes = Math.max(1, nextLane);
+    const lanes = maxLane + 1;
     return {
       placed,
       edges,

@@ -10,5 +10,19 @@ import Simulator from '../components/sim/Simulator.svelte';
     Nachrichten weiter, und Miner suchen um die Wette nach dem nächsten Block. Die Zeit läuft in Ticks: Ein Tick ist
     der kleinste Zeitschritt der Simulation. Drücke Start und schau zu, oder greif selbst ein.
   </p>
-  <Simulator client:only="svelte" />
+  <!-- Platzhalter in etwa der Höhe des Simulators, damit die Fußzeile beim Laden nicht springt (ux-14). -->
+  <Simulator client:only="svelte"><p slot="fallback" class="sim-laedt">Simulator wird geladen …</p></Simulator>
 </Base>
+
+<style>
+  .sim-laedt {
+    min-height: 70rem;
+    margin: 1.5rem 0;
+    color: var(--fg-muted);
+  }
+  @media (min-width: 60rem) {
+    .sim-laedt {
+      min-height: 40rem;
+    }
+  }
+</style>

@@ -48,6 +48,12 @@
     history = [...history, count];
   }
 
+  /** Handeingabe: Zeichenänderung und Verlauf beziehen sich auf andere Texte und werden verworfen. */
+  function onHandInput() {
+    lastChange = null;
+    history = [];
+  }
+
   function reset() {
     lastChange = null;
     left = START_LEFT;
@@ -63,9 +69,9 @@
         <label class="field">
           <span>{side.label}</span>
           {#if side.id === 'l'}
-            <input type="text" bind:value={left} oninput={() => (lastChange = null)} spellcheck="false" autocomplete="off" />
+            <input type="text" bind:value={left} oninput={onHandInput} spellcheck="false" autocomplete="off" />
           {:else}
-            <input type="text" bind:value={right} oninput={() => (lastChange = null)} spellcheck="false" autocomplete="off" />
+            <input type="text" bind:value={right} oninput={onHandInput} spellcheck="false" autocomplete="off" />
           {/if}
         </label>
         <div class="bits hash" aria-label={`SHA-256 von ${side.label} als Bitmuster`}>
@@ -83,7 +89,7 @@
   </div>
 
   <p class="summary" aria-live="polite">
-    <strong>{diffCount} von 256 Bits</strong> unterschiedlich ({percent} %)
+    <strong>{diffCount} von 256 Bits</strong> unterschiedlich ({percent}&nbsp;%)
     {#if lastChange}
       <span class="change">Text B = Text A mit geändertem Zeichen {lastChange.pos}: <span class="hash">„{lastChange.from}“ → „{lastChange.to}“</span></span>
     {/if}

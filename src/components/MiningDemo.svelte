@@ -31,6 +31,8 @@
   let lastFind: Find | null = $state(null);
   let history: Find[] = $state([]);
   let error = $state('');
+  /** Kurze Ansage für Bildschirmleser beim Starten und Stoppen; den Fund meldet `.found`. */
+  let announce = $state('');
   /** Verteilung aller Versuche des laufenden oder letzten Laufs nach führenden Null-Hexzeichen. */
   let zeroHist: number[] = $state([]);
 
@@ -53,6 +55,14 @@
   const targetHex = (n: number) => '0'.repeat(n) + 'f'.repeat(64 - n);
 
   const fmt = (n: number, digits = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: digits });
+  /** Kurzform für schmale Balken: 39 Tsd., 1,2 Mio.; unter 10 mit einer Nachkommastelle. */
+  function fmtShort(n: number): string {
+    const units: [number, string][] = [[1e9, 'Mrd.'], [1e6, 'Mio.'], [1e3, 'Tsd.']];
+    for (const [size, unit] of units) {
+      if (n >= size) return `${fmt(n / size, n / size < 10 ? 1 : 0)} ${unit}`;
+    }
+    return fmt(n);
+  }
 
   /** Angenommene Rate, solange noch kein Lauf gemessen ist. */
   const ASSUMED_RATE = 100_000;
@@ -79,6 +89,7 @@
     lastFind = null;
     zeroHist = [];
     const n = zeros;
+    announce = `Mining gestartet, Stufe ${n}.`;
     const t = target;
     const header: BlockHeader = {
       version: 1,
@@ -107,6 +118,7 @@
         if (handle !== h) return;
         running = false;
         handle = null;
+        announce = '';
         if (outcome.status === 'found') {
           const seconds = outcome.elapsedMs / 1000;
           const find = { zeros: n, iterations: outcome.iterations, seconds, nonce: outcome.nonce, hash: outcome.hash };
@@ -126,12 +138,14 @@
       .catch((e: unknown) => {
         running = false;
         handle = null;
+        announce = '';
         error = `Fehler im Mining-Worker: ${e instanceof Error ? e.message : String(e)}`;
       });
   }
 
   function stop() {
     const h = handle;
+    if (h) announce = 'Mining gestoppt.';
     handle = null;
     running = false;
     h?.cancel();
@@ -153,6 +167,7 @@
     history = [];
     error = '';
     zeroHist = [];
+    announce = '';
   }
 
   onDestroy(stop);
@@ -201,7 +216,9 @@
     <span class="hint">Das echte Target ist keine so runde Zahl wie hier, siehe nBits weiter unten.</span>
   </div>
 
-  <dl class="stats" aria-live="polite">
+  <p class="visually-hidden" role="status">{announce}</p>
+
+  <dl class="stats">
     <div><dt>Versuche</dt><dd>{fmt(iterations)}</dd></div>
     <div><dt>Versuche pro Sekunde</dt><dd>{rate === null ? '–' : fmt(rate)}</dd></div>
     <div><dt>Zeit</dt><dd>{fmt(elapsed, 2)} s</dd></div>
@@ -223,7 +240,9 @@
     <div class="bars" style="--n: {bars.length}">
       {#each bars as b (b.z)}
         <div class="bar-col" class:valid={b.valid}>
-          <span class="bar-count">{b.count > 0 ? fmt(b.count) : ''}</span>
+          <span class="bar-count">
+            {#if b.count > 0}<span class="voll">{fmt(b.count)}</span><span class="kurz" aria-hidden="true">{fmtShort(b.count)}</span>{/if}
+          </span>
           <div class="bar-track">
             <div class="bar-fill" style="height: {(b.h * 100).toFixed(1)}%"></div>
           </div>
@@ -243,6 +262,7 @@
     <p class="found" role="status">
       Gefunden! Nonce {fmt(lastFind.nonce)} nach {fmt(lastFind.iterations)} Versuchen in {fmt(lastFind.seconds, 2)} Sekunden.
     </p>
+    <p class="muted">Bei jedem Start steht die aktuelle Uhrzeit (auf die Sekunde) im Header, deshalb ist die passende Nonce meist eine andere.</p>
   {:else if running}
     <p class="muted">Der Rechner probiert Nonce für Nonce (zuletzt {fmt(currentNonce)}) und hasht den Blockheader jedes Mal neu.</p>
   {/if}
@@ -295,6 +315,7 @@
   .bar-col.valid .bar-fill { background: var(--accent); }
   .bar-col.valid .bar-lbl { color: var(--accent-strong); font-weight: 600; }
   .bar-z { font-family: var(--font-mono); font-size: 0.72rem; color: var(--fg-muted); white-space: nowrap; overflow: hidden; max-width: 100%; }
+  .bar-count .kurz { display: none; }
   .bar-lbl { font-size: 0.76rem; color: var(--fg-muted); text-align: center; line-height: 1.2; }
   @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
   .error { color: var(--danger); margin: 0; }
@@ -306,7 +327,13 @@
   @media (max-width: 480px) {
     .stats { grid-template-columns: 1fr 1fr; }
     .stats dd { font-size: 1.1rem; }
-    /* Ab etwa sechs Balken passen die Zählerstände nicht mehr nebeneinander: Balken scrollen dann seitlich. */
-    .bars { grid-template-columns: repeat(var(--n), minmax(3.8rem, 1fr)); overflow-x: auto; padding-bottom: 0.2rem; }
+    /* Schmal: Zählerstände in Kurzform („39 Tsd.“) und umbrechbar, damit bis zu acht Balken in die Breite passen. */
+    .bars { gap: 0.25rem; }
+    .bar-count { white-space: normal; text-align: center; line-height: 1.1; min-height: 2.2em; font-size: 0.7rem; }
+    .bar-count .voll { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .bar-count .kurz { display: inline; }
+    .bar-lbl { font-size: 0.68rem; }
+    table { font-size: 0.85rem; }
+    th, td { padding: 0.4rem 0.35rem; }
   }
 </style>

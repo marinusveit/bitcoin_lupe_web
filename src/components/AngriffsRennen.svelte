@@ -26,6 +26,8 @@
   const STEP_MS = 320;
   /** Rückstand, bei dem der Angreifer in der Simulation aufgibt (siehe nakamoto.ts). */
   const GIVE_UP = 20;
+  /** Sperrzeit des Sprung-Knopfs, damit ein Doppelklick auf „Ein Rennen starten“ nicht gleich ans Ende springt. */
+  const SKIP_DELAY_MS = 300;
 
   let q = $state(START_Q);
   let z = $state(START_Z);
@@ -36,6 +38,8 @@
   let runs = $state(0);
   let wins = $state(0);
   let timer: ReturnType<typeof setInterval> | undefined;
+  let skipTimer: ReturnType<typeof setTimeout> | undefined;
+  let skipReady = $state(false);
   let track: HTMLDivElement | undefined = $state();
 
   const motion = typeof matchMedia === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -56,11 +60,18 @@
   const chance = $derived(catchUpChance(q, -lead));
   /** Kleine Chancen mit zwei Stellen, winzige als Obergrenze statt „0 %“. */
   const chanceText = $derived(chance < 0.0001 ? 'unter 0,01 %' : pct(chance, chance < 0.01 ? 2 : 1));
+  /** Zahlzeile für schmale Bildschirme, auf denen nicht beide Ketten ganz ins Bild passen. */
+  const countText = $derived(
+    `Ehrlich ${view.honest} · Angreifer ${view.attacker} · ` +
+      (lead < 0 ? `Rückstand ${-lead}` : lead === 0 ? 'Gleichstand' : `Vorsprung ${lead}`),
+  );
 
   function stopTimer() {
     clearInterval(timer);
+    clearTimeout(skipTimer);
     timer = undefined;
     playing = false;
+    skipReady = false;
   }
 
   function startRace() {
@@ -74,6 +85,7 @@
     }
     shown = 0;
     playing = true;
+    skipTimer = setTimeout(() => (skipReady = true), SKIP_DELAY_MS);
     timer = setInterval(() => {
       shown++;
       if (shown >= r.steps.length) {
@@ -85,7 +97,7 @@
 
   /** Bricht die Animation ab und zeigt das Ende des laufenden Rennens sofort. */
   function skipToEnd() {
-    if (!race) return;
+    if (!race || !skipReady) return;
     stopTimer();
     shown = race.steps.length;
     finish(race);
@@ -147,7 +159,7 @@
   </div>
   <div class="aktionen">
     {#if playing}
-      <button class="primary" onclick={skipToEnd}>Zum Ende springen</button>
+      <button class="primary" onclick={skipToEnd} disabled={!skipReady}>Zum Ende springen</button>
     {:else}
       <button class="primary" onclick={startRace}>Ein Rennen starten</button>
     {/if}
@@ -156,23 +168,24 @@
     <button class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
 
-  <div class="track" aria-live="polite" bind:this={track}>
-    <div class="lane">
-      <span class="lane-lbl">Ehrliche Kette</span>
+  <div class="track">
+    <span class="lane-lbl">Ehrliche Kette</span>
+    <span class="lane-lbl">Angreifer (heimlich)</span>
+    <div class="lanes" aria-live="polite" bind:this={track}>
       <div class="blocks">
         <span class="blk pay" title="Block mit der Zahlung an den Händler">€</span>
+        {#if view.delivered && (!race || race.deliveredAt === 0)}
+          <span class="flag">Ware geliefert</span>
+        {/if}
         {#each view.steps as s, i (i)}
           {#if s === 'honest'}
             <span class="blk honest" class:mark={race && i + 1 === race.deliveredAt}></span>
+            {#if race && i + 1 === race.deliveredAt}
+              <span class="flag">Ware geliefert</span>
+            {/if}
           {/if}
         {/each}
-        {#if view.delivered}
-          <span class="flag">Ware geliefert</span>
-        {/if}
       </div>
-    </div>
-    <div class="lane">
-      <span class="lane-lbl">Angreifer (heimlich)</span>
       <div class="blocks">
         <span class="blk double" title="Block mit der Zahlung an sich selbst">✕</span>
         {#each view.steps as s, i (i)}
@@ -183,6 +196,9 @@
       </div>
     </div>
   </div>
+  {#if race}
+    <p class="count">{countText}</p>
+  {/if}
 
   <p class="status">
     {#if !race}
@@ -203,7 +219,8 @@
       gleich lang, und das zählt als Erfolg. Im echten Netz braucht er noch einen Block Vorsprung; die Chance dafür ist
       q/p, hier {pct(Math.min(1, q / (1 - q)))}.
     {:else if race.outcome === 'success'}
-      <strong class="bad">Angriff gelungen:</strong> Nach {race.steps.length} Blöcken hat die Kette des Angreifers die ehrliche eingeholt.
+      <strong class="bad">Angriff gelungen:</strong> Nach {race.steps.length} neuen Blöcken ({race.honest} ehrliche, {race.attacker} vom Angreifer) ist die Kette des
+      Angreifers mindestens so lang wie die ehrliche.
       Sobald sie länger ist, wechseln die Knoten zu ihr, und die Zahlung an den Händler verschwindet.
     {:else}
       <strong class="good">Angriff gescheitert:</strong> Der Angreifer liegt {race.honest - race.attacker} Blöcke zurück und gibt auf.
@@ -239,10 +256,14 @@
   .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.8rem 2rem; }
   .slider { display: grid; gap: 0.3rem; color: var(--fg); }
   .slider input { width: 100%; }
-  .track { display: grid; gap: 0.6rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated); overflow-x: auto; }
-  .lane { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: 0.6rem; }
-  .lane-lbl { font-size: 0.88rem; color: var(--fg-muted); position: sticky; left: 0; background: var(--bg-elevated); z-index: 1; }
-  .blocks { display: flex; align-items: center; gap: 0.3rem; min-height: 1.7rem; }
+  /* Die Beschriftungen stehen in einer festen Spalte; nur die beiden Blockreihen scrollen, und zwar gemeinsam. */
+  .track {
+    display: grid; grid-template-columns: 9rem minmax(0, 1fr); grid-template-rows: auto auto; gap: 0.6rem;
+    align-items: center; padding: 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated);
+  }
+  .lane-lbl { grid-column: 1; font-size: 0.88rem; color: var(--fg-muted); line-height: 1.2; }
+  .lanes { grid-column: 2; grid-row: 1 / 3; display: grid; grid-template-rows: subgrid; row-gap: 0.6rem; align-items: center; overflow-x: auto; }
+  .blocks { display: flex; align-items: center; gap: 0.3rem; min-height: 1.7rem; width: max-content; }
   .blk {
     flex: none; width: 1.6rem; height: 1.6rem; border-radius: var(--radius-sm);
     display: inline-grid; place-items: center; font-size: 0.85rem; font-weight: 700;
@@ -254,6 +275,7 @@
   .blk.attacker.published { border-style: solid; background: color-mix(in srgb, var(--danger) 40%, var(--bg-elevated)); }
   .blk.double { border-color: var(--danger); color: var(--danger); }
   .flag { flex: none; font-size: 0.78rem; font-weight: 600; color: var(--ok); padding-left: 0.2rem; white-space: nowrap; }
+  .count { display: none; margin: 0; font-size: 0.88rem; font-variant-numeric: tabular-nums; color: var(--fg-muted); }
   .status { margin: 0; min-height: 2.6em; }
   .bad { color: var(--danger); }
   .good { color: var(--ok); }
@@ -263,6 +285,8 @@
   .tally dd { margin: 0; font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
   .hint { margin: 0; font-size: 0.9rem; color: var(--fg-muted); }
   @media (max-width: 560px) {
-    .lane { grid-template-columns: 1fr; gap: 0.2rem; }
+    .track { grid-template-columns: 5.5rem minmax(0, 1fr); column-gap: 0.5rem; padding: 0.6rem; }
+    .lane-lbl { font-size: 0.8rem; }
+    .count { display: block; }
   }
 </style>

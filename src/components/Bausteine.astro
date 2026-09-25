@@ -88,7 +88,7 @@ const edges: Edge[] = [
           <path d={e.d} class="linie" marker-end="url(#bausteine-pfeil)" />
           <text x={e.lx} y={e.ly} text-anchor={e.anchor} class="beschriftung">
             {e.label.map((zeile, i) => (
-              <tspan x={e.lx} dy={i === 0 ? 0 : 15}>{zeile}</tspan>
+              <tspan x={e.lx} dy={i === 0 ? 0 : 17}>{zeile}</tspan>
             ))}
           </text>
         </g>
@@ -112,14 +112,13 @@ const edges: Edge[] = [
     Jeder Kasten führt zu seinem Kapitel.
   </figcaption>
 </figure>
-<p class="schmal-hinweis">Auf schmalen Bildschirmen steht die Übersicht als Liste unten.</p>
 
 <style>
   .bausteine { margin: 0 0 2rem; max-width: 66rem; }
   svg { display: block; width: 100%; height: auto; font-family: var(--font-sans); }
   .linie { fill: none; stroke: var(--fg-muted); stroke-width: 1.6; }
   .spitze { fill: var(--fg-muted); }
-  .beschriftung { fill: var(--fg-muted); font-size: 14px; }
+  .beschriftung { fill: var(--fg-muted); font-size: 16px; }
 
   .kasten rect { fill: var(--bg-elevated); stroke: var(--border); stroke-width: 2; transition: fill 0.15s; }
   .kasten.hash rect { stroke: var(--accent); }
@@ -141,10 +140,4 @@ const edges: Edge[] = [
   .marke.hash { border-color: var(--accent); }
   .marke.key { border-color: var(--info); }
   .marke.net { border-color: var(--fg-muted); }
-
-  .schmal-hinweis { display: none; color: var(--fg-muted); }
-  @media (max-width: 559.98px) {
-    .bausteine { display: none; }
-    .schmal-hinweis { display: block; }
-  }
 </style>

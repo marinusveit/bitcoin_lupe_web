@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { attackWaitText, formatBtc, formatDifficulty, stats, type World } from '../../lib/sim';
+  import { attackWaitText, formatBtc, formatDifficulty, leadText, stats, type World } from '../../lib/sim';
   import { fmtNumber } from './helpers';
 
   interface Props {
@@ -28,7 +28,7 @@
     const a = world.attack;
     if (!a) return null;
     const text = {
-      running: (a.z >= 0 ? `läuft, Vorsprung ${a.z}` : `läuft, Rückstand ${-a.z}`) + attackWaitText(world),
+      running: `läuft, ${leadText(a.z)}` + attackWaitText(world),
       released: 'veröffentlicht, Ausgang offen',
       succeeded: 'gelungen',
       failed: 'gescheitert, ehrliche Kette vorn',
@@ -38,8 +38,8 @@
   });
 </script>
 
-<dl class="kennzahlen" aria-label="Kennzahlen des Netzes">
-  <div><dt>{compact ? 'Höhe der Kette' : 'Höhe'}</dt><dd>{s.height}</dd></div>
+<dl class="kennzahlen" class:compact aria-label="Kennzahlen des Netzes">
+  <div><dt>Höhe</dt><dd>{s.height}</dd></div>
   {#if !compact}
     <div><dt>Difficulty (Start = 1)</dt><dd>{formatDifficulty(s.difficulty, world.params.difficulty)}</dd></div>
     <div><dt>Gesamt-Hashrate</dt><dd>{fmtNumber(s.totalHashrate)}</dd></div>
@@ -49,7 +49,7 @@
     </div>
     <div><dt>Coins im Umlauf</dt><dd>{formatBtc(s.coinsInCirculation)}</dd></div>
   {/if}
-  <div><dt>{compact ? 'Wartende Transaktionen' : 'Tx im Mempool'}</dt><dd>{s.mempoolSize}</dd></div>
+  <div><dt>{compact ? 'Wartend' : 'Tx im Mempool'}</dt><dd>{s.mempoolSize}</dd></div>
   <div>
     <dt>Einigkeit</dt>
     <dd class:split={einigkeit.fork}>{einigkeit.text}</dd>
@@ -73,6 +73,13 @@
   .kennzahlen > div {
     background: var(--bg-elevated);
     padding: 0.45rem 0.7rem;
+  }
+  /* Kapitel: immer drei Spalten (Höhe, Wartend, Einigkeit), auch bei 360 px ohne leere Zelle (k7-11). */
+  .kennzahlen.compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kennzahlen.compact > div {
+    padding: 0.4rem 0.5rem;
   }
   dt {
     font-size: 0.8rem;

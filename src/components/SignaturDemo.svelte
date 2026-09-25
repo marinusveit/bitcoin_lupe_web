@@ -15,7 +15,7 @@
   let message = $state(START_MESSAGE);
   let checkMessage = $state(START_MESSAGE);
   let mallorySigns = $state(false);
-  let memo = $state({ message: START_MESSAGE, signature: START_SIGNATURE });
+  let memo = $state({ message: START_MESSAGE, signature: START_SIGNATURE, priv: START_PRIV });
 
   const pub = $derived(publicKey(priv));
   const address = $derived(addressP2PKH(pub));
@@ -38,6 +38,7 @@
   const valid = $derived(verifySignature(pub, checkHash, receivedSignature));
 
   const memoSame = $derived(memo.signature === signature);
+  const memoOldKey = $derived(memo.priv !== priv);
   const memoLabel = $derived(
     Array.from(memo.message).length > MEMO_MAX
       ? Array.from(memo.message).slice(0, MEMO_MAX).join('') + '…'
@@ -54,7 +55,7 @@
   }
 
   function remember() {
-    memo = { message, signature };
+    memo = { message, signature, priv };
   }
 
   function tamper() {
@@ -75,7 +76,7 @@
     message = START_MESSAGE;
     checkMessage = START_MESSAGE;
     mallorySigns = false;
-    memo = { message: START_MESSAGE, signature: START_SIGNATURE };
+    memo = { message: START_MESSAGE, signature: START_SIGNATURE, priv: START_PRIV };
   }
 </script>
 
@@ -149,7 +150,7 @@
           <dd class="hash">{sigS}</dd>
         </dl>
         <p class="memo" class:same={memoSame} aria-live="polite">
-          Gemerkt für „{memoLabel}“: <strong>{memoSame ? 'gleiche Signatur' : 'andere Signatur'}</strong>
+          Gemerkt für „{memoLabel}“{memoOldKey ? ' mit dem alten Schlüssel' : ''}: <strong>{memoSame ? 'gleiche Signatur' : 'andere Signatur'}</strong>
         </p>
         <button type="button" onclick={remember}>Signatur merken</button>
       </div>
@@ -320,6 +321,7 @@
     border-left: 3px solid var(--warn);
     background: var(--bg);
     color: var(--fg);
+    overflow-wrap: anywhere;
   }
   .memo strong { color: var(--warn); }
   .memo.same { border-left-color: var(--ok); }

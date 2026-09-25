@@ -24,4 +24,13 @@ describe('SignaturDemo', () => {
     expect(screen.getByText(/Zwei Gründe: Die Nachricht wurde nach dem Signieren verändert/)).toBeTruthy();
     expect(screen.getByText(WRONG_KEY)).toBeTruthy();
   });
+
+  it('nennt in der Merkzeile den alten Schlüssel, wenn nach dem Merken ein neuer gewürfelt wurde', async () => {
+    render(SignaturDemo);
+    expect(screen.getByText(/Gemerkt für/).textContent).not.toMatch(/alten Schlüssel/);
+    await fireEvent.click(screen.getByRole('button', { name: 'Neuen privaten Schlüssel würfeln' }));
+    const memo = screen.getByText(/Gemerkt für/);
+    expect(memo.textContent).toMatch(/mit dem alten Schlüssel/);
+    expect(memo.textContent).toMatch(/andere Signatur/);
+  });
 });

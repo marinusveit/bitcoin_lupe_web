@@ -152,7 +152,10 @@ $$
 **HASH160** kombiniert SHA-256 mit der Hashfunktion RIPEMD-160. Das Ergebnis ist 160 Bit lang:
 
 $$
-\text{HASH160}(\text{Nachricht}) = \text{RIPEMD160}(\text{SHA256}(\text{Nachricht}))
+\begin{aligned}
+&\text{HASH160}(\text{Nachricht}) \\
+&\qquad = \text{RIPEMD160}(\text{SHA256}(\text{Nachricht}))
+\end{aligned}
 $$
 
 HASH160 kürzt einen öffentlichen Schlüssel oder ein Skript, bevor daraus eine Adresse wird. RIPEMD-160 stammt von europäischen Forschern und nicht von einer US-Behörde. Vielleicht hat Satoshi Nakamoto sie deshalb gewählt. Das ist aber nur eine Vermutung, denn er hat sich nie dazu geäußert.

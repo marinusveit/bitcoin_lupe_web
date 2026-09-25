@@ -61,4 +61,30 @@ describe('MerkleDemo', () => {
     expect(screen.getByText(/hat sich eine Transaktion geändert/)).toBeTruthy();
     expect(screen.queryByText(/ist unverändert/)).toBeNull();
   });
+
+  it('beschriftet bei nur einer Transaktion das Blatt als Merkle-Wurzel', async () => {
+    render(MerkleDemo);
+    const remove = screen.getByRole('button', { name: 'Transaktion entfernen' });
+    for (let k = 0; k < 3; k++) await fireEvent.click(remove);
+    expect(screen.getByText('Merkle-Wurzel')).toBeTruthy();
+  });
+
+  it('bringt nach Entfernen und Wieder-Hinzufügen die Ausgangstransaktionen zurück', async () => {
+    render(MerkleDemo);
+    const remove = screen.getByRole('button', { name: 'Transaktion entfernen' });
+    for (let k = 0; k < 3; k++) await fireEvent.click(remove);
+    const add = screen.getByRole('button', { name: 'Transaktion hinzufügen' });
+    for (let k = 0; k < 3; k++) await fireEvent.click(add);
+    const values = screen.getAllByRole('textbox').map((el) => (el as HTMLInputElement).value);
+    expect(values).toEqual(['Alice → Bob 2 BTC', 'Bob → Carol 1 BTC', 'Carol → Dave 0,5 BTC', 'Dave → Eve 0,2 BTC']);
+  });
+
+  it('kündigt nur das Urteil live an, nicht die Hash-Zeilen des Beweises', async () => {
+    const { container } = render(MerkleDemo);
+    await fireEvent.click(screen.getByRole('button', { name: 'Tx 1: Merkle-Beweis anzeigen' }));
+    const live = container.querySelectorAll('[aria-live]');
+    expect(live).toHaveLength(1);
+    expect(live[0]!.querySelector('.verdict')).toBeTruthy();
+    expect(live[0]!.querySelector('.steps')).toBeNull();
+  });
 });

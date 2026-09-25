@@ -8,6 +8,7 @@
     sendTransaction,
     shortHash,
     spendableBalance,
+    walletBalance,
     type World,
   } from '../../lib/sim';
 
@@ -23,7 +24,10 @@
   let to = $state('bob');
   let amount = $state(2);
   let fee = $state(0.1);
-  let message: { ok: boolean; text: string } | null = $state(null);
+  /** Letzte Meldung; wie bei `tracked` merkt sie sich die Welt, damit „Zurücksetzen“ sie löscht (sim-08). */
+  type Message = { ok: boolean; text: string; world: World | null };
+  let message = $state.raw<Message | null>(null);
+  const shownMessage = $derived(message && (message.world === null || message.world === world) ? message : null);
   /** Zuletzt gesendete Zahlung; `world` merkt sich die Welt, damit „Zurücksetzen“ die Verfolgung beendet. */
   let tracked: { txid: string; to: string; toName: string; world: World } | null = $state.raw(null);
 
@@ -67,20 +71,29 @@
   function submit(e: SubmitEvent) {
     e.preventDefault();
     if (!(amount > 0)) {
-      message = { ok: false, text: 'Der Betrag muss größer als 0 sein.' };
+      message = { ok: false, text: 'Der Betrag muss größer als 0 sein.', world: null };
       return;
     }
     if (!(fee >= 0)) {
-      message = { ok: false, text: 'Die Gebühr darf nicht negativ sein.' };
+      message = { ok: false, text: 'Die Gebühr darf nicht negativ sein.', world: null };
       return;
     }
+    const needed = btcToSats(amount) + btcToSats(fee);
+    const confirmed = walletBalance(world, from)?.confirmed ?? 0;
     const res = sendTransaction(world, from, to, btcToSats(amount), btcToSats(fee));
     if (res.ok) {
-      message = { ok: true, text: `Transaktion ${res.value.slice(0, 6)}… ist unterwegs. Verfolge den orangen Punkt.` };
+      message = { ok: true, text: `Transaktion ${res.value.slice(0, 6)}… ist unterwegs. Verfolge den orangen Punkt.`, world };
       const toNode = world.nodes[to];
       tracked = { txid: res.value, to, toName: toNode ? toNode.name : to, world };
+    } else if (confirmed >= needed && (available ?? 0) < needed) {
+      // Genug Guthaben, aber gesperrt: Es steckt in eigenen Zahlungen, die noch in keinem Block stehen (k7-08).
+      message = {
+        ok: false,
+        text: `Nicht gesendet: Deine ${formatBtc(confirmed - (available ?? 0))} stecken in einer Zahlung, die gerade unterwegs ist. In dieser Simulation kannst du das Rückgeld erst ausgeben, sobald diese Zahlung in einem Block steht.`,
+        world,
+      };
     } else {
-      message = { ok: false, text: `Nicht gesendet: ${res.error}.` };
+      message = { ok: false, text: `Nicht gesendet: ${res.error}.`, world };
     }
     onmutate();
   }
@@ -125,8 +138,8 @@
       </span>
     {/if}
   </div>
-  {#if message}
-    <p class="meldung" class:fehler={!message.ok} role="status">{message.text}</p>
+  {#if shownMessage}
+    <p class="meldung" class:fehler={!shownMessage.ok} role="status">{shownMessage.text}</p>
   {/if}
   {#if progress}
     <ol class="weg" aria-label="Weg der Zahlung {shortHash(progress.txid)}">

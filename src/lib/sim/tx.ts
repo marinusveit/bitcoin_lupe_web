@@ -67,7 +67,7 @@ export function validateTx(tx: Tx, utxo: UtxoSet, spent?: Set<string>): string |
     if (seen.has(key)) return 'Input doppelt verwendet';
     seen.add(key);
     const out = utxo[key];
-    if (!out) return `Input ${shortHash(i.txid)}:${i.vout} ist nicht unverbraucht`;
+    if (!out) return `Input ${shortHash(i.txid)}:${i.vout} ist unbekannt oder schon ausgegeben`;
     if (spent?.has(key)) return `Input ${shortHash(i.txid)}:${i.vout} wird schon im Mempool ausgegeben`;
     inSum += out.value;
   }

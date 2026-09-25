@@ -10,6 +10,7 @@
     p2pkhScriptSig,
     p2pkScriptPubKey,
     p2pkScriptSig,
+    formatScript,
     parseScript,
     publicKey,
     sha256Hex,
@@ -63,13 +64,29 @@
     return sig.slice(0, -1) + (last === '0' ? '1' : '0');
   }
 
-  const scripts = $derived.by(() => {
-    if (mode === 'frei') return { sig: parseScript(freeSig), pub: parseScript(freePub) };
+  /** P2PKH mit den aktuellen Einstellungen (wer gibt aus, verfälschte Signatur). */
+  function p2pkhScripts(): { sig: string[]; pub: string[] } {
     let sig = spender === 'alice' ? aliceSig : mallorySig;
     if (tamper) sig = tampered(sig);
-    if (mode === 'p2pk') return { sig: p2pkScriptSig(sig), pub: p2pkScriptPubKey(alicePub) };
     return { sig: p2pkhScriptSig(sig, spender === 'mallory' ? malloryPub : alicePub), pub: p2pkhScriptPubKey(alicePub) };
+  }
+
+  const scripts = $derived.by(() => {
+    if (mode === 'frei') return { sig: parseScript(freeSig), pub: parseScript(freePub) };
+    if (mode === 'p2pk') {
+      const sig = spender === 'alice' ? aliceSig : mallorySig;
+      return { sig: p2pkScriptSig(tamper ? tampered(sig) : sig), pub: p2pkScriptPubKey(alicePub) };
+    }
+    return p2pkhScripts();
   });
+
+  /** Füllt die Felder von „Eigenes Skript“ mit dem aktuellen P2PKH als Hex, zum Abwandeln. */
+  function adoptP2pkh() {
+    const { sig, pub } = p2pkhScripts();
+    freeSig = formatScript(sig);
+    freePub = formatScript(pub);
+    mode = 'frei';
+  }
 
   // Signiert ist immer die ursprüngliche Transaktion; geändert wird nur, was OP_CHECKSIG prüft.
   const messageHash = $derived(mode !== 'frei' && changeTx ? MSG_CHANGED : MSG);
@@ -106,9 +123,26 @@
       : at === 0
         ? 'Noch nichts ausgeführt. Der Stapel ist leer. Drücke „Schritt“.'
         : handover(at)
-          ? `scriptSig ist fertig. Sein Stapel wird an das Sperr-Skript (scriptPubKey) übergeben. ${result.steps[at - 1]!.note}`
-          : result.steps[at - 1]!.note,
+          ? `scriptSig ist fertig. Sein Stapel wird an das Sperr-Skript (scriptPubKey) übergeben. ${stepNote(at)}`
+          : stepNote(at),
   );
+  // Nach Konsensregel reicht „wahr“ oben; mehr als ein Restelement verstößt nur gegen die Weiterleitungsregel.
+  const leftover = $derived(result.ok && (result.steps.at(-1)?.stackAfter.length ?? 0) > 1);
+
+  /** Notiz zu Schritt `n`; beim Abbruch an OP_EQUALVERIFY mit beiden verglichenen Werten, die danach vom Stapel sind. */
+  function stepNote(n: number): string {
+    const step = result.steps[n - 1]!;
+    if (step.token === 'OP_EQUALVERIFY' && !result.ok && n === result.steps.length && step.note === result.error) {
+      const before = n >= 2 ? result.steps[n - 2]!.stackAfter : [];
+      if (before.length >= 2) return `${name(before.at(-2)!)} ist nicht gleich ${name(before.at(-1)!)}: Abbruch.`;
+    }
+    return step.note;
+  }
+
+  function name(value: string): string {
+    const d = display(value);
+    return d.label ?? d.text;
+  }
 
   /** Ist Schritt `n` der erste des scriptPubKey nach einem scriptSig? Dort startet das zweite Programm. */
   function handover(n: number): boolean {
@@ -157,7 +191,8 @@
       <div class="free">
         <label>scriptSig (Entsperr-Skript)<textarea rows="2" bind:value={freeSig}></textarea></label>
         <label>scriptPubKey (Sperr-Skript)<textarea rows="2" bind:value={freePub}></textarea></label>
-        <p class="muted small">Tokens durch Leerzeichen trennen. Erlaubt sind z. B. OP_1 bis OP_16, OP_ADD, OP_SUB, OP_DUP, OP_EQUAL, OP_SHA256 und Hex-Daten.</p>
+        <p class="muted small">Tokens durch Leerzeichen trennen; zwei Ziffern wie 12 gelten als ein Hex-Byte. Erlaubt sind OP_0 bis OP_16, OP_ADD, OP_SUB, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, OP_SHA256, OP_HASH160, OP_CHECKSIG, OP_RETURN und Hex-Daten.</p>
+        <button type="button" class="adopt" onclick={adoptP2pkh}>Aktuelles P2PKH als eigenes Skript übernehmen</button>
       </div>
     {:else}
       <fieldset class="spender">
@@ -171,6 +206,9 @@
         <label><input type="checkbox" bind:checked={tamper} /> Signatur verfälschen</label>
         <label><input type="checkbox" bind:checked={changeTx} /> Transaktion nachträglich ändern (Bob bekommt 2 BTC)</label>
       </fieldset>
+      {#if mode === 'p2pkh'}
+        <button type="button" class="adopt" onclick={adoptP2pkh}>Aktuelles P2PKH als eigenes Skript übernehmen</button>
+      {/if}
     {/if}
   </div>
 
@@ -239,6 +277,7 @@
         <p class="verdict" class:ok={result.ok} class:bad={!result.ok} role="status">
           {#if result.ok}
             Gültig: Oben liegt „wahr“. Der Output darf ausgegeben werden.
+            {#if leftover}Das gilt nach Konsensregel. Weil mehr als ein Element übrig ist, würden Knoten die Transaktion aber meist nicht weiterleiten.{/if}
           {:else}
             Ungültig: {result.error}
           {/if}
@@ -259,6 +298,7 @@
   .free { display: grid; gap: 0.6rem; flex: 1 1 18rem; }
   .free label { display: grid; gap: 0.25rem; }
   .free textarea { width: 100%; font-family: var(--font-mono); font-size: 0.9rem; }
+  .adopt { align-self: end; justify-self: start; }
   .tokens { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; padding: 0.8rem; background: var(--bg-muted); border-radius: var(--radius); }
   .chip {
     font-family: var(--font-mono); font-size: 0.82rem; padding: 0.25rem 0.55rem; border-radius: var(--radius);
@@ -297,5 +337,7 @@
   .small { font-size: 0.86rem; }
   @media (max-width: 600px) {
     .machine { grid-template-columns: 1fr; }
+    /* Erklärung vor den wachsenden Stapel, damit Knopf, Notiz und oberstes Element nah beieinander stehen. */
+    .explain { order: -1; }
   }
 </style>

@@ -167,6 +167,20 @@ function release(world: World, miner: MinerNode, emit: Emit): void {
   for (const b of blocks) receiveBlock(world, miner, b, miner.id, emit, true);
 }
 
+/** „Vorsprung 2 Blöcke“, „Gleichstand“ oder „Rückstand 1 Block“ für einen Vorsprung `z` in Blöcken. */
+export function leadText(z: number): string {
+  if (z === 0) return 'Gleichstand';
+  const n = Math.abs(z);
+  return `${z > 0 ? 'Vorsprung' : 'Rückstand'} ${n} ${n === 1 ? 'Block' : 'Blöcke'}`;
+}
+
+/** Bestätigungen der öffentlichen Zahlung aus Sicht des Knotens, an dem das Opfer hängt. */
+function victimConfirmations(world: World, attack: AttackState): number {
+  const victim = world.nodes[attack.victimId];
+  const via = victim?.kind === 'wallet' ? world.nodes[victim.via] : victim;
+  return isChainNode(via) ? confirmations(via, attack.publicTx.txid) : 0;
+}
+
 /** Pro Tick: Vorsprung melden, private Kette veröffentlichen oder aufgeben, Erfolg prüfen. */
 export function attackTick(world: World, emit: Emit): void {
   for (const node of Object.values(world.nodes)) {
@@ -177,8 +191,7 @@ export function attackTick(world: World, emit: Emit): void {
     if (attacking && (world.attack!.z !== z || world.attack!.conf !== conf)) {
       world.attack!.z = z;
       world.attack!.conf = conf;
-      const lead = z >= 0 ? `Vorsprung ${z} ${z === 1 ? 'Block' : 'Blöcke'}` : `Rückstand ${-z} ${-z === 1 ? 'Block' : 'Blöcke'}`;
-      emit({ kind: 'attack-lead', text: `Private Kette des Angreifers: ${lead}${attackWaitText(world)}`, nodeId: node.id });
+      emit({ kind: 'attack-lead', text: `Private Kette des Angreifers: ${leadText(z)}${attackWaitText(world)}`, nodeId: node.id });
     }
     if (z < -world.params.attackGiveUpDeficit) {
       node.privateChain = [];
@@ -194,6 +207,7 @@ export function attackTick(world: World, emit: Emit): void {
     }
     const confirmed = !attacking || confirmations(node, world.attack!.publicTx.txid) >= world.params.attackConfirmations;
     if (node.privateChain.length > 0 && confirmed && privateWork(node) > node.work[node.tip]!) {
+      if (attacking) world.attack!.victimConfAtRelease = victimConfirmations(world, world.attack!);
       release(world, node, emit);
       if (attacking) {
         world.attack!.status = 'released';
@@ -238,9 +252,12 @@ function checkAttackSuccess(world: World, emit: Emit): void {
   if (!succeeded) return;
   attack.status = 'succeeded';
   const victim = world.nodes[attack.victimId];
+  const name = victim?.name ?? 'das Opfer';
+  const conf = attack.victimConfAtRelease;
+  const seen = conf ? `. ${name} hatte schon ${conf} ${conf === 1 ? 'Bestätigung' : 'Bestätigungen'} gesehen` : '';
   emit({
     kind: 'attack-success',
-    text: `Angriff gelungen: Die Zahlung an ${victim?.name ?? 'das Opfer'} ist aus der besten Kette verschwunden, die Coins gehören wieder dem Angreifer`,
+    text: `Angriff gelungen: Die Zahlung an ${name} ist aus der besten Kette verschwunden, die Coins gehören wieder dem Angreifer${seen}`,
     nodeId: attack.attackerId,
     txid: attack.publicTx.txid,
   });

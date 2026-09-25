@@ -9,8 +9,10 @@
 
   const ZEROS = '0000';
   const GENESIS_PREV = '0'.repeat(64);
-  const hashOf = (height: number, prev: string, data: string, nonce: number) =>
-    sha256Hex(`${height}|${prev}|${data}|${nonce}`);
+  /** Eine Nonce ist eine ganze Zahl ab 0; leere, negative und gebrochene Eingaben werden so gelesen. */
+  const cleanNonce = (nonce: number | null) => Math.max(0, Math.trunc(nonce || 0));
+  const hashOf = (height: number, prev: string, data: string, nonce: number | null) =>
+    sha256Hex(`${height}|${prev}|${data}|${cleanNonce(nonce)}`);
 
   // Vorab gefundene Nonces, damit die Kette beim Laden sofort gültig ist.
   const START_DATA: Block[] = [
@@ -129,7 +131,7 @@
           <textarea rows="2" bind:value={block.data} disabled={mining !== null}></textarea>
         </label>
         <label>Nonce
-          <input type="number" bind:value={block.nonce} min="0" disabled={mining !== null} />
+          <input type="number" bind:value={block.nonce} min="0" step="1" disabled={mining !== null} />
         </label>
         <div class="field own">
           <span class="lbl">Eigener Hash (aus Höhe, Zeiger, Daten und Nonce)</span>

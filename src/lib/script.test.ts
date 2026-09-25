@@ -67,6 +67,13 @@ describe('script', () => {
     expect(execute('', 'OP_DUP').error).toContain('leer');
   });
 
+  it('erklärt Dezimalzahlen, ungerade Hex-Längen und OP_RETURN verständlich', () => {
+    expect(execute('2 3', '').error).toBe('Unbekannter Opcode: 2. Zahlen als OP_2 schreiben.');
+    expect(execute('OP_17', '').error).toContain('OP_0 bis OP_16');
+    expect(execute('abc', '').error).toContain('Hex-Daten brauchen eine gerade Zahl an Zeichen');
+    expect(execute('OP_1 OP_RETURN', '').error).toBe('OP_RETURN beendet das Skript immer als ungültig.');
+  });
+
   it('Script-Zahlen hin und zurück', () => {
     for (const n of [0, 1, -1, 127, 128, -128, 255, 32767, -32768]) {
       expect(decodeScriptNum(encodeScriptNum(n))).toBe(n);

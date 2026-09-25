@@ -211,7 +211,10 @@
     .kurz {
       display: inline;
     }
+    /* Trefferfläche für den Finger mindestens 36 × 36 px (sim-17). */
     .entfernen {
+      min-width: 2.25rem;
+      min-height: 2.25rem;
       padding: 0.2rem 0.45rem;
     }
   }

@@ -44,7 +44,7 @@
   <p class="hinweis">Ändere einen Buchstaben und sieh zu, wie sich der ganze Fingerabdruck ändert.</p>
 
   <p class="label" id="hash-hero-label">SHA-256 deiner Eingabe</p>
-  <p class="hex" aria-labelledby="hash-hero-label" aria-live="polite">
+  <p class="hex" aria-labelledby="hash-hero-label">
     {#if nullen > 0}<span class="nullen">{hex.slice(0, nullen)}</span>{/if}{hex.slice(nullen)}
   </p>
 
@@ -60,7 +60,7 @@
   </p>
 
   <div class="knoepfe">
-    <button type="button" onclick={sucheNullen}>Zahl anhängen, bis {ZIEL_NULLEN} Nullen vorne stehen</button>
+    <button type="button" onclick={sucheNullen} disabled={versuche !== null}>Zahl anhängen, bis {ZIEL_NULLEN} Nullen vorne stehen</button>
     <button type="button" onclick={reset}>Zurücksetzen</button>
   </div>
 </div>

@@ -32,13 +32,35 @@ Das Pluszeichen bedeutet hier Aneinanderhängen und nicht Addieren. Den obersten
 
 Was passiert, wenn auf einer Ebene eine ungerade Zahl von Knoten steht? Dann wird der letzte Knoten mit sich selbst verknüpft. Bei drei Transaktionen sieht das so aus:
 
-```
-                 Merkle-Wurzel = HASH256(H12 + H33)
-                 /                               \
-   H12 = HASH256(TxID1 + TxID2)       H33 = HASH256(TxID3 + TxID3)
-        /            \                         |
-     TxID1          TxID2                    TxID3
-```
+<figure>
+  <svg viewBox="0 0 440 214" width="440" height="214" role="img" aria-label="Merkle-Baum mit drei Transaktionen: TxID1 und TxID2 ergeben H12, TxID3 wird verdoppelt und ergibt H33, H12 und H33 ergeben die Merkle-Wurzel" fill="none" stroke="currentColor" stroke-width="1.5" font-family="monospace" font-size="16" text-anchor="middle">
+    <g opacity="0.55">
+      <line x1="220" y1="44" x2="110" y2="90" />
+      <line x1="220" y1="44" x2="330" y2="90" />
+      <line x1="110" y1="124" x2="55" y2="170" />
+      <line x1="110" y1="124" x2="165" y2="170" />
+      <line x1="330" y1="124" x2="275" y2="170" />
+      <line x1="330" y1="124" x2="385" y2="170" stroke-dasharray="5 4" />
+    </g>
+    <rect x="150" y="10" width="140" height="34" rx="6" />
+    <rect x="62" y="90" width="96" height="34" rx="6" />
+    <rect x="282" y="90" width="96" height="34" rx="6" />
+    <rect x="7" y="170" width="96" height="34" rx="6" />
+    <rect x="117" y="170" width="96" height="34" rx="6" />
+    <rect x="227" y="170" width="96" height="34" rx="6" />
+    <rect x="337" y="170" width="96" height="34" rx="6" stroke-dasharray="5 4" opacity="0.7" />
+    <g fill="currentColor" stroke="none">
+      <text x="220" y="32" font-family="sans-serif" font-weight="600">Merkle-Wurzel</text>
+      <text x="110" y="112">H12</text>
+      <text x="330" y="112">H33</text>
+      <text x="55" y="192">TxID1</text>
+      <text x="165" y="192">TxID2</text>
+      <text x="275" y="192">TxID3</text>
+      <text x="385" y="192" opacity="0.7">TxID3</text>
+    </g>
+  </svg>
+  <figcaption>H12 = HASH256(TxID1 + TxID2), H33 = HASH256(TxID3 + TxID3), Merkle-Wurzel = HASH256(H12 + H33). Der gestrichelte Knoten ist die Kopie von TxID3.</figcaption>
+</figure>
 
 <Werkbank id="merkle-demo" aufgabe="Ändere in Tx 3 einen Buchstaben. Sag vorher: Welche Kästchen ändern sich mit? Füge danach eine fünfte Transaktion hinzu: Wo taucht ein gestrichelter, verdoppelter Knoten auf?" deutung="Eine Änderung in einem Blatt ändert jeden Knoten auf dem Weg nach oben bis zur Wurzel. Die Wurzel im Block-Header passt dann nicht mehr. Bei einer ungeraden Zahl von Knoten wird der letzte verdoppelt, genau wie TxID3 im Bild oben.">
   <MerkleDemo client:visible />
@@ -60,13 +82,13 @@ Es gäbe auch einen einfacheren Weg. Man könnte alle TxIDs aneinanderhängen un
 
 Beim Merkle-Baum reicht viel weniger. Man braucht nur die Transaktion selbst und den Merkle-Proof. Der Merkle-Proof (Merkle proof, in der Demo „Merkle-Beweis“) sind die Hashwerte, die auf dem Weg von der Transaktion zur Wurzel noch fehlen.
 
-Ein Beispiel mit 8 Transaktionen. Wir wollen prüfen, ob die Transaktion $Tx_5$ enthalten ist. $H_{5-6}$ ist der Knoten über $TxID_5$ und $TxID_6$, $H_{1-8}$ ist die Wurzel. Dafür geht man so vor:
+Ein Beispiel mit 8 Transaktionen. Wir wollen prüfen, ob die Transaktion $\text{Tx}_5$ enthalten ist. $H_{5-6}$ ist der Knoten über $\text{TxID}_5$ und $\text{TxID}_6$, $H_{1-8}$ ist die Wurzel. Dafür geht man so vor:
 
-1. Man berechnet $TxID_5$ aus der Transaktion.
-2. Man lädt $TxID_6$ und berechnet daraus $H_{5-6}$.
+1. Man berechnet $\text{TxID}_5$ aus der Transaktion.
+2. Man lädt $\text{TxID}_6$ und berechnet daraus $H_{5-6}$.
 3. Man lädt $H_{7-8}$ und berechnet $H_{5-8}$.
 4. Man lädt $H_{1-4}$ und berechnet die Wurzel $H_{1-8}$.
-5. Stimmt das Ergebnis mit der bekannten Merkle-Wurzel überein, ist $Tx_5$ im Baum.
+5. Stimmt das Ergebnis mit der bekannten Merkle-Wurzel überein, ist $\text{Tx}_5$ im Baum.
 
 Der Merkle-Proof besteht hier also aus nur drei Hashwerten. Die anderen sieben Transaktionen selbst braucht man nicht.
 
@@ -98,7 +120,10 @@ $$
 Jede zusätzliche Ebene verdoppelt, wie viele Blätter der Baum tragen kann. Deshalb wächst die Höhe nur mit dem Logarithmus zur Basis 2. Der Logarithmus $\log_2$ beantwortet die Frage „2 hoch wie viel ergibt diese Zahl?“. Die Klammern $\lceil \ \rceil$ bedeuten Aufrunden:
 
 $$
-\text{Höhe des Baums} = \lceil \log_2(\text{Anzahl Transaktionen}) \rceil + 1
+\begin{aligned}
+&\text{Höhe des Baums} \\
+&\quad = \lceil \log_2(\text{Anzahl Transaktionen}) \rceil + 1
+\end{aligned}
 $$
 
 Ein Block mit 2500 Transaktionen ergibt:

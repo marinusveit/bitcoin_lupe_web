@@ -35,6 +35,7 @@
   --measure: 46rem;         /* Textspalte */
   --bench: 56rem;           /* Werkbank-Rahmen */
   --gutter: 16px;
+  --scroll-bg: var(--bg);   /* Hintergrund unter seitlich scrollbaren Blöcken, für den Scroll-Hinweis */
   color-scheme: light;
 }
 
@@ -92,7 +93,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { font-size: 17px; -webkit-text-size-adjust: 100%; }
+/* scroll-padding: die klebende Kopfzeile verdeckt Anker- und Fokusziele nicht. */
+html { font-size: 17px; -webkit-text-size-adjust: 100%; scroll-padding-top: 4.5rem; }
 
 body {
   margin: 0;
@@ -128,13 +130,38 @@ code, kbd, pre, .mono {
 }
 code { background: var(--bg-muted); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
 pre {
-  background: var(--bg-muted);
+  --scroll-bg: var(--bg-muted);
+  background-color: var(--bg-muted);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.9rem 1rem;
   overflow-x: auto;
 }
 pre code { background: none; padding: 0; }
+/* Shiki-Blöcke (Themenpaar in astro.config.mjs): Fläche wie jedes pre, im Dark Mode die dunklen Tokenfarben. */
+pre.astro-code { background-color: var(--bg-muted) !important; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .astro-code,
+  :root:not([data-theme="light"]) .astro-code span { color: var(--shiki-dark) !important; }
+}
+:root[data-theme="dark"] .astro-code,
+:root[data-theme="dark"] .astro-code span { color: var(--shiki-dark) !important; }
+/* Scroll-Hinweis: ein Rand verläuft sichtbar, solange seitlich noch Inhalt folgt. Die deckenden Verläufe
+   (local) wandern mit dem Inhalt und verdecken den Hinweis (scroll) erst am jeweiligen Ende. */
+pre, .katex-display {
+  background-image:
+    linear-gradient(to right, var(--scroll-bg) 40%, transparent),
+    linear-gradient(to left, var(--scroll-bg) 40%, transparent),
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--fg) 22%, transparent), transparent),
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--fg) 22%, transparent), transparent);
+  background-position: left center, right center, left center, right center;
+  background-size: 2rem 100%, 2rem 100%, 0.8rem 100%, 0.8rem 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Bezeichner in Tabellen (Opcodes) nicht mitten im Wort umbrechen. */
+td code, th code { overflow-wrap: normal; white-space: nowrap; }
 
 table { border-collapse: collapse; width: 100%; margin: 1rem 0 1.5rem; font-size: 0.95rem; }
 th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -188,6 +215,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
 .callout.merke { border-color: var(--accent); }
 .callout.achtung { border-color: var(--danger); }
 .callout > :last-child { margin-bottom: 0; }
+.card, .callout, details.vertiefung { --scroll-bg: var(--bg-elevated); }
 
 /* Aufklappbare Vertiefung in MDX: <details class="vertiefung"><summary>Vertiefung: …</summary> … </details>.
    Das Wort „Vertiefung“ steht im Summary-Text; die Marke davor zeigt nur auf/zu (+/−). */
@@ -246,6 +274,7 @@ details.klein > summary:focus-visible { outline: 2px solid var(--accent); outlin
   background: var(--bg-muted);
   border-radius: 0 var(--radius) var(--radius) 0;
 }
+.mitnehmen { --scroll-bg: var(--bg-muted); }
 .mitnehmen > :last-child { margin-bottom: 0; }
 .mitnehmen ul, .mitnehmen ol { padding-left: 1.2rem; }
 .mitnehmen > h2:first-child, .mitnehmen > h3:first-child { margin-top: 0; }
@@ -316,4 +345,9 @@ label { font-size: 0.92rem; color: var(--fg-muted); }
 @media (max-width: 640px) {
   html { font-size: 16px; }
   h1 { font-size: 1.7rem; }
+}
+
+/* Abgesetzte Formeln auf Handys in Textgröße statt KaTeX-Standard 1.21em: etwa 20 % weniger Breite. */
+@media (max-width: 480px) {
+  .katex-display > .katex { font-size: 1em; }
 }

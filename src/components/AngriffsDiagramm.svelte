@@ -8,7 +8,7 @@
 
   const FIXED = [0.1, 0.2, 0.3, 0.4, 0.45];
   // Geordnete Anteile: ein Farbton, von blass (kleines q) nach kräftig (großes q).
-  const SHADE = [45, 58, 72, 86, 100];
+  const SHADE = [60, 70, 80, 90, 100];
   const Z_MAX = 12;
   const START_Q = 0.1;
   const START_Z = 3;
@@ -69,9 +69,10 @@
     </label>
     <button class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
-  {#if atLeastHalf(ownQ)}
-    <p class="warn" role="status">Ab 50 % holt der Angreifer immer auf, egal wie lange der Händler wartet.</p>
-  {/if}
+  <!-- Die Zeile bleibt immer im Fluss, damit das Diagramm beim Überschreiten von 50 % nicht springt. -->
+  <p class="warn" role="status">
+    {#if atLeastHalf(ownQ)}Ab 50 % holt der Angreifer immer auf, egal wie lange der Händler wartet.{/if}
+  </p>
 
   <div class="legend" aria-live="polite">
     <span class="lbl">Erfolgschance bei z = {activeZ} {activeZ === 1 ? 'Block' : 'Blöcken'} nach der Zahlung</span>
@@ -116,35 +117,41 @@
       {/each}
     </svg>
   </div>
-  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte für ein bestimmtes z zu sehen.</p>
+  <label class="slider">
+    <span>Werte in der Legende für z = <strong>{pinnedZ}</strong></span>
+    <input type="range" min="0" max={Z_MAX} step="1" bind:value={pinnedZ} oninput={() => (hoverZ = null)} />
+  </label>
+  <p class="hint">Fahre über das Diagramm, tippe hinein oder nutze den Regler, um die Werte für ein bestimmtes z zu sehen.</p>
 
-  <table>
-    <caption>Wie viele Blöcke abwarten für unter 0,1 % Risiko?</caption>
-    <thead>
-      <tr>
-        <th>Anteil des Angreifers q</th>
-        <th class="num">nötiges z (Whitepaper)</th>
-        <th class="num">nötiges z (genaue Rechnung)</th>
-        <th class="num">Wartezeit ab der Zahlung (genau)</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each table as r (r.q + ':' + r.own)}
-        <tr class:own={r.own}>
-          <td>{qLabel(r.q)}{r.own ? ' (dein Wert)' : ''}</td>
-          {#if r.z === null || r.zExact === null}
-            <td class="num">nie sicher</td>
-            <td class="num">nie sicher</td>
-            <td class="num">–</td>
-          {:else}
-            <td class="num">{r.z}</td>
-            <td class="num">{r.zExact}</td>
-            <td class="num">{waitLabel(r.zExact)}</td>
-          {/if}
+  <div class="tabelle">
+    <table>
+      <caption>Wie viele Blöcke abwarten für unter 0,1 % Risiko?</caption>
+      <thead>
+        <tr>
+          <th><span class="lang">Anteil des Angreifers q</span><span class="kurz">q</span></th>
+          <th class="num"><span class="lang">nötiges z (Whitepaper)</span><span class="kurz">z Whitepaper</span></th>
+          <th class="num"><span class="lang">nötiges z (genaue Rechnung)</span><span class="kurz">z genau</span></th>
+          <th class="num"><span class="lang">Wartezeit ab der Zahlung (genau)</span><span class="kurz">Wartezeit</span></th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {#each table as r (r.q + ':' + r.own)}
+          <tr class:own={r.own}>
+            <td>{qLabel(r.q)}{r.own ? ' (dein Wert)' : ''}</td>
+            {#if r.z === null || r.zExact === null}
+              <td class="num">nie sicher</td>
+              <td class="num">nie sicher</td>
+              <td class="num">–</td>
+            {:else}
+              <td class="num">{r.z}</td>
+              <td class="num">{r.zExact}</td>
+              <td class="num">{waitLabel(r.zExact)}</td>
+            {/if}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
   <p class="hint">
     Die Formel aus dem Whitepaper ist eine Näherung, nach der genauen Rechnung sind oft mehr Blöcke nötig. Ein Block
     kommt im Mittel alle zehn Minuten. Viele Händler warten sechs Bestätigungen, also z = 5 und etwa eine Stunde ab der
@@ -172,9 +179,17 @@
   .line.own { stroke: var(--info); stroke-width: 3; }
   .dot { fill: var(--info); stroke: var(--bg); stroke-width: 2; }
   .hint { font-size: 0.88rem; color: var(--fg-muted); margin: 0; }
-  .warn { margin: 0; font-weight: 600; color: var(--danger); }
+  .warn { margin: 0; min-height: 1.5em; font-weight: 600; color: var(--danger); }
   table { margin: 0.4rem 0 0; }
   caption { text-align: left; font-weight: 600; padding-bottom: 0.3rem; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   tr.own td { font-weight: 600; background: var(--bg-muted); }
+  .tabelle { overflow-x: auto; }
+  .kurz { display: none; }
+  @media (max-width: 560px) {
+    .warn { min-height: 3em; }
+    table { font-size: 0.85rem; }
+    .lang { display: none; }
+    .kurz { display: inline; }
+  }
 </style>

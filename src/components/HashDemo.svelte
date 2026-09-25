@@ -63,6 +63,9 @@
         {#if inputBytes === 0}<span class="more">leer</span>{/if}
       </div>
     </div>
+    {#if inputBytes !== Array.from(text).length}
+      <p class="bytes-note">Umlaute wie ü brauchen 2 Byte.</p>
+    {/if}
     <div class="funnel-mid" aria-hidden="true"><span>SHA-256</span><span class="arrow">↓</span></div>
     <div class="funnel-row">
       <span class="funnel-lbl">Ausgabe<br /><strong>immer {OUTPUT_BYTES} Byte</strong></span>
@@ -139,6 +142,7 @@
   .sq { display: block; width: 0.55rem; height: 0.7rem; border-radius: var(--radius-sm); }
   .sq.in { background: var(--fg-muted); opacity: 0.55; }
   .sq.out { background: var(--accent); }
+  .bytes-note { margin: 0 0 0 7.1rem; font-size: 0.78rem; color: var(--fg-muted); }
   .more { font-size: 0.78rem; color: var(--fg-muted); margin-left: 0.3rem; }
   .funnel-mid { display: grid; grid-template-columns: 6.5rem auto; gap: 0.6rem; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-muted); }
   .funnel-mid .arrow { font-weight: 700; color: var(--fg); }

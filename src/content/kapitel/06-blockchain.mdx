@@ -72,7 +72,10 @@ Wer mehr Rechenleistung hat, schafft mehr Versuche pro Sekunde. Er findet deshal
 Das Finden ist schwer, das Prüfen dagegen leicht. Jeder kann mit einer einzigen Hash-Berechnung sehen, dass der Miner die Arbeit erbracht hat. Deshalb heißt das Verfahren Arbeitsnachweis (proof of work).
 
 <Werkbank aufgabe="Starte dreimal mit 4 Nullen und vergleiche die Versuche mit dem erwarteten Wert. Sag vorher: Wie viel länger dauert es mit 5 Nullen?" deutung="Mining ist ein Glücksspiel mit festen Chancen. Jede weitere Null macht die Suche im Mittel 16-mal länger, und wer mehr Versuche pro Sekunde schafft, gewinnt öfter.">
-  <MiningDemo client:only="svelte" />
+  {/* Platzhalter in etwa der Höhe der fertigen Demo (schmal höher), damit der Text darunter beim Laden nicht springt. */}
+  <MiningDemo client:only="svelte">
+    <p slot="fallback" style="min-height: clamp(44rem, 60rem - 20vw, 60rem); margin: 0; color: var(--fg-muted);">Mining-Demo wird geladen …</p>
+  </MiningDemo>
 </Werkbank>
 
 <div class="callout merke">
