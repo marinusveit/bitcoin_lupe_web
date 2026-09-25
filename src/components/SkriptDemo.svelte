@@ -17,9 +17,14 @@
   } from '../lib';
 
   type Mode = 'p2pkh' | 'p2pk' | 'frei';
+  /** Wer gibt aus: Alice, Mallory mit eigenem Schlüsselpaar, Mallory mit Alices (öffentlichem) Public Key. */
+  type Spender = 'alice' | 'mallory' | 'mallory-alice-pub';
 
   // Feste Beispielwerte: Alice besitzt den Output, Mallory ist ein fremder Schlüssel.
-  const MSG = sha256Hex('Beispiel-Transaktion: Alice zahlt Bob 1 BTC');
+  const TX = 'Beispiel-Transaktion: Alice zahlt Bob 1 BTC';
+  const TX_CHANGED = 'Beispiel-Transaktion: Alice zahlt Bob 2 BTC';
+  const MSG = sha256Hex(TX);
+  const MSG_CHANGED = sha256Hex(TX_CHANGED);
   const ALICE = 'a1'.repeat(32);
   const MALLORY = 'd4'.repeat(32);
   const alicePub = publicKey(ALICE);
@@ -29,11 +34,13 @@
 
   const labels = new Map<string, string>([
     [alicePub, 'Public Key (Alice)'],
-    [malloryPub, 'Public Key (fremd)'],
+    [malloryPub, 'Public Key (Mallory)'],
     [aliceSig, 'Signatur (Alice)'],
-    [mallorySig, 'Signatur (fremd)'],
+    [mallorySig, 'Signatur (Mallory)'],
+    [tampered(aliceSig), 'Signatur (verfälscht)'],
+    [tampered(mallorySig), 'Signatur (verfälscht)'],
     [hash160Hex(hexToBytes(alicePub)), 'HASH160 (Alice)'],
-    [hash160Hex(hexToBytes(malloryPub)), 'HASH160 (fremd)'],
+    [hash160Hex(hexToBytes(malloryPub)), 'HASH160 (Mallory)'],
     [MSG, 'Nachrichten-Hash'],
   ]);
 
@@ -43,7 +50,8 @@
 
   let mode: Mode = $state('p2pkh');
   let tamper = $state(false);
-  let wrongKey = $state(false);
+  let spender = $state<Spender>('alice');
+  let changeTx = $state(false);
   let freeSig = $state('OP_2 OP_3');
   let freePub = $state('OP_ADD OP_5 OP_EQUAL');
   let pos = $state(0);
@@ -56,15 +64,18 @@
 
   const scripts = $derived.by(() => {
     if (mode === 'frei') return { sig: parseScript(freeSig), pub: parseScript(freePub) };
-    let sig = wrongKey ? mallorySig : aliceSig;
+    let sig = spender === 'alice' ? aliceSig : mallorySig;
     if (tamper) sig = tampered(sig);
     if (mode === 'p2pk') return { sig: p2pkScriptSig(sig), pub: p2pkScriptPubKey(alicePub) };
-    return { sig: p2pkhScriptSig(sig, wrongKey ? malloryPub : alicePub), pub: p2pkhScriptPubKey(alicePub) };
+    return { sig: p2pkhScriptSig(sig, spender === 'mallory' ? malloryPub : alicePub), pub: p2pkhScriptPubKey(alicePub) };
   });
+
+  // Signiert ist immer die ursprüngliche Transaktion; geändert wird nur, was OP_CHECKSIG prüft.
+  const messageHash = $derived(mode !== 'frei' && changeTx ? MSG_CHANGED : MSG);
 
   const result: ScriptResult = $derived.by(() => {
     try {
-      return execute(scripts.sig, scripts.pub, { messageHash: MSG });
+      return execute(scripts.sig, scripts.pub, { messageHash });
     } catch (e) {
       return { ok: false, steps: [], error: e instanceof Error ? e.message : String(e) };
     }
@@ -78,6 +89,7 @@
   // Bei jeder Änderung des Skripts wieder am Anfang beginnen.
   $effect(() => {
     void scripts;
+    void messageHash;
     pos = 0;
   });
 
@@ -113,7 +125,8 @@
   function reset() {
     mode = 'p2pkh';
     tamper = false;
-    wrongKey = false;
+    spender = 'alice';
+    changeTx = false;
     freeSig = 'OP_2 OP_3';
     freePub = 'OP_ADD OP_5 OP_EQUAL';
     pos = 0;
@@ -135,10 +148,16 @@
         <p class="muted small">Tokens durch Leerzeichen trennen. Erlaubt sind z. B. OP_1 bis OP_16, OP_ADD, OP_SUB, OP_DUP, OP_EQUAL, OP_SHA256 und Hex-Daten.</p>
       </div>
     {:else}
+      <fieldset class="spender">
+        <legend>Wer gibt aus?</legend>
+        <label><input type="radio" name="skript-wer" bind:group={spender} value="alice" /> Alice</label>
+        <label><input type="radio" name="skript-wer" bind:group={spender} value="mallory" /> Mallory mit eigenem Schlüssel</label>
+        <label><input type="radio" name="skript-wer" bind:group={spender} value="mallory-alice-pub" /> Mallory mit Alices Public Key</label>
+      </fieldset>
       <fieldset class="toggles">
         <legend>Fehler einbauen</legend>
         <label><input type="checkbox" bind:checked={tamper} /> Signatur verfälschen</label>
-        <label><input type="checkbox" bind:checked={wrongKey} /> falschen Schlüssel verwenden</label>
+        <label><input type="checkbox" bind:checked={changeTx} /> Transaktion nachträglich ändern (Bob bekommt 2 BTC)</label>
       </fieldset>
     {/if}
   </div>
@@ -169,6 +188,15 @@
     <button onclick={() => (pos = 0)} disabled={at === 0}>Zurück zum Anfang</button>
     <button onclick={reset}>Zurücksetzen</button>
   </div>
+
+  {#if mode !== 'frei'}
+    <div class="checksig-info small">
+      <p>OP_CHECKSIG prüft echt mit ECDSA: Passt die Signatur zu diesem Public Key und zu dieser Transaktion?</p>
+      <p class="muted">
+        Signiert: „{TX}“. Geprüft: „{changeTx ? TX_CHANGED : TX}“{#if changeTx}<strong class="changed"> (nachträglich geändert)</strong>{/if}.
+      </p>
+    </div>
+  {/if}
 
   <div class="machine">
     <div class="stack-col">
@@ -210,6 +238,8 @@
 
 <style>
   .demo { display: grid; gap: 1rem; }
+  .checksig-info p { margin: 0 0 0.2rem; }
+  .checksig-info .changed { color: var(--danger); }
   .controls { display: flex; flex-wrap: wrap; gap: 1rem 2rem; }
   fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
   legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.3rem; padding: 0; }

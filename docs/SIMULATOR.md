@@ -47,7 +47,17 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   öffentlich `Angreifer → Opfer`, mined privat ab dem Block davor eine Kette mit `Angreifer → Angreifer`, ohne
   seine Blöcke zu senden. Sobald seine private Kette länger ist als die öffentliche, sendet er alle Blöcke auf
   einmal; ehrliche Knoten reorganisieren. Die Engine meldet je Tick den Vorsprung (`z`) und ob der Angriff
-  gelungen ist.
+  gelungen ist. Veröffentlicht wird erst, wenn die öffentliche Zahlung in der Sicht des Angreifers
+  `attackConfirmations` (Standard 2) Bestätigungen hat; Kennzahl und Protokoll nennen den Wartegrund
+  („läuft, Vorsprung 3, wartet, bis die Zahlung an Bob 2 Bestätigungen hat (aus seiner Sicht jetzt 0)“, `attackWaitText`).
+- **Haken „Unehrlich“** (`startDishonestAttack`): startet einen Double Spend gegen Bob mit `attackBudget`
+  (bestätigtes, nicht im Mempool gebundenes Guthaben des Miners minus Gebühr, höchstens der Betrag aus dem Preset
+  `attack`, 10 BTC). Ohne Guthaben ist der Haken gesperrt, daneben steht „braucht Guthaben: erst einen Block
+  finden“. Läuft schon ein Angriff (Status `running` oder `released`, z. B. im Szenario Double Spend), startet
+  kein zweiter; der Haken des Angreifers ist gesetzt, die anderen sind gesperrt mit „es läuft schon ein Angriff von
+  M3“. Haken abwählen beendet das Zurückhalten (`setDishonest(…, false)`); eine private Kette, die schon vorn liegt, wird dabei noch veröffentlicht. Ein unehrlicher Miner ohne Angriff
+  (`setDishonest(…, true)`) bleibt in der Engine möglich, verhält sich aber wie ein ehrlicher, weil er ohne
+  Wartebedingung sofort veröffentlicht; die Oberfläche bietet ihn deshalb nicht an.
 - **API**: `createWorld(preset, seed)`, `step(world)` (ein Tick, mutiert und liefert Ereignisse), `sendTransaction(world,
   fromWallet, toWallet, amount)`, `addMiner`, `removeNode`, `setHashrate`, `setDishonest`, `startDoubleSpend(world,
   attackerMinerId, victimWalletId, amount)`, `bestChain(node)`, `balances(node)`, `stats(world)`.
@@ -81,8 +91,17 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   Full Node und Miner zeigen Mempool, Kettenansicht (Blöcke als Chips mit Höhe und Kurz-Hash, Farbe je Miner,
   Gabelungen als Zweige), Statuszeile.
 - **Kettenübersicht** unten: alle bekannten Blöcke als Graph (Block-DAG), beste Kette hervorgehoben, verwaiste Blöcke grau.
-- **Kennzahlen**: Höhe, Difficulty, Gesamt-Hashrate, mittlerer Blockabstand, Coins im Umlauf, Anzahl Tx im Mempool.
+- **Kennzahlen**: Höhe, Difficulty, Gesamt-Hashrate, mittlerer Blockabstand, Coins im Umlauf, Anzahl Tx im Mempool,
+  Einigkeit (`consensus`): „alle Knoten gleich“; „Block verbreitet sich (x von y Knoten)“ in neutraler Farbe, wenn
+  Knoten nur hinterherhängen (ihr Tip liegt auf der besten Kette); „Gabelung“ in Warnfarbe, wenn ein Tip nicht auf
+  der besten Kette liegt (z. B. zwei Blöcke gleicher Höhe).
 - **Ereignisprotokoll**: letzte 50 Ereignisse mit Tick, neueste oben, klickbare Tx/Block-Kürzel heben das Element hervor.
+- **Szenarien**: Der Erklärkasten beginnt mit zwei bis drei Sätzen zum gewählten Szenario, Zahlen aus `presets.ts`
+  (Normalbetrieb: Hashraten; Gleichzeitiger Fund: zwei Netzhälften, langsame Verbindungen mit Latenz; Double
+  Spend: Anteil des Angreifers, Betrag, Wartebedingung, „Beobachte Bobs Bestätigungen rechts“). Beim Laden eines
+  Szenarios ist ausgewählt: Normalbetrieb Alice, Gleichzeitiger Fund Knoten 1, Double Spend das Opfer Bob.
+- **Startwert**: Der volle Simulator startet mit Seed 1. Die Kapitelfassung (`compact`, Kapitel 7) startet mit Seed 54:
+  erster Block in Tick 18, dann 62, ab Tick 64 eine Gabelung (M1 und M3 finden Block 2), Reorganisation in Tick 144.
 - Erklärkasten oben mit drei Sätzen, was man sieht, und drei Aufgaben („Sende Alice → Bob und verfolge den Punkt“,
   „Gib einem Miner die doppelte Hashrate“, „Starte das Szenario Double Spend und beobachte Bobs Bestätigungen“).
 - Mobil: Karte oben, Tafeln darunter; keine horizontale Scrollleiste bei 360 px.

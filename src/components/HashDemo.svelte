@@ -13,6 +13,21 @@
   });
   const hex160 = $derived(hash160Hex(text));
 
+  /** Hash vor der letzten Eingabe; `null`, solange noch nichts geändert wurde. */
+  let prevHex = $state<string | null>(null);
+  const sameHex = $derived(prevHex === null ? [] : [...prevHex].map((c, i) => c === hex[i]));
+  const sameHexCount = $derived(sameHex.filter(Boolean).length);
+  const sameBitCount = $derived.by(() => {
+    if (prevHex === null) return 0;
+    const now = toBitString(hex);
+    return [...toBitString(prevHex)].filter((b, i) => b === now[i]).length;
+  });
+
+  function onInput(value: string) {
+    prevHex = hex;
+    text = value;
+  }
+
   /** Byte-Länge der Eingabe (UTF-8): ein Umlaut braucht zwei Byte. */
   const inputBytes = $derived(new TextEncoder().encode(text).length);
   const MAX_SQUARES = 96;
@@ -22,13 +37,18 @@
   function reset() {
     text = START_TEXT;
     view = 'hex';
+    prevHex = null;
   }
 </script>
 
 <div class="demo">
   <label class="field">
     <span>Eingabe (beliebiger Text)</span>
-    <input type="text" bind:value={text} spellcheck="false" autocomplete="off" />
+    <input
+      type="text"
+      value={text}
+      oninput={(e) => onInput(e.currentTarget.value)}
+      spellcheck="false" autocomplete="off" />
   </label>
 
   <div class="funnel" aria-label="Eingabelänge im Vergleich zur Ausgabelänge">
@@ -60,6 +80,15 @@
 
     {#if view === 'hex'}
       <p class="hash hex-out">{hex}</p>
+      {#if prevHex !== null}
+        <div class="prev">
+          <span class="prev-lbl">Vorheriger Hash</span>
+          <p class="hash hex-out prev-hex">
+            {#each sameHex as same, i (i)}<span class:same>{prevHex[i]}</span>{/each}
+          </p>
+          <p class="count">{sameHexCount} von 64 Zeichen gleich (markiert: gleiches Zeichen an gleicher Stelle)</p>
+        </div>
+      {/if}
     {:else}
       <div class="bits hash" aria-label="SHA-256 als 256 Bit in 8 Zeilen">
         {#each bitRows as row, r (r)}
@@ -68,6 +97,9 @@
           </div>
         {/each}
       </div>
+      {#if prevHex !== null}
+        <p class="count">Vorheriger Hash: {sameBitCount} von 256 Bit gleich</p>
+      {/if}
     {/if}
     <p class="count">Hex-Zeichen: 64, Bits: 256</p>
   </div>
@@ -122,6 +154,10 @@
   .bit-row span { text-align: center; color: var(--fg-muted); opacity: 0.55; }
   .bit-row span.one { color: var(--fg); opacity: 1; font-weight: 600; }
   .bit-row span:nth-child(4n):not(:last-child) { border-right: 1px solid var(--border); }
+  .prev { margin-top: 0.6rem; opacity: 0.75; }
+  .prev-lbl { display: block; font-size: 0.82rem; color: var(--fg-muted); margin-bottom: 0.15rem; }
+  .prev-hex { color: var(--fg-muted); word-break: break-all; }
+  .prev-hex .same { color: var(--fg); background: var(--accent-soft); font-weight: 700; border-radius: 2px; }
   .count { margin: 0.4rem 0 0; color: var(--fg-muted); font-size: 0.88rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }

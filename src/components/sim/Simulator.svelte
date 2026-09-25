@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createWorld, step, type PresetName, type World } from '../../lib/sim';
+  import { createWorld, step, PRESETS, type PresetName, type World } from '../../lib/sim';
   import type { Highlight } from './helpers';
   import Steuerung from './Steuerung.svelte';
   import Netzkarte from './Netzkarte.svelte';
@@ -19,12 +19,19 @@
 
   /** 10 statt 12 Nullbits: Nonce-Suche ~4 ms statt ~15 ms je Blockfund. */
   const ZERO_BITS = 10;
+  /**
+   * Startwert im Kapitel (Normalbetrieb, 10 Nullbits): erster Block in Tick 18, dann 62, ab Tick 64 eine
+   * Gabelung (M1 und M3 finden Block 2), die in Tick 144 per Reorganisation endet. Der Zufall hängt nur
+   * an Seed und Tick, nicht am Senden. Der volle Simulator startet mit 1.
+   */
+  const COMPACT_SEED = 54;
+  const startSeed = () => (compact ? COMPACT_SEED : 1);
 
   let preset: PresetName = $state('normal');
-  let seed = $state(1);
+  let seed = $state(startSeed());
   // Die Welt ist ein großes, von der Engine mutiertes Objekt. Sie bleibt ohne Proxy
   // ($state.raw); nach jeder Änderung zählt `version` hoch und alle Ansichten rechnen neu.
-  let world: World = $state.raw(makeWorld('normal', 1));
+  let world: World = $state.raw(makeWorld('normal', startSeed()));
   let version = $state(0);
   let running = $state(false);
   let speed = $state(5);
@@ -67,9 +74,47 @@
     touch();
   }
 
+  /** Knoten, der beim Laden eines Szenarios ausgewählt ist: im Angriff das Opfer, bei der Gabelung ein Knoten mit Kettenansicht. */
+  const START_SELECTION: Record<PresetName, string> = { normal: 'alice', fork: 'n1', attack: PRESETS.attack.attack!.victimId };
+
   function loadPreset(p: PresetName) {
     preset = p;
+    selectedId = START_SELECTION[p];
     reset();
+  }
+
+  // Szenariotext im Erklärkasten, Zahlen aus presets.ts.
+  const szenario = $derived.by(() => {
+    const spec = PRESETS[preset];
+    const miners = spec.nodes.filter((n) => n.kind === 'miner');
+    const name = (id: string) => spec.nodes.find((n) => n.id === id)?.name ?? id;
+    const rates = miners.map((m) => fmt(m.hashrate));
+    if (preset === 'fork') {
+      const slow = Math.max(...spec.links.map((l) => l.latencyTicks));
+      return {
+        titel: 'Gleichzeitiger Fund',
+        text: `Das Netz besteht aus zwei Hälften mit je einem Miner (${miners.map((m) => m.name).join(' und ')}, Hashrate je ${rates[0]}). Die Hälften sind nur über zwei langsame Verbindungen verbunden, eine Nachricht braucht dort ${slow} Ticks. Finden beide Miner kurz nacheinander einen Block, gabelt sich die Kette, bis ein weiterer Block einen Zweig vorn liegen lässt.`,
+      };
+    }
+    if (preset === 'attack' && spec.attack) {
+      const total = miners.reduce((sum, m) => sum + m.hashrate, 0);
+      const attacker = miners.find((m) => m.id === spec.attack!.attackerId);
+      const share = attacker ? Math.round((attacker.hashrate / total) * 100) : 0;
+      const victim = name(spec.attack.victimId);
+      const conf = world.params.attackConfirmations;
+      return {
+        titel: 'Double Spend',
+        text: `${name(spec.attack.attackerId)} hat ${share} % der Rechenleistung. Er zahlt ${victim} öffentlich ${fmt(spec.attack.amount)} BTC und baut heimlich eine Kette, in der dieselben Coins an ihn selbst gehen; veröffentlichen will er sie erst, wenn die Zahlung an ${victim} ${conf} ${conf === 1 ? 'Bestätigung' : 'Bestätigungen'} hat, denn erst dann liefert ${victim} die Ware. Beobachte ${victim}s Bestätigungen rechts, auf dem Handy unter der Karte.`,
+      };
+    }
+    return {
+      titel: 'Normalbetrieb',
+      text: `${miners.length} Miner mit den Hashraten ${rates.join(', ').replace(/, ([^,]*)$/, ' und $1')} rechnen um die Wette, alle Verbindungen sind schnell. Gabelungen kommen deshalb nur selten vor.`,
+    };
+  });
+
+  function fmt(n: number): string {
+    return n.toLocaleString('de-DE');
   }
 
   function toggleHighlight(h: Highlight) {
@@ -114,6 +159,7 @@
 <div class="sim" class:compact data-step-ms={stepMs.toFixed(2)}>
   {#if !compact}
     <aside class="callout erklaerung" aria-label="Was du hier siehst">
+      <p class="szenario"><strong>Szenario {szenario.titel}:</strong> {szenario.text}</p>
       <p>
         Die Karte zeigt ein kleines Bitcoin-Netz: Wallets (Kreise) schicken Zahlungen an Knoten (Sechsecke), und die
         Knoten reichen jede Nachricht an ihre Nachbarn weiter. Orange Punkte sind Transaktionen, blaue Punkte sind

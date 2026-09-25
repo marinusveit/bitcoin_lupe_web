@@ -1,5 +1,16 @@
 <script lang="ts">
-  import { addMiner, removeNode, setDishonest, setHashrate, type MinerNode, type World } from '../../lib/sim';
+  import {
+    addMiner,
+    attackBudget,
+    DISHONEST_VICTIM,
+    PRESETS,
+    removeNode,
+    setDishonest,
+    setHashrate,
+    startDishonestAttack,
+    type MinerNode,
+    type World,
+  } from '../../lib/sim';
   import { minerColor } from './helpers';
 
   interface Props {
@@ -17,8 +28,15 @@
     void version;
     return Object.values(world.nodes)
       .filter((n): n is MinerNode => n.kind === 'miner')
-      .map((m) => ({ id: m.id, name: m.name, hashrate: m.hashrate, dishonest: m.dishonest }));
+      .map((m) => ({ id: m.id, name: m.name, hashrate: m.hashrate, dishonest: m.dishonest, budget: attackBudget(world, m.id) }));
   });
+  /** Laufender oder veröffentlichter Angriff: kein zweiter, der Haken des Angreifers zeigt ihn an. */
+  const busyBy = $derived.by(() => {
+    void version;
+    const a = world.attack;
+    return a && (a.status === 'running' || a.status === 'released') ? (world.nodes[a.attackerId]?.name ?? a.attackerId) : null;
+  });
+  const opfer = $derived(world.nodes[DISHONEST_VICTIM]?.name ?? 'Bob');
   const total = $derived(miners.reduce((s, m) => s + m.hashrate, 0));
 
   function anteil(hashrate: number): number {
@@ -30,8 +48,21 @@
     onmutate();
   }
   function dishonest(id: string, value: boolean) {
-    setDishonest(world, id, value);
+    if (value) {
+      const res = startDishonestAttack(world, id);
+      error = res.ok ? '' : res.error;
+    } else {
+      setDishonest(world, id, false);
+      error = '';
+    }
     onmutate();
+  }
+  /** Warum der Haken gerade nichts bewirkt, sonst leer. */
+  function blocked(m: { dishonest: boolean; budget: number; name: string }): string {
+    if (m.dishonest) return '';
+    if (busyBy) return `es läuft schon ein Angriff von ${busyBy}`;
+    if (m.budget <= 0) return 'braucht Guthaben: erst einen Block finden';
+    return '';
   }
   function remove(id: string) {
     const res = removeNode(world, id);
@@ -75,13 +106,16 @@
               />
             </td>
             <td class="anteil anteil-spalte">{anteil(m.hashrate)} %</td>
-            <td>
+            <td class="unehrlich">
               <input
                 type="checkbox"
                 checked={m.dishonest}
+                disabled={blocked(m) !== ''}
                 aria-label="{m.name} arbeitet unehrlich"
+                aria-describedby={blocked(m) ? `grund-${uid}-${m.id}` : undefined}
                 onchange={(e) => dishonest(m.id, e.currentTarget.checked)}
               />
+              {#if blocked(m)}<span class="grund" id="grund-{uid}-{m.id}">{blocked(m)}</span>{/if}
             </td>
             <td><button type="button" class="entfernen" onclick={() => remove(m.id)} aria-label="{m.name} entfernen"><span class="lang">Entfernen</span><span class="kurz" aria-hidden="true">×</span></button></td>
           </tr>
@@ -91,7 +125,13 @@
   </div>
   <button type="button" onclick={add}>Miner hinzufügen</button>
   {#if error}<p class="fehler" role="alert">{error}</p>{/if}
-  <p class="hinweis">Ein unehrlicher Miner hält seine Blöcke zurück, bis in seiner geheimen Kette mehr Arbeit steckt als in der öffentlichen.</p>
+  <p class="hinweis">
+    Der Haken „Unehrlich“ startet einen Double Spend: Der Miner zahlt {opfer} öffentlich bis zu
+    {PRESETS.attack.attack?.amount} BTC aus seinem Guthaben und baut heimlich eine Kette, in der dieselben Coins an ihn
+    selbst gehen. Seine Blöcke hält er zurück, bis die Zahlung an {opfer} {world.params.attackConfirmations} Bestätigungen
+    hat und in seiner geheimen Kette mehr Arbeit steckt als in der öffentlichen. Ohne Guthaben bleibt der Haken gesperrt;
+    ein Miner bekommt es über die Belohnung für seine Blöcke (bei Bitcoin erst nach 100 Blöcken ausgebbar, hier sofort).
+  </p>
 </section>
 
 <style>
@@ -174,6 +214,17 @@
     .entfernen {
       padding: 0.2rem 0.45rem;
     }
+  }
+  .unehrlich {
+    white-space: nowrap;
+  }
+  .grund {
+    display: block;
+    max-width: 11rem;
+    white-space: normal;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    color: var(--fg-muted);
   }
   .fehler {
     color: var(--danger);

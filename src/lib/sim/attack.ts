@@ -1,5 +1,6 @@
 import type { AttackState, MinerNode, Result, SimEvent, World } from './types';
-import { buildPayment, formatBtc, makeTx, mempoolSpent, sumOutputs } from './tx';
+import { btcToSats, buildPayment, formatBtc, makeTx, mempoolSpent, sumOutputs } from './tx';
+import { PRESETS } from './presets';
 import { confirmations } from './node';
 import { isChainNode, label, makeEmitter, receiveBlock, receiveTx, type Emit } from './network';
 
@@ -49,6 +50,7 @@ export function startDoubleSpend(
     publicTx,
     privateTx,
     z: 0,
+    conf: 0,
     status: 'running',
     startedAt: world.tick,
   };
@@ -62,6 +64,54 @@ export function startDoubleSpend(
   emit({ kind: 'tx-created', text: `${attacker.name} sendet ${formatBtc(amount)} an ${victim.name}`, nodeId: attacker.id, txid: publicTx.txid });
   receiveTx(world, attacker, publicTx, attacker.id, emit);
   return { ok: true, value: attack, events };
+}
+
+/** Opfer des Double Spends, den der Haken „Unehrlich“ startet. */
+export const DISHONEST_VICTIM = 'bob';
+
+/**
+ * Betrag in Satoshi, den ein Miner für einen Double Spend einsetzen kann: sein bestätigtes,
+ * nicht schon im Mempool ausgegebenes Guthaben abzüglich Gebühr, höchstens der Betrag aus dem
+ * Szenario „Double Spend“. 0, wenn er nichts hat.
+ */
+export function attackBudget(world: World, minerId: string): number {
+  const miner = getMiner(world, minerId);
+  if (!miner) return 0;
+  const spent = mempoolSpent(miner.mempool);
+  let sum = 0;
+  for (const [key, o] of Object.entries(miner.utxo)) if (o.address === miner.address && !spent.has(key)) sum += o.value;
+  const cap = btcToSats(PRESETS.attack.attack!.amount);
+  return Math.max(0, Math.min(cap, sum - world.params.defaultFee));
+}
+
+/**
+ * Haken „Unehrlich“: Der Miner startet einen Double Spend gegen Bob mit `attackBudget`. Ohne
+ * Guthaben oder während eines laufenden Angriffs passiert nichts.
+ */
+export function startDishonestAttack(world: World, minerId: string): Result<AttackState> & { events: SimEvent[] } {
+  const miner = getMiner(world, minerId);
+  if (!miner) return { ok: false, error: 'Angreifer muss ein Miner sein', events: [] };
+  const a = world.attack;
+  if (a && (a.status === 'running' || a.status === 'released')) {
+    const who = world.nodes[a.attackerId];
+    return { ok: false, error: `Es läuft schon ein Angriff${who ? ` von ${who.name}` : ''}`, events: [] };
+  }
+  const amount = attackBudget(world, minerId);
+  if (amount <= 0) return { ok: false, error: 'braucht Guthaben: erst einen Block finden', events: [] };
+  return startDoubleSpend(world, minerId, DISHONEST_VICTIM, amount);
+}
+
+/** „, wartet auf 2 Bestätigungen bei Bob (jetzt 0)“, solange der laufende Angriff noch warten muss, sonst leer. */
+export function attackWaitText(world: World): string {
+  const a = world.attack;
+  if (!a || a.status !== 'running') return '';
+  const attacker = getMiner(world, a.attackerId);
+  if (!attacker) return '';
+  const needed = world.params.attackConfirmations;
+  const now = confirmations(attacker, a.publicTx.txid);
+  if (now >= needed) return '';
+  const victim = world.nodes[a.victimId];
+  return `, wartet, bis die Zahlung an ${victim?.name ?? 'das Opfer'} ${needed} ${needed === 1 ? 'Bestätigung' : 'Bestätigungen'} hat (aus seiner Sicht jetzt ${now})`;
 }
 
 /** Schaltet einen Miner ehrlich/unehrlich. Unehrlich = Blöcke zurückhalten, bis die eigene Kette vorn liegt. */
@@ -123,13 +173,12 @@ export function attackTick(world: World, emit: Emit): void {
     if (node.kind !== 'miner' || !node.dishonest || node.privateBase === null) continue;
     const attacking = isActiveAttacker(world, node);
     const z = privateLead(node);
-    if (attacking && world.attack!.z !== z) {
+    const conf = attacking ? Math.min(confirmations(node, world.attack!.publicTx.txid), world.params.attackConfirmations) : 0;
+    if (attacking && (world.attack!.z !== z || world.attack!.conf !== conf)) {
       world.attack!.z = z;
-      emit({
-        kind: 'attack-lead',
-        text: z >= 0 ? `Private Kette des Angreifers: Vorsprung ${z} ${z === 1 ? 'Block' : 'Blöcke'}` : `Private Kette des Angreifers: Rückstand ${-z} ${-z === 1 ? 'Block' : 'Blöcke'}`,
-        nodeId: node.id,
-      });
+      world.attack!.conf = conf;
+      const lead = z >= 0 ? `Vorsprung ${z} ${z === 1 ? 'Block' : 'Blöcke'}` : `Rückstand ${-z} ${-z === 1 ? 'Block' : 'Blöcke'}`;
+      emit({ kind: 'attack-lead', text: `Private Kette des Angreifers: ${lead}${attackWaitText(world)}`, nodeId: node.id });
     }
     if (z < -world.params.attackGiveUpDeficit) {
       node.privateChain = [];

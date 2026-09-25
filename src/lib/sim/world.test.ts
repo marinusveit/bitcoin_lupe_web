@@ -7,6 +7,7 @@ import {
   btcToSats,
   chainNodeOf,
   confirmations,
+  consensus,
   createWorld,
   forceBlock,
   isChainNode,
@@ -14,6 +15,7 @@ import {
   sendTransaction,
   setHashrate,
   spendableBalance,
+  startDishonestAttack,
   startDoubleSpend,
   stats,
   step,
@@ -356,5 +358,47 @@ describe('Double Spend', () => {
     const again = startDoubleSpend(world, 'm3', 'bob', btcToSats(1));
     expect(again.ok).toBe(true);
     expect(world.attack!.status).toBe('running');
+  });
+});
+
+describe('Einigkeit', () => {
+  it('unterscheidet einen sich verbreitenden Block von einer Gabelung', () => {
+    const world = createWorld('fork', 1, NO_MINING);
+    expect(consensus(world)).toEqual({ kind: 'agreed', total: 6 });
+    forceBlock(world, 'm1');
+    expect(consensus(world)).toEqual({ kind: 'spreading', have: 1, total: 6 });
+    forceBlock(world, 'm2');
+    run(world, 25);
+    expect(consensus(world).kind).toBe('fork');
+    forceBlock(world, 'm1');
+    run(world, 50);
+    expect(consensus(world)).toEqual({ kind: 'agreed', total: 6 });
+  });
+});
+
+describe('Haken „Unehrlich“', () => {
+  it('startet einen Double Spend gegen Bob nur, wenn der Miner Guthaben hat', () => {
+    const world = createWorld('normal', 1, NO_MINING);
+    const m1 = world.nodes.m1 as MinerNode;
+    const without = startDishonestAttack(world, 'm1');
+    expect(without).toMatchObject({ ok: false, error: 'braucht Guthaben: erst einen Block finden' });
+    expect(world.attack).toBeNull();
+    expect(m1.dishonest).toBe(false);
+
+    forceBlock(world, 'm1');
+    const withBalance = startDishonestAttack(world, 'm1');
+    expect(withBalance.ok).toBe(true);
+    expect(world.attack).toMatchObject({ attackerId: 'm1', victimId: 'bob', amount: btcToSats(10), status: 'running' });
+    expect(m1.dishonest).toBe(true);
+
+    forceBlock(world, 'm2');
+    expect(startDishonestAttack(world, 'm2')).toMatchObject({ ok: false, error: 'Es läuft schon ein Angriff von M1' });
+    expect(world.attack!.attackerId).toBe('m1');
+  });
+
+  it('startet im Szenario „Double Spend“ keinen zweiten Angriff', () => {
+    const world = createWorld('attack', 1);
+    expect(startDishonestAttack(world, 'm3')).toMatchObject({ ok: false, error: 'Es läuft schon ein Angriff von M3' });
+    expect(world.attack).toMatchObject({ attackerId: 'm3', amount: btcToSats(10) });
   });
 });

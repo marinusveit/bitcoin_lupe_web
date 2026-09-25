@@ -270,6 +270,8 @@ export interface WorldStats {
   messagesInFlight: number;
   /** Anzahl verschiedener Tips unter den Knoten (1 = alle einig). */
   distinctTips: number;
+  /** Einigkeit der Knoten, siehe `consensus`. */
+  consensus: Consensus;
   referenceNodeId: string;
 }
 
@@ -282,6 +284,43 @@ export function referenceNode(world: World): ChainNode {
   }
   if (!best) throw new Error('Welt ohne Knoten');
   return best;
+}
+
+/**
+ * Einigkeit der Knoten über die Kette:
+ * - `agreed`: alle Knoten haben denselben Tip.
+ * - `spreading`: Einige Knoten hängen nur hinterher, ihr Tip liegt auf der besten Kette
+ *   (ein neuer Block ist unterwegs). `have` Knoten kennen schon den besten Tip.
+ * - `fork`: Mindestens ein Knoten hat einen Tip, der nicht auf der besten Kette liegt,
+ *   z. B. zwei verschiedene Blöcke auf gleicher Höhe (Gabelung).
+ */
+export type Consensus =
+  | { kind: 'agreed'; total: number }
+  | { kind: 'spreading'; have: number; total: number }
+  | { kind: 'fork'; have: number; total: number };
+
+export function consensus(world: World): Consensus {
+  const ref = referenceNode(world);
+  const refTip = ref.blocks[ref.tip]!;
+  const nodes = Object.values(world.nodes).filter(isChainNode);
+  let have = 0;
+  let fork = false;
+  for (const n of nodes) {
+    if (n.tip === ref.tip) {
+      have++;
+      continue;
+    }
+    const h = n.blocks[n.tip]!.height;
+    if (h >= refTip.height) {
+      fork = true;
+      continue;
+    }
+    let b = refTip;
+    while (b.height > h) b = ref.blocks[b.prevHash]!;
+    if (b.hash !== n.tip) fork = true;
+  }
+  if (have === nodes.length) return { kind: 'agreed', total: nodes.length };
+  return { kind: fork ? 'fork' : 'spreading', have, total: nodes.length };
 }
 
 export function stats(world: World): WorldStats {
@@ -301,6 +340,7 @@ export function stats(world: World): WorldStats {
     mempoolSize: Object.keys(ref.mempool).length,
     messagesInFlight: world.messagesInFlight.length,
     distinctTips: new Set(chainNodes.map((n) => n.tip)).size,
+    consensus: consensus(world),
     referenceNodeId: ref.id,
   };
 }

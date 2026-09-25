@@ -62,7 +62,7 @@ Das ScriptSig enthält die Signatur (Sig) und den öffentlichen Schlüssel (PubK
 
 PKH ist der gespeicherte Schlüssel-Hash. Die Demo führt das Skript Befehl für Befehl aus und zeigt nach jedem Schritt den Stapel.
 
-<Werkbank aufgabe="Drücke siebenmal „Schritt“ und beobachte den Stapel. Setze dann den Haken „falschen Schlüssel verwenden“. Sag vorher: In welchem Schritt bricht das Skript ab?" deutung="Mit dem richtigen Schlüssel bleibt am Ende eine 1 oben liegen. Mit einem fremden Schlüssel passt sein Hash nicht zum gespeicherten Hash, und OP_EQUALVERIFY bricht ab, bevor die Signatur überhaupt geprüft wird.">
+<Werkbank aufgabe="Drücke siebenmal „Schritt“ und beobachte den Stapel. Wähle dann bei „Wer gibt aus?“ die Option „Mallory mit eigenem Schlüssel“. Sag vorher: In welchem Schritt bricht das Skript ab? Und wenn Mallory Alices Public Key kennt? Wähle „Mallory mit Alices Public Key“ und sag wieder vorher, wo es scheitert." deutung="Mit Alices Schlüssel bleibt am Ende eine 1 oben liegen. Mit Mallorys eigenem Public Key passt dessen Hash nicht zum gespeicherten Hash, und OP_EQUALVERIFY bricht in Schritt 6 ab, bevor die Signatur überhaupt geprüft wird. Hat Alice von dieser Adresse schon einmal ausgegeben, ist ihr Public Key öffentlich, damit kommt Mallory durch Schritt 6. Ihre Signatur passt aber nicht zu Alices Public Key, OP_CHECKSIG legt in Schritt 7 eine 0 ab. Entscheidend ist also die Signatur, und die kann nur erzeugen, wer den privaten Schlüssel hat.">
   <SkriptDemo client:visible />
 </Werkbank>
 

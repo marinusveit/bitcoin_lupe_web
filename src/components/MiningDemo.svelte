@@ -54,6 +54,22 @@
 
   const fmt = (n: number, digits = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: digits });
 
+  /** Angenommene Rate, solange noch kein Lauf gemessen ist. */
+  const ASSUMED_RATE = 100_000;
+  /** Mittlere Suchdauer als Text, gerundet auf Sekunden, Minuten oder Stunden. */
+  function duration(seconds: number): string {
+    const unit = (n: number, one: string, many: string) => `etwa ${fmt(n)} ${n === 1 ? one : many}`;
+    if (seconds < 1) return 'unter einer Sekunde';
+    if (seconds < 90) return unit(Math.round(seconds), 'Sekunde', 'Sekunden');
+    if (seconds < 90 * 60) return unit(Math.round(seconds / 60), 'Minute', 'Minuten');
+    return unit(Math.round(seconds / 3600), 'Stunde', 'Stunden');
+  }
+  const timeHint = $derived(
+    lastRate === null
+      ? `bei ${fmt(ASSUMED_RATE)} Versuchen pro Sekunde (Annahme) ${duration(expected / ASSUMED_RATE)}`
+      : `bei deinem Rechner ${duration(expected / lastRate)}`,
+  );
+
   function start() {
     error = '';
     iterations = 0;
@@ -171,7 +187,7 @@
     <label class="slider">
       <span>Stufe: <strong>{zeros}</strong> führende Null{zeros === 1 ? '' : 'en'} im Hash</span>
       <input type="range" min="1" max="7" step="1" bind:value={zeros} disabled={running} />
-      <span class="hint">Im Mittel {fmt(expected)} Versuche nötig (16 hoch {zeros}).</span>
+      <span class="hint">Im Mittel {fmt(expected)} Versuche nötig (16 hoch {zeros}), {timeHint}.</span>
     </label>
     <div class="actions">
       <button class="primary" onclick={toggle}>{running ? 'Mining stoppen' : 'Mining starten'}</button>

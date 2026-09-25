@@ -32,6 +32,10 @@ Ein vollwertiger Knoten hat drei Aufgaben.
 
 **1. Daten austauschen.** Knoten schicken sich Nachrichten, neue Transaktionen und neu gefundene Blöcke.
 
+Das geht nicht sofort: Nach einer Messung von Decker und Wattenhofer (2013) dauerte es im Median 6,5 Sekunden, bis ein Knoten einen neuen Block erhielt. Findet in dieser Zeit ein zweiter Miner ebenfalls einen Block, kennen die Knoten für kurze Zeit verschiedene neueste Blöcke, und die Kette gabelt sich (Kapitel 6).
+
+{/* ERGÄNZT gegenüber der bisherigen Web-Fassung: Ausbreitungszeit wie in der Arbeit (05_Bitcoin_Netzwerk.tex Z. 19, Decker/Wattenhofer 2013, S. 5: Median 6,5 s). Die Verbindung zur Gabelung steht so nicht an dieser Stelle der Arbeit; sie folgt aus Kapitel 6 (04_blockchain.tex, Forks und Reorganisation). */}
+
 **2. Daten prüfen.** Jeder Knoten prüft alles, was er bekommt, nach den Regeln des Bitcoin-Protokolls. Bei Transaktionen gehören dazu zum Beispiel diese Regeln:
 
 - Transaktionen und Blöcke haben das vorgeschriebene Format.
@@ -104,9 +108,9 @@ Mit allen Kapiteln zusammen lässt sich der Weg einer Zahlung verfolgen:
 
 {/* ERGÄNZT: Diese Schrittfolge fasst Aussagen aus mehreren Kapiteln der Arbeit zusammen; als zusammenhängender Ablauf steht sie so nicht in der Arbeit. */}
 
-Die Demo spielt diesen Weg in einem kleinen Netz ab. Wallets sind Kreise, Knoten sind Sechsecke, und Miner sind Sechsecke mit Balken für ihre Rechenleistung. Orange Punkte sind Transaktionen, blaue Punkte sind Blöcke.
+Die Demo spielt diesen Weg in einem kleinen Netz ab. Wallets sind Kreise, Knoten sind Sechsecke, und Miner sind Sechsecke mit Balken für ihre Rechenleistung. Orange Punkte sind Transaktionen, blaue Punkte sind Blöcke. Das farbige Kästchen neben „Höhe“ zeigt, welcher Miner den obersten Block dieses Knotens gefunden hat.
 
-<Werkbank aufgabe="Drücke „Start“ und dann „Senden“: Alice schickt Bob 2 BTC. Verfolge den orangen Punkt von Knoten zu Knoten. Sag vorher: Kommt die Zahlung schneller bei allen Knoten an oder schneller in einen Block (blauer Punkt)? Die drei Punkte unter dem Formular zeigen dir, wie weit sie ist." deutung="Die Transaktion ist nach kurzer Zeit bei allen Knoten und wartet dort im Mempool, bis ein Miner sie in einen Block packt. Der Block wandert dann auf dieselbe Weise durchs Netz, und jeder Knoten hängt ihn an seine Kette.">
+<Werkbank aufgabe="Drücke „Start“ und dann „Senden“: Alice schickt Bob 2 BTC. Verfolge den orangen Punkt von Knoten zu Knoten. Sag vorher: Kommt die Zahlung schneller bei allen Knoten an oder schneller in einen Block (blauer Punkt)? Die drei Punkte unter dem Formular zeigen dir, wie weit sie ist. Danach: Lass die Demo laufen, bis bei „Einigkeit“ länger als ein paar Sekunden „Gabelung“ steht. Welcher Zweig gewinnt, und wer hat das entschieden?" deutung="Die Transaktion ist nach kurzer Zeit bei allen Knoten und wartet dort im Mempool, bis ein Miner sie in einen Block packt. Der Block wandert dann auf dieselbe Weise durchs Netz, und jeder Knoten hängt ihn an seine Kette. Bei der Gabelung haben zwei Miner fast gleichzeitig einen Block gefunden. Welcher Zweig gewinnt, entscheidet niemand: Jeder Knoten folgt der Kette mit der meisten Arbeit (Kapitel 6). Sobald ein Zweig einen Block mehr hat, wechseln alle dorthin.">
   <NetzwerkDemo client:only="svelte" />
 </Werkbank>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatBtc, formatDifficulty, stats, type World } from '../../lib/sim';
+  import { attackWaitText, formatBtc, formatDifficulty, stats, type World } from '../../lib/sim';
   import { fmtNumber } from './helpers';
 
   interface Props {
@@ -15,12 +15,20 @@
     return stats(world);
   });
 
+  // Gabelung (Knoten auf verschiedenen Zweigen) in Warnfarbe, bloßes Hinterherhängen neutral.
+  const einigkeit = $derived.by(() => {
+    const c = s.consensus;
+    if (c.kind === 'agreed') return { text: 'alle Knoten gleich', fork: false };
+    if (c.kind === 'fork') return { text: 'Gabelung', fork: true };
+    return { text: `Block verbreitet sich (${c.have} von ${c.total} Knoten)`, fork: false };
+  });
+
   const attack = $derived.by(() => {
     void version;
     const a = world.attack;
     if (!a) return null;
     const text = {
-      running: a.z >= 0 ? `läuft, Vorsprung ${a.z}` : `läuft, Rückstand ${-a.z}`,
+      running: (a.z >= 0 ? `läuft, Vorsprung ${a.z}` : `läuft, Rückstand ${-a.z}`) + attackWaitText(world),
       released: 'veröffentlicht, Ausgang offen',
       succeeded: 'gelungen',
       failed: 'gescheitert, ehrliche Kette vorn',
@@ -44,7 +52,7 @@
   <div><dt>{compact ? 'Wartende Transaktionen' : 'Tx im Mempool'}</dt><dd>{s.mempoolSize}</dd></div>
   <div>
     <dt>Einigkeit</dt>
-    <dd class:split={s.distinctTips > 1}>{s.distinctTips === 1 ? 'alle Knoten gleich' : `${s.distinctTips} verschiedene Spitzen`}</dd>
+    <dd class:split={einigkeit.fork}>{einigkeit.text}</dd>
   </div>
   {#if attack}
     <div class="angriff {attack.status}"><dt>Double Spend</dt><dd>{attack.text}</dd></div>

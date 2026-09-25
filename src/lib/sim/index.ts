@@ -5,7 +5,7 @@ export { ZERO_HASH, merkleRoot, hashHeader, hexLeadingZeroBits, subsidy, nextDif
 export { bestChain, balances, confirmations, chainHashes, withPendingOutputs, type Balance } from './node';
 export { label, isChainNode } from './network';
 export { forceBlock, minerDifficulty, miningParent, formatDifficulty } from './mining';
-export { startDoubleSpend, setDishonest, privateLead } from './attack';
+export { startDoubleSpend, setDishonest, privateLead, attackBudget, startDishonestAttack, attackWaitText, DISHONEST_VICTIM } from './attack';
 export { DEFAULT_PARAMS, PRESETS, type PresetName, type PresetSpec, type NodeSpec } from './presets';
 export {
   createWorld,
@@ -19,6 +19,8 @@ export {
   chainNodeOf,
   referenceNode,
   stats,
+  consensus,
+  type Consensus,
   type AddMinerOptions,
   type WalletView,
   type WorldStats,

@@ -186,6 +186,7 @@
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" class="msg tx" /></svg>Transaktion</span>
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" class="msg block" /></svg>Block</span>
     <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" class="mp" /></svg>Tx im Mempool</span>
+    <span class="key"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2" style="fill: var(--miner-1)" /></svg>Kästchen bei „Höhe“: Farbe = Miner des obersten Blocks</span>
     <span class="key"><svg viewBox="0 0 24 12" aria-hidden="true"><line x1="0" y1="6" x2="24" y2="6" class="slowkey" /></svg>langsame Verbindung</span>
     <span class="hint">Klicke auf einen Knoten für Details.</span>
   </figcaption>

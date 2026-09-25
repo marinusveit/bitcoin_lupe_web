@@ -82,8 +82,38 @@
   const dotR = $derived(Math.max(3.4, Math.min(7, cell * 0.32)));
   const axisTicks = $derived(p === 17 ? [0, 4, 8, 12, 16] : p === 37 ? [0, 9, 18, 27, 36] : [0, 24, 48, 72, 96]);
 
+  // ---------- Rätsel „Finde k“ ----------
+  /** Gesuchtes k (null: kein Rätsel aktiv). K = target·G wird ohne k markiert. */
+  let puzzleTarget = $state<number | null>(null);
+  let puzzleTries = $state(0);
+  let puzzleFound = $state(false);
+  const puzzlePoint = $derived(puzzleTarget === null ? null : scalarMul(puzzleTarget, G, p).result);
+
+  function startPuzzle() {
+    stopPlay();
+    k = 1;
+    puzzleTarget = 2 + Math.floor(Math.random() * (order - 2));
+    puzzleTries = 0;
+    puzzleFound = false;
+  }
+
+  function endPuzzle() {
+    puzzleTarget = null;
+    puzzleTries = 0;
+    puzzleFound = false;
+  }
+
+  /** Jede Schieberänderung zählt als ein Versuch. */
+  function onSlide(ev: Event & { currentTarget: HTMLInputElement }) {
+    stopPlay();
+    if (puzzleTarget === null || puzzleFound) return;
+    puzzleTries += 1;
+    if (Number(ev.currentTarget.value) === puzzleTarget) puzzleFound = true;
+  }
+
   function changePrime(next: number) {
     stopPlay();
+    endPuzzle();
     p = next;
     G = defaultGenerator(next);
     k = Math.min(START_K, pointOrder(G, next));
@@ -111,6 +141,7 @@
 
   function pickGenerator(pt: AffinePoint) {
     stopPlay();
+    endPuzzle();
     G = pt;
     k = Math.min(k, pointOrder(pt, p));
   }
@@ -288,6 +319,7 @@
 
   function reset() {
     stopPlay();
+    endPuzzle();
     tab = 'finite';
     p = START_P;
     G = defaultGenerator(START_P);
@@ -332,11 +364,12 @@
         </label>
         <label class="slider">
           <span>k = <strong>{k}</strong> (1 bis {order})</span>
-          <input type="range" min="1" max={order} bind:value={k} oninput={stopPlay} />
+          <input type="range" min="1" max={order} bind:value={k} oninput={onSlide} />
         </label>
-        <button type="button" aria-pressed={playing} onclick={togglePlay}>
+        <button type="button" aria-pressed={playing} disabled={puzzleTarget !== null} onclick={togglePlay}>
           {playing ? 'Anhalten' : 'Abspielen: G, 2·G, 3·G …'}
         </button>
+        <button type="button" disabled={order < 3} onclick={startPuzzle}>Rätsel: Finde k</button>
       </div>
 
       <div class="split">
@@ -377,6 +410,10 @@
               }}
             />
           {/each}
+          {#if puzzlePoint && !isInfinity(puzzlePoint)}
+            <circle cx={gx(puzzlePoint.x)} cy={gy(puzzlePoint.y)} r={dotR + 7} class="target" />
+            <text x={gx(puzzlePoint.x) + dotR + 10} y={gy(puzzlePoint.y) + 5} class="target-lbl">K</text>
+          {/if}
           {#if !isInfinity(mul.result)}
             <circle cx={gx(mul.result.x)} cy={gy(mul.result.y)} r={dotR + 4} class="kg" />
             <text x={gx(mul.result.x)} y={gy(mul.result.y) - dotR - 8} class="kg-lbl">k·G</text>
@@ -399,6 +436,22 @@
             </p>
           {:else if isInfinity(mul.result)}
             <p class="hint small step">{order}·G ist der Punkt im Unendlichen O. Danach beginnt die Reihe von vorn.</p>
+          {/if}
+          {#if puzzleTarget !== null && puzzlePoint && !isInfinity(puzzlePoint)}
+            <div class="puzzle" aria-live="polite">
+              <p>
+                Rätsel: Für welches k ist k·G = K = {fmt(puzzlePoint)}? Suche mit dem Schieber.
+                Versuche: <strong>{puzzleTries}</strong>
+              </p>
+              {#if puzzleFound}
+                <p class="found">Gefunden: k = {puzzleTarget}, nach {puzzleTries} Versuchen.</p>
+                <p>
+                  Bei {order} möglichen Werten für k reichen höchstens {order} Versuche. Bei Bitcoin gibt es etwa
+                  2<sup>256</sup> mögliche Werte, und selbst das beste Verfahren braucht noch etwa 2<sup>128</sup>
+                  Rechenschritte.
+                </p>
+              {/if}
+            </div>
           {/if}
           <p class="claim">
             Aus k und G ist k·G leicht zu berechnen, aus G und k·G ist k schwer zu finden.
@@ -576,6 +629,11 @@
   .kg { fill: none; stroke: var(--accent); stroke-width: 3; pointer-events: none; }
   .kg-lbl, .g-lbl { font-size: 14px; font-weight: 700; text-anchor: middle; fill: var(--fg); pointer-events: none; }
   .g-lbl { fill: var(--accent-strong); }
+  .target { fill: none; stroke: var(--danger); stroke-width: 2.5; stroke-dasharray: 4 3; pointer-events: none; }
+  .target-lbl { font-size: 14px; font-weight: 700; fill: var(--danger); pointer-events: none; }
+  .puzzle { border-left: 3px solid var(--danger); padding: 0.2rem 0 0.2rem 0.8rem; margin-bottom: 0.9rem; }
+  .puzzle p { margin: 0 0 0.4rem; }
+  .puzzle .found { font-weight: 700; color: var(--ok); }
 
   .board dl { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 1rem; margin: 0 0 0.9rem; }
   .board dt { color: var(--fg-muted); font-size: 0.9rem; }

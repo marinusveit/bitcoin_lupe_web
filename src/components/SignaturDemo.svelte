@@ -1,11 +1,11 @@
 <script lang="ts">
   import { sha256Hex } from '../lib/hash';
+  import { secp256k1 } from '@noble/curves/secp256k1.js';
   import { addressP2PKH, publicKey, randomPrivateKey, signMessage, verifySignature } from '../lib/keys';
 
   // Feste Beispielschlüssel, damit Server- und Browser-Darstellung übereinstimmen.
   const START_PRIV = sha256Hex('Beispielschlüssel Hochschule München');
   const FOREIGN_PRIV = sha256Hex('Schlüssel von Mallory');
-  const FOREIGN_PUB = publicKey(FOREIGN_PRIV);
   const START_MESSAGE = 'Alice zahlt Bob 2 BTC.';
   const START_SIGNATURE = signMessage(START_PRIV, sha256Hex(START_MESSAGE), 'compact');
   const CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -14,7 +14,7 @@
   let priv = $state(START_PRIV);
   let message = $state(START_MESSAGE);
   let checkMessage = $state(START_MESSAGE);
-  let useForeignKey = $state(false);
+  let mallorySigns = $state(false);
   let memo = $state({ message: START_MESSAGE, signature: START_SIGNATURE });
 
   const pub = $derived(publicKey(priv));
@@ -25,10 +25,17 @@
   const sigR = $derived(signature.slice(0, 64));
   const sigS = $derived(signature.slice(64));
   const signatureDer = $derived(signMessage(priv, msgHash, 'der'));
+  // Der öffentliche Schlüssel als Punkt k·G auf der Kurve (komprimiert: 02/03 + x).
+  const pubPoint = $derived(secp256k1.Point.fromHex(pub).toAffine());
+  const pubX = $derived(pubPoint.x.toString(16).padStart(64, '0'));
+  const pubY = $derived(pubPoint.y.toString(16).padStart(64, '0'));
 
-  const checkPub = $derived(useForeignKey ? FOREIGN_PUB : pub);
+  // Mallory ersetzt unterwegs die Signatur durch ihre eigene (mit ihrem privaten Schlüssel über
+  // Alices Nachricht). Bob prüft weiter mit Alices öffentlichem Schlüssel.
+  const receivedSignature = $derived(mallorySigns ? signMessage(FOREIGN_PRIV, msgHash, 'compact') : signature);
   const checkHash = $derived(sha256Hex(checkMessage));
-  const valid = $derived(verifySignature(checkPub, checkHash, signature));
+  const messageChanged = $derived(checkHash !== msgHash);
+  const valid = $derived(verifySignature(pub, checkHash, receivedSignature));
 
   const memoSame = $derived(memo.signature === signature);
   const memoLabel = $derived(
@@ -67,7 +74,7 @@
     priv = START_PRIV;
     message = START_MESSAGE;
     checkMessage = START_MESSAGE;
-    useForeignKey = false;
+    mallorySigns = false;
     memo = { message: START_MESSAGE, signature: START_SIGNATURE };
   }
 </script>
@@ -85,10 +92,23 @@
         <div class="key secret-box">
           <dt>Privater Schlüssel <span class="badge">geheim, bleibt bei Alice</span></dt>
           <dd class="hash secret">{priv}</dd>
+          <dd class="hint">eine Zahl, hier in Hexadezimalschreibweise (Ziffern 0–9, a–f)</dd>
         </div>
         <div class="key">
           <dt>Öffentlicher Schlüssel</dt>
           <dd class="hash">{pub}</dd>
+          <dd>
+            <details>
+              <summary>Das ist der Punkt k<sub>pr</sub>·G</summary>
+              <dl class="rs">
+                <dt>x</dt>
+                <dd class="hash">{pubX}</dd>
+                <dt>y</dt>
+                <dd class="hash">{pubY}</dd>
+              </dl>
+              <p class="hint">02 oder 03 sagt, ob y gerade oder ungerade ist; x steht dahinter.</p>
+            </details>
+          </dd>
         </div>
         <div class="key">
           <dt>Adresse</dt>
@@ -146,6 +166,7 @@
         <li class="chip">öffentlicher Schlüssel</li>
       </ul>
       <p class="chip stays"><s>privater Schlüssel</s> <span>bleibt bei Alice</span></p>
+      <p class="hint">Bob prüft vorher: Passt der öffentliche Schlüssel zu Alices Adresse? (Kapitel 5)</p>
     </div>
 
     <section class="side bob" aria-labelledby="sig-bob-title">
@@ -156,11 +177,13 @@
       </label>
       <dl>
         <dt>SHA-256 der empfangenen Nachricht</dt>
-        <dd class="hash" class:changed={checkHash !== msgHash}>{checkHash}</dd>
-        <dt>Geprüft mit öffentlichem Schlüssel</dt>
-        <dd class="hash" class:changed={useForeignKey}>
-          {checkPub}{#if useForeignKey}<span class="tag"> (fremd, von Mallory)</span>{/if}
+        <dd class="hash" class:changed={messageChanged}>{checkHash}</dd>
+        <dt>Empfangene Signatur (r, s)</dt>
+        <dd class="hash" class:changed={mallorySigns}>
+          {receivedSignature}{#if mallorySigns}<span class="tag"> (von Mallory signiert)</span>{/if}
         </dd>
+        <dt>Geprüft mit öffentlichem Schlüssel von Alice</dt>
+        <dd class="hash">{pub}</dd>
       </dl>
       <p class="hint">Bob rechnet mit Hash, Signatur und öffentlichem Schlüssel nach. Den privaten Schlüssel braucht er dafür nicht.</p>
       <div aria-live="polite">
@@ -170,8 +193,11 @@
         <p class="hint">
           {#if valid}
             Nachricht und Schlüssel passen zur Signatur. Nur wer den privaten Schlüssel hat, konnte sie erzeugen.
-          {:else if useForeignKey}
-            Die Signatur stammt nicht vom Besitzer dieses öffentlichen Schlüssels.
+          {:else if mallorySigns && messageChanged}
+            Zwei Gründe: Die Nachricht wurde nach dem Signieren verändert. Und die Signatur wurde nicht mit dem
+            privaten Schlüssel zu diesem öffentlichen Schlüssel erstellt.
+          {:else if mallorySigns}
+            Die Signatur wurde nicht mit dem privaten Schlüssel zu diesem öffentlichen Schlüssel erstellt.
           {:else}
             Die Nachricht wurde nach dem Signieren verändert, deshalb passt die Signatur nicht mehr.
           {/if}
@@ -179,8 +205,8 @@
       </div>
       <div class="row">
         <button type="button" onclick={tamper}>Nachricht manipulieren</button>
-        <button type="button" aria-pressed={useForeignKey} onclick={() => (useForeignKey = !useForeignKey)}>
-          {useForeignKey ? 'Eigenen Schlüssel verwenden' : 'Fremden Schlüssel verwenden'}
+        <button type="button" aria-pressed={mallorySigns} onclick={() => (mallorySigns = !mallorySigns)}>
+          Mallory signiert statt Alice
         </button>
       </div>
     </section>

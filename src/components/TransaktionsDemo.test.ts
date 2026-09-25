@@ -34,3 +34,16 @@ describe('TransaktionsDemo: Betragseingabe', () => {
     expect(await sendAmount('0,000000001')).toMatch(/1 Satoshi = 0,00000001 BTC/);
   });
 });
+
+describe('TransaktionsDemo: verbrauchte Kiste nach dem Senden', () => {
+  afterEach(cleanup);
+
+  it('zeigt die ausgegebene Kiste mit der neuen TxID und räumt beim Zurücksetzen auf', async () => {
+    expect(await sendAmount('10')).toBeNull();
+    const spent = screen.getByText(/^ausgegeben in [0-9a-f]{8}…$/);
+    const txid = screen.getByText(/^[0-9a-f]{64}$/).textContent!;
+    expect(spent.textContent).toBe(`ausgegeben in ${txid.slice(0, 8)}…`);
+    await fireEvent.click(screen.getByRole('button', { name: 'Zurücksetzen' }));
+    expect(screen.queryByText(/ausgegeben in/)).toBeNull();
+  });
+});

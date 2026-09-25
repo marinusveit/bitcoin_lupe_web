@@ -12,7 +12,8 @@
   const MAX_TX = 8;
   /** TxID in Anzeige-Reihenfolge: Bitcoin zeigt den HASH256-Wert byte-umgedreht an (wie Block-Explorer). */
   const txidOf = (text: string) => reverseHex(sha256dHex(text));
-  const START_ROOT = buildMerkleTree(START_TXS.map(txidOf)).root;
+  const START_LEVELS = buildMerkleTree(START_TXS.map(txidOf)).levels;
+  const START_ROOT = START_LEVELS[START_LEVELS.length - 1]![0]!;
 
   // SVG-Maße in viewBox-Einheiten
   const SLOT = 100;
@@ -48,6 +49,8 @@
   let flashLeaf = $state<number | null>(null);
   /** Im Block-Header eingefrorene Wurzel; `null`, solange nichts eingetragen ist. */
   let headerRoot = $state<string | null>(START_ROOT);
+  /** Alle Baum-Ebenen zum Zeitpunkt des Header-Eintrags, um veraltete Beweis-Hashes zu erkennen. */
+  let headerLevels = $state<string[][] | null>(START_LEVELS);
   /** Wurde eine abweichende Wurzel neu in den Header geschrieben? Dann folgt der Hinweis „anderer Block“. */
   let rewritten = $state(false);
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -172,6 +175,18 @@
       : false,
   );
   const headerMatches = $derived(headerRoot === tree.root);
+  /** Ist die gewählte Transaktion selbst seit dem Header-Eintrag unverändert? */
+  const ownUnchanged = $derived(
+    selected !== null && headerLevels !== null && headerLevels[0]![selected] === txids[selected],
+  );
+  /** Je Beweis-Ebene: Weicht der Geschwister-Hash vom Stand beim Header-Eintrag ab? */
+  const staleSiblings = $derived.by(() => {
+    const old = headerLevels;
+    if (selected === null || old === null || selected >= old[0]!.length) return proofSteps.map(() => false);
+    const oldProof = merkleProof(old[0]!, selected);
+    return proofSteps.map((s, k) => oldProof[k]?.hash !== s.sibling);
+  });
+  const staleHashes = $derived(proofSteps.filter((_, k) => staleSiblings[k]).map((s) => short(s.sibling)));
 
   // Schmale Bildschirme: ab 5 Blättern bekommt der Baum eine Mindestbreite und wird seitlich scrollbar
   // (CSS-Media-Query unten). Der Hinweis erscheint nur, wenn er tatsächlich überläuft.
@@ -202,7 +217,7 @@
     if (txs.length >= MAX_TX) return;
     const followed = headerMatches;
     txs.push(EXTRA_TXS[(txs.length - START_TXS.length + EXTRA_TXS.length) % EXTRA_TXS.length]!);
-    if (followed) headerRoot = tree.root;
+    if (followed) setHeader();
   }
 
   function removeTx() {
@@ -210,12 +225,17 @@
     const followed = headerMatches;
     txs.pop();
     if (selected !== null && selected >= txs.length) selected = null;
-    if (followed) headerRoot = tree.root;
+    if (followed) setHeader();
+  }
+
+  function setHeader() {
+    headerRoot = tree.root;
+    headerLevels = tree.levels;
   }
 
   function freezeRoot() {
     rewritten = headerRoot !== null && !headerMatches;
-    headerRoot = tree.root;
+    setHeader();
   }
 
   function reset() {
@@ -225,6 +245,7 @@
     selected = null;
     flashLeaf = null;
     headerRoot = START_ROOT;
+    headerLevels = START_LEVELS;
     rewritten = false;
   }
 </script>
@@ -380,7 +401,8 @@
       {/if}
       <ol class="steps">
         {#each proofSteps.slice(0, revealed ?? proofSteps.length) as s (s.level)}
-          <li>
+          {@const stale = staleSiblings[s.level] && !proofOk}
+          <li class:stale>
             <span class="hash">
               {#if s.position === 'left'}
                 H(<span class="sib">{short(s.sibling)}</span> ‖ <span class="own">{short(s.own)}</span>)
@@ -390,6 +412,7 @@
               = {short(s.result)}
             </span>
             <span class="side">Geschwister steht {s.position === 'left' ? 'links' : 'rechts'}</span>
+            {#if stale}<span class="stale-note">passt nicht zum Stand beim Header-Eintrag</span>{/if}
           </li>
         {/each}
       </ol>
@@ -410,10 +433,18 @@
           Beweis scheitert: berechnete Wurzel <span class="hash">{short(tree.root)}</span> ≠ Wurzel im Header
           <span class="hash">{short(headerRoot)}</span>
         </p>
-        <p class="hint">
-          Seit dem Eintrag in den Header hat sich eine Transaktion geändert, dadurch ändern sich alle Hashes bis
-          zur Wurzel, während die Wurzel im Header fest bleibt.
-        </p>
+        {#if ownUnchanged && staleHashes.length > 0}
+          <p class="hint">
+            Tx {selected + 1} ist unverändert, aber {staleHashes.length === 1 ? 'der Hash' : 'die Hashes'}
+            {staleHashes.join(', ')}
+            {staleHashes.length === 1 ? 'stammt' : 'stammen'} aus dem veränderten Teil des Baums.
+          </p>
+        {:else}
+          <p class="hint">
+            Seit dem Eintrag in den Header hat sich eine Transaktion geändert, dadurch ändern sich alle Hashes bis
+            zur Wurzel, während die Wurzel im Header fest bleibt.
+          </p>
+        {/if}
       {/if}
     {/if}
   </div>
@@ -517,6 +548,8 @@
   .own { color: var(--accent-strong); font-weight: 600; }
   .sib { color: var(--info); font-weight: 600; }
   .side { color: var(--fg-muted); font-size: 0.85rem; }
+  .stale .sib { text-decoration: underline wavy var(--danger); text-underline-offset: 3px; }
+  .stale-note { color: var(--danger); font-size: 0.85rem; }
   .verdict { margin: 0 0 0.3rem; color: var(--danger); font-weight: 600; }
   .verdict.ok { color: var(--ok); }
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }

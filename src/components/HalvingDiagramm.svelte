@@ -3,7 +3,11 @@
   import { blockSubsidy, HALVING_INTERVAL, SATOSHI_PER_BTC, totalSupply } from '../lib';
 
   const MAX_HEIGHT = 6_930_000;
-  const ERAS = Math.ceil(MAX_HEIGHT / HALVING_INTERVAL);
+  /** Ausschnitt „bis 2048“: zehn Epochen. Dort sind die Stufen gut zu sehen; danach ist der Zuschuss kaum von 0 zu unterscheiden. */
+  const SHORT_HEIGHT = 2_100_000;
+  let range: 'short' | 'full' = $state('short');
+  const maxH = $derived(range === 'short' ? SHORT_HEIGHT : MAX_HEIGHT);
+  const ERAS = $derived(Math.ceil(maxH / HALVING_INTERVAL));
 
   /**
    * Blockhöhe „heute“ ohne Netzzugriff geschätzt: Block 840 000 kam am 20.04.2024, danach im Mittel
@@ -36,7 +40,7 @@
   const TOP2 = TOP1 + PANEL + 46;
   const H = TOP2 + PANEL + 48;
 
-  const x = (h: number) => M.left + (h / MAX_HEIGHT) * (W - M.left - M.right);
+  const x = (h: number) => M.left + (h / maxH) * (W - M.left - M.right);
   const y1 = (btc: number) => TOP1 + PANEL - (btc / 50) * PANEL;
   const y2 = (mio: number) => TOP2 + PANEL - (mio / 21) * PANEL;
 
@@ -54,9 +58,9 @@
   const rewardPath = $derived.by(() => {
     let d = `M${x(0)},${y1(50)}`;
     for (let e = 0; e < ERAS; e++) {
-      const end = Math.min((e + 1) * HALVING_INTERVAL, MAX_HEIGHT);
+      const end = Math.min((e + 1) * HALVING_INTERVAL, maxH);
       d += `H${x(end)}`;
-      if (end < MAX_HEIGHT) d += `V${y1(btc(blockSubsidy(end)))}`;
+      if (end < maxH) d += `V${y1(btc(blockSubsidy(end)))}`;
     }
     return d;
   });
@@ -65,16 +69,17 @@
   const supplyPoints = $derived.by(() => {
     const pts: [number, number][] = [[x(0), y2(0)]];
     for (let e = 1; e <= ERAS; e++) {
-      const h = Math.min(e * HALVING_INTERVAL, MAX_HEIGHT) - 1;
+      const h = Math.min(e * HALVING_INTERVAL, maxH) - 1;
       pts.push([x(h), y2(btc(totalSupply(h)) / 1e6)]);
     }
     return pts;
   });
   const supplyLine = $derived('M' + supplyPoints.map((p) => p.join(',')).join('L'));
-  const supplyArea = $derived(`${supplyLine}L${x(MAX_HEIGHT)},${y2(0)}L${x(0)},${y2(0)}Z`);
+  const supplyArea = $derived(`${supplyLine}L${x(maxH)},${y2(0)}L${x(0)},${y2(0)}Z`);
 
-  const xStep = $derived(W < 560 ? 2_100_000 : 1_050_000);
-  const xTicks = $derived(Array.from({ length: Math.floor(MAX_HEIGHT / xStep) + 1 }, (_, i) => i * xStep));
+  // Schmal: weniger Ticks, damit die Beschriftungen nicht ineinanderlaufen (immer Vielfache von 210 000).
+  const xStep = $derived(range === 'short' ? (W < 560 ? 630_000 : 210_000) : W < 560 ? 2_100_000 : 1_050_000);
+  const xTicks = $derived(Array.from({ length: Math.floor(maxH / xStep) + 1 }, (_, i) => i * xStep));
 
   const active = $derived(hover ?? pinned);
   const readout = $derived({
@@ -91,8 +96,14 @@
     const svg = event.currentTarget as SVGSVGElement;
     const rect = svg.getBoundingClientRect();
     const px = ((event.clientX - rect.left) / rect.width) * W;
-    const h = ((px - M.left) / (W - M.left - M.right)) * MAX_HEIGHT;
-    return Math.round(Math.min(MAX_HEIGHT, Math.max(0, h)));
+    const h = ((px - M.left) / (W - M.left - M.right)) * maxH;
+    return Math.round(Math.min(maxH, Math.max(0, h)));
+  }
+
+  function setRange(r: 'short' | 'full') {
+    range = r;
+    hover = null;
+    pinned = Math.min(pinned, maxH);
   }
 
   // Elf Epochen: In Epoche 11 wird zum ersten Mal auf ganze Satoshi abgerundet (4 882 812,5 → 4 882 812 sat).
@@ -115,6 +126,11 @@
     <div><span class="lbl">Jahr (ungefähr)</span><strong>{readout.year}</strong></div>
     <div><span class="lbl">Blockzuschuss</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
     <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, readout.supply > 20_990_000 ? 4 : 0)} BTC</strong><span class="lbl">{nf(Math.floor((readout.supply / 21e6) * 10000) / 100, 2)} % von 21 Mio.</span></div>
+  </div>
+
+  <div class="switch" role="group" aria-label="Zeitraum der x-Achse">
+    <button type="button" aria-pressed={range === 'short'} onclick={() => setRange('short')}>bis 2048</button>
+    <button type="button" aria-pressed={range === 'full'} onclick={() => setRange('full')}>bis 2140</button>
   </div>
 
   <div class="chart" bind:clientWidth={width}>
@@ -148,14 +164,16 @@
       <!-- gemeinsame x-Achse -->
       <line class="axis" x1={M.left} x2={W - M.right} y1={TOP2 + PANEL} y2={TOP2 + PANEL} />
       {#each xTicks as t (t)}
-        <text class="tick" x={x(t)} y={TOP2 + PANEL + 18} text-anchor={t === 0 ? 'start' : 'middle'}>{heightLabel(t)}</text>
-        <text class="tick year" x={x(t)} y={TOP2 + PANEL + 34} text-anchor={t === 0 ? 'start' : 'middle'}>{year(t)}</text>
+        <text class="tick" x={x(t)} y={TOP2 + PANEL + 18} text-anchor={t === 0 ? 'start' : t === maxH ? 'end' : 'middle'}>{heightLabel(t)}</text>
+        <text class="tick year" x={x(t)} y={TOP2 + PANEL + 34} text-anchor={t === 0 ? 'start' : t === maxH ? 'end' : 'middle'}>{year(t)}</text>
       {/each}
       <text class="tick" x={W - M.right} y={H - 2} text-anchor="end">Blockhöhe und Jahr</text>
 
       <!-- heute -->
-      <line class="today" x1={x(today)} x2={x(today)} y1={TOP1} y2={TOP2 + PANEL} />
-      <text class="today-label" x={x(today) + 5} y={TOP1 + 12}>heute (≈ {todayYear})</text>
+      {#if today <= maxH}
+        <line class="today" x1={x(today)} x2={x(today)} y1={TOP1} y2={TOP2 + PANEL} />
+        <text class="today-label" x={x(today) + 5} y={TOP1 + 12}>heute (≈ {todayYear})</text>
+      {/if}
 
       <!-- aktuelle Position -->
       <line class="cross" x1={x(active)} x2={x(active)} y1={TOP1} y2={TOP2 + PANEL} />
@@ -166,7 +184,7 @@
 
   <div class="below">
     <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre. Zum Zuschuss kommen die Gebühren der Transaktionen, sie sind hier nicht eingezeichnet.</p>
-    <button onclick={() => { pinned = today; hover = null; }}>Zurücksetzen</button>
+    <button onclick={() => { range = 'short'; pinned = Math.min(today, SHORT_HEIGHT); hover = null; }}>Zurücksetzen</button>
   </div>
 
   <details>
@@ -188,6 +206,9 @@
   .readout div { display: grid; }
   .readout strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
   .lbl { font-size: 0.82rem; color: var(--fg-muted); }
+  .switch { justify-self: start; display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .switch button { border: 0; border-radius: 0; padding: 0.25rem 0.8rem; background: transparent; color: var(--fg-muted); }
+  .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
   .chart { width: 100%; touch-action: pan-y; }
   svg { display: block; width: 100%; height: auto; user-select: none; }
   .grid { stroke: var(--border); stroke-width: 1; }

@@ -173,7 +173,9 @@ function run(token: string, stack: string[], ctx: ScriptContext | undefined): st
       if (!ctx) throw new ScriptError('OP_CHECKSIG: Kein Nachrichten-Hash im Kontext.');
       const valid = verifySignature(pub, ctx.messageHash, sig);
       stack.push(valid ? '01' : '');
-      return valid ? 'Signatur passt zum Public Key: 1 (wahr).' : 'Signatur passt nicht: 0 (falsch).';
+      return valid
+        ? 'Signatur passt zu Public Key und Transaktion: 1 (wahr).'
+        : 'Signatur passt nicht zu Public Key und Transaktion: 0 (falsch).';
     }
     case 'OP_ADD':
     case 'OP_SUB': {

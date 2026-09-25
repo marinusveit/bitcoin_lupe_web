@@ -102,6 +102,17 @@
   let error = $state('');
   /** Ergebnis des Versuchs, einen schon verbrauchten Output noch einmal auszugeben. */
   let doubleSpend: { attempt: string; verdict: string } | null = $state(null);
+  /** Nach dem Senden kurz sichtbar: verbrauchte Kisten (durchgestrichen) und die neuen Kisten (hervorgehoben). */
+  let spentRows: { key: string; value: number; pkh: string; inTx: string }[] = $state.raw([]);
+  let freshKeys: string[] = $state.raw([]);
+  const MARK_MS = 4000;
+  let markTimer: ReturnType<typeof setTimeout> | undefined;
+  function clearMarks() {
+    clearTimeout(markTimer);
+    spentRows = [];
+    freshKeys = [];
+  }
+  $effect(() => () => clearTimeout(markTimer));
 
   const latest = $derived(history[history.length - 1]!);
 
@@ -138,7 +149,8 @@
       const rows = [...utxos.entries()]
         .filter(([, out]) => out.scriptPubKey[2] === p.pkh)
         .map(([key, out]) => ({ key, value: out.value }));
-      return { name: p.name, rows, total: rows.reduce((s, r) => s + r.value, 0) };
+      const spent = spentRows.filter((r) => r.pkh === p.pkh);
+      return { name: p.name, rows, spent, total: rows.reduce((s, r) => s + r.value, 0) };
     }),
   );
 
@@ -228,6 +240,10 @@
     const shown: Shown = { tx, id: txid(tx), fee: txFee(utxos, tx), from: sender.name, to: receiver.name, prevOuts, scriptsOk };
     utxos = applyTx(utxos, tx);
     history = [...history, shown];
+    clearMarks();
+    spentRows = chosen.map(([key, o]) => ({ key, value: o.value, pkh: sender.pkh, inTx: shown.id }));
+    freshKeys = outputs.map((_, i) => outpointKey(shown.id, i));
+    markTimer = setTimeout(clearMarks, MARK_MS);
   }
 
   function reset() {
@@ -240,6 +256,7 @@
     feeText = '0,0001';
     error = '';
     doubleSpend = null;
+    clearMarks();
   }
 </script>
 
@@ -376,12 +393,19 @@
       {#each byPerson as p (p.name)}
         <div class="person">
           <div class="head"><strong>{p.name}</strong><span class="amount">{btc(p.total)}</span></div>
-          {#if p.rows.length === 0}
+          {#if p.rows.length === 0 && p.spent.length === 0}
             <p class="muted small">keine Kisten</p>
           {:else}
             <ul class="kisten">
+              {#each p.spent as r (r.key)}
+                <li class="kiste spent" title={r.key}>
+                  <span class="icon key" aria-hidden="true">{@html KEY}</span>
+                  <del class="amount">{btc(r.value)}</del>
+                  <span class="hash muted">ausgegeben in {r.inTx.slice(0, 8)}…</span>
+                </li>
+              {/each}
               {#each p.rows as r (r.key)}
-                <li class="kiste" title={r.key}>
+                <li class="kiste" class:fresh={freshKeys.includes(r.key)} title={r.key}>
                   <span class="icon lock" aria-hidden="true">{@html LOCK}</span>
                   <span class="amount">{btc(r.value)}</span>
                   <span class="hash muted">{short(r.key.split(':')[0]!)}:{r.key.split(':')[1]}</span>
@@ -460,6 +484,15 @@
   .kiste { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 0.5rem; align-items: center; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated); }
   .kiste .icon { grid-row: span 2; margin: 0; }
   .kiste .hash { font-size: 0.78rem; }
+  .kiste.spent { border-style: dashed; background: transparent; color: var(--fg-muted); }
+  .kiste.spent del { text-decoration-thickness: 2px; }
+  .kiste.fresh { border-color: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 35%, transparent); }
+  @media (prefers-reduced-motion: no-preference) {
+    .kiste.fresh { animation: fresh-glow 1.2s ease-out; }
+    .kiste.spent { animation: spent-fade 4s ease-in forwards; }
+    @keyframes fresh-glow { from { background: color-mix(in srgb, var(--ok) 35%, var(--bg-elevated)); } }
+    @keyframes spent-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0.35; } }
+  }
   .arrow svg { display: block; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
   .muted { color: var(--fg-muted); }

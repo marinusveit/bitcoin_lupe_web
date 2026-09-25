@@ -169,6 +169,8 @@ export interface AttackState {
   privateTx: Tx;
   /** Vorsprung der privaten Kette in Blöcken (negativ = Rückstand). */
   z: number;
+  /** Bestätigungen der öffentlichen Zahlung in der öffentlichen Kette des Angreifers (zuletzt gemeldet). */
+  conf: number;
   status: AttackStatus;
   startedAt: number;
 }

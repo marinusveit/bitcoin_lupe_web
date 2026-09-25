@@ -1,7 +1,20 @@
+<script lang="ts" module>
+  import { atLeastHalf } from '../lib/nakamoto';
+
+  /**
+   * Chance, einen Rückstand von `deficit` Blöcken noch aufzuholen: (q/p)^deficit wie im Whitepaper,
+   * ab der Hälfte der Rechenleistung 1.
+   */
+  export function catchUpChance(q: number, deficit: number): number {
+    if (deficit <= 0 || atLeastHalf(q)) return 1;
+    if (q <= 0) return 0;
+    return (q / (1 - q)) ** deficit;
+  }
+</script>
+
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import {
-    atLeastHalf,
     attackerSuccessProbability,
     exactAttackerSuccessProbability,
     simulateRace,
@@ -40,6 +53,9 @@
     return { honest, attacker, delivered: race.deliveredAt >= 0 && shown >= race.deliveredAt, done: shown >= race.steps.length, steps };
   });
   const lead = $derived(view.attacker - view.honest);
+  const chance = $derived(catchUpChance(q, -lead));
+  /** Kleine Chancen mit zwei Stellen, winzige als Obergrenze statt „0 %“. */
+  const chanceText = $derived(chance < 0.0001 ? 'unter 0,01 %' : pct(chance, chance < 0.01 ? 2 : 1));
 
   function stopTimer() {
     clearInterval(timer);
@@ -177,6 +193,7 @@
         Der Händler wartet noch: {view.honest} von {z} Blöcken.
       {:else if lead < 0}
         Der Händler hat geliefert. Der Angreifer liegt {-lead} {lead === -1 ? 'Block' : 'Blöcke'} zurück und sucht weiter nach Blöcken.
+        {#if atLeastHalf(q)}Er holt sicher auf, solange er nicht vorher aufgibt.{:else}Chance, das noch aufzuholen: {chanceText}.{/if}
       {:else}
         Der Angreifer hat aufgeholt!
       {/if}
