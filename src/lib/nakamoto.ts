@@ -121,10 +121,10 @@ export function simulateRace(q: number, z: number, options: RaceOptions = {}): R
   let honest = 0;
   let attacker = 0;
   let deliveredAt = z === 0 ? 0 : -1;
-  while (steps.length < maxSteps) {
-    if (honest >= z && attacker >= honest) {
-      return { steps, deliveredAt, honest, attacker, outcome: 'success' };
-    }
+  const caughtUp = () => honest >= z && attacker >= honest;
+  // Erfolg nach jedem Schritt prüfen, auch nach dem letzten erlaubten (sonst zählt ein Aufholen
+  // im Schritt maxSteps als aufgegeben).
+  while (!caughtUp() && steps.length < maxSteps) {
     if (honest - attacker >= giveUp) break;
     const who: RaceStep = random() < q ? 'attacker' : 'honest';
     steps.push(who);
@@ -132,7 +132,7 @@ export function simulateRace(q: number, z: number, options: RaceOptions = {}): R
     else attacker++;
     if (deliveredAt < 0 && honest >= z) deliveredAt = steps.length;
   }
-  return { steps, deliveredAt, honest, attacker, outcome: 'abandoned' };
+  return { steps, deliveredAt, honest, attacker, outcome: caughtUp() ? 'success' : 'abandoned' };
 }
 
 /** Kleiner deterministischer Zufallsgenerator (Mulberry32) für Tests und wiederholbare Rennen. */

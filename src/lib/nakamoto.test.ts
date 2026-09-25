@@ -68,6 +68,14 @@ describe('nakamoto', () => {
     expect(untilDelivery).toHaveLength(3);
   });
 
+  it('simulateRace zählt einen Erfolg auch im letzten erlaubten Schritt', () => {
+    const seq = [0.9, 0.1];
+    let i = 0;
+    const r = simulateRace(0.3, 1, { random: () => seq[i++] ?? 0.9, maxSteps: 2 });
+    expect(r.steps).toEqual(['honest', 'attacker']);
+    expect(r.outcome).toBe('success');
+  });
+
   it('simulateRace gelingt ohne Bestätigungen sofort und mit 60 % praktisch immer', () => {
     expect(simulateRace(0.1, 0).outcome).toBe('success');
     const random = seededRandom(42);

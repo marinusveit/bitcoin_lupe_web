@@ -92,7 +92,7 @@ export function receiveBlock(world: World, node: ChainNode, block: Block, from: 
   if (!node.blocks[block.prevHash]) {
     if (!node.orphans[block.hash]) {
       node.orphans[block.hash] = block;
-      emit({ kind: 'block-rejected', text: `${label(node)} parkt ${blockLabel(block)}: Vorgängerblock noch unbekannt`, nodeId: node.id, blockHash: block.hash });
+      emit({ kind: 'block-parked', text: `${label(node)} parkt ${blockLabel(block)}: Vorgängerblock noch unbekannt`, nodeId: node.id, blockHash: block.hash });
     }
     return false;
   }

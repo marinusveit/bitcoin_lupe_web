@@ -109,6 +109,7 @@ export type EventKind =
   | 'block-found-private'
   | 'block-accepted'
   | 'block-side'
+  | 'block-parked'
   | 'block-rejected'
   | 'reorg'
   | 'retarget'

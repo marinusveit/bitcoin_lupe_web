@@ -256,6 +256,18 @@ describe('Konsens', () => {
     expect(rejected?.text).toMatch(/lehnt Block 1 .* ab: TxID der Coinbase passt nicht/);
   });
 
+  it('parkt einen Block mit unbekanntem Vorgänger, statt ihn abzulehnen', () => {
+    const world = createWorld('normal', 1, NO_MINING);
+    forceBlock(world, 'm1');
+    const second = forceBlock(world, 'm1')[0]!.blockHash!;
+    const block = (world.nodes.m1 as MinerNode).blocks[second]!;
+    world.messagesInFlight.push({ id: 998, kind: 'block', payload: block, from: 'm2', to: 'n3', sentAt: 0, arrivesAt: 1 });
+    const events = step(world);
+    const forN3 = events.filter((e) => e.nodeId === 'n3' && e.blockHash === second);
+    expect(forN3.map((e) => e.kind)).toEqual(['block-parked']);
+    expect(forN3[0]?.text).toMatch(/parkt Block 2/);
+  });
+
   it('ist deterministisch: gleicher Seed, gleiches Protokoll', () => {
     const a = createWorld('normal', 99);
     const b = createWorld('normal', 99);
