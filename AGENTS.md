@@ -7,6 +7,8 @@ Bachelorarbeit in `../BitcoinUnterDerLupe_Latex/663b622a01b522f82ce23253/txt/`.
 ## Stack
 - Astro 7 (statisch, kein SSR), Svelte 5 mit Runes (`$state`, `$derived`, `$props`), TypeScript strict.
 - Inhalte als MDX in `src/content/kapitel/`, Formeln mit `$...$` / `$$...$$` (remark-math + KaTeX).
+  `katex` (liefert das CSS in `Base.astro`) und `rehype-katex` (rendert) müssen dieselbe Minor-Version
+  nutzen; `katex` nur zusammen mit `rehype-katex` anheben (25.09.2026: 0.18-CSS auf 0.16-HTML brach alle Indizes).
 - Fachlogik framework-frei in `src/lib/` (Hashing über `@noble/hashes`, Kurven über `@noble/curves`),
   Tests daneben als `*.test.ts` mit Vitest. Kein `crypto-js`, kein `Buffer`-Polyfill.
 - Interaktive Komponenten in `src/components/` als `.svelte`, eingebunden mit `client:visible`

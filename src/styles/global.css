@@ -224,7 +224,7 @@ button.primary:hover, .btn.primary:hover {
   border-color: color-mix(in srgb, var(--accent) 85%, var(--fg));
 }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
-button[aria-pressed="true"] { background: var(--bg-muted); border-color: var(--fg-muted); }
+button:not(.primary)[aria-pressed="true"] { background: var(--bg-muted); border-color: var(--fg-muted); }
 
 input[type="text"], input[type="number"], input[type="search"], textarea, select {
   font: inherit;

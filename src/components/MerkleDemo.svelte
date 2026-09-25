@@ -191,15 +191,21 @@
     selected = selected === i ? null : i;
   }
 
+  // Hinzufügen und Entfernen gelten als „neuen Block zusammenstellen“: Stimmte der Header vorher,
+  // zieht die Wurzel mit. Nur eine Textänderung ist eine Manipulation, dann bleibt der Header stehen.
   function addTx() {
     if (txs.length >= MAX_TX) return;
+    const followed = headerMatches;
     txs.push(EXTRA_TXS[(txs.length - START_TXS.length + EXTRA_TXS.length) % EXTRA_TXS.length]!);
+    if (followed) headerRoot = tree.root;
   }
 
   function removeTx() {
     if (txs.length <= 1) return;
+    const followed = headerMatches;
     txs.pop();
     if (selected !== null && selected >= txs.length) selected = null;
+    if (followed) headerRoot = tree.root;
   }
 
   function freezeRoot() {

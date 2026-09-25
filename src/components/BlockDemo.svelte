@@ -17,6 +17,8 @@
   let timestamp = $state(GENESIS.timestamp);
   let nBitsText = $state(GENESIS.nBits);
   let nonce = $state(GENESIS.nonce);
+  /** Größtes erlaubtes Target (nBits 1d00ffff). Ein größeres Target lehnt Bitcoin immer ab. */
+  const MAX_TARGET = nBitsToTarget(0x1d00ffff);
 
   /** Die sechs Felder in der Reihenfolge, in der Bitcoin sie in die 80 Header-Bytes schreibt. */
   const FIELDS = [
@@ -45,7 +47,7 @@
     if (!isUint32(timestamp)) errors.push('Der Zeitstempel muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!isUint32(nonce)) errors.push('Die Nonce muss eine ganze Zahl zwischen 0 und 4 294 967 295 sein.');
     if (!/^[0-9a-fA-F]{1,8}$/.test(nBitsText.trim())) errors.push('nBits braucht 1 bis 8 Hex-Zeichen, z. B. 1d00ffff.');
-    const failed = (errors: string[]) => ({ errors, root: '', hash: '', targetHex: '', ok: false, bytes: [] as Byte[] });
+    const failed = (errors: string[]) => ({ errors, root: '', hash: '', targetHex: '', ok: false, tooEasy: false, bytes: [] as Byte[] });
     if (errors.length) return failed(errors);
     const nBits = parseInt(nBitsText.trim(), 16);
     let target: bigint;
@@ -62,6 +64,7 @@
     const header = { version, prevHash: prevHash.trim(), merkleRoot: root, timestamp, nBits, nonce };
     const hash = headerHash(header);
     const targetHex = target.toString(16).padStart(64, '0');
+    const tooEasy = target > MAX_TARGET;
     // Die 80 Bytes, die tatsächlich gehasht werden, mit Zuordnung zum Feld.
     const hex = bytesToHex(serializeHeader(header));
     const bytes: Byte[] = [];
@@ -70,7 +73,7 @@
       for (let i = 0; i < f.size; i++) bytes.push({ hex: hex.slice((offset + i) * 2, (offset + i) * 2 + 2), field: f.key });
       offset += f.size;
     }
-    return { errors: [] as string[], root, hash, targetHex, ok: meetsTarget(hash, target), bytes };
+    return { errors: [] as string[], root, hash, targetHex, ok: meetsTarget(hash, target), tooEasy, bytes };
   });
 
   const zeros = (hex: string) => hex.match(/^0*/)![0].length;
@@ -129,6 +132,7 @@
     </label>
     <label class="fld bits">nBits (Schwierigkeit, Hex)
       <input type="text" class="hash" bind:value={nBitsText} spellcheck="false" />
+      <span class="hint">vom Netz vorgegeben, ein Miner darf es nicht wählen</span>
     </label>
     <label class="fld nonce">Nonce
       <input type="number" bind:value={nonce} min="0" max="4294967295" />
@@ -163,7 +167,7 @@
       </p>
       <div class="arrow" aria-hidden="true">HASH256 ↓</div>
     </figure>
-    <div class="compare" class:ok={computed.ok} class:bad={!computed.ok}>
+    <div class="compare" class:ok={computed.ok && !computed.tooEasy} class:bad={!computed.ok || computed.tooEasy}>
       <div class="row">
         <span class="lbl">Header-Hash (Block-ID)</span>
         <span class="hash big"><span class="z">{computed.hash.slice(0, zeros(computed.hash))}</span>{computed.hash.slice(zeros(computed.hash))}</span>
@@ -174,7 +178,14 @@
       </div>
       <p class="verdict" role="status">
         Hash höchstens so groß wie das Target?
-        <strong>{computed.ok ? 'Ja, der Block ist gültig.' : 'Nein, dieser Block wäre ungültig.'}</strong>
+        {#if !computed.ok}
+          <strong>Nein, dieser Block wäre ungültig.</strong>
+        {:else if computed.tooEasy}
+          <strong>Ja, aber so ein Target lehnt Bitcoin ab.</strong> Es ist größer als das erlaubte Maximum
+          (nBits 1d00ffff). nBits legt das Netz fest, alle 2016 Blöcke neu, nicht der Miner.
+        {:else}
+          <strong>Ja, der Block ist gültig.</strong>
+        {/if}
       </p>
       <p class="hint">
         Der Hash hat {zeros(computed.hash)} führende Nullen, das Target {zeros(computed.targetHex)}. Beide werden als

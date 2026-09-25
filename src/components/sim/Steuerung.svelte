@@ -38,7 +38,7 @@
 
 <div class="steuerung" role="group" aria-label="Simulation steuern">
   <div class="gruppe">
-    <button type="button" class="primary start" onclick={ontoggle} aria-pressed={running}>
+    <button type="button" class="primary start" onclick={ontoggle}>
       {running ? 'Pause' : 'Start'}
     </button>
     {#if !compact}

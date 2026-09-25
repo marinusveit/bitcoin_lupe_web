@@ -23,7 +23,7 @@
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
     "astro": "^7.3.4",
-    "katex": "^0.18.7",
+    "katex": "^0.16.47",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",
     "svelte": "^5.57.1",
