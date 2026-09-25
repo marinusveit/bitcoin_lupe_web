@@ -85,7 +85,7 @@
 </script>
 
 <div class="demo">
-  <div class="status">
+  <div class="aktionen">
     <p class="count" class:ok={affected === 0} role="status">
       {#if affected === 0}
         Alle Blöcke sind gültig.
@@ -95,7 +95,7 @@
         Block {firstInvalid + 1} und alle danach müssen neu gemined werden, einer nach dem anderen.
       {/if}
     </p>
-    <button onclick={reset}>Zurücksetzen</button>
+    <button class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
 
   <div class="chain" role="list" aria-label="Blockkette">
@@ -159,7 +159,6 @@
 
 <style>
   .demo { display: grid; gap: 1rem; }
-  .status { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .count { margin: 0; font-size: 1.05rem; color: var(--danger); }
   .count.ok { color: var(--ok); }
   /* Vier Blöcke und drei Verbinder in einer Reihe; schmal: untereinander mit gedrehten Pfeilen. */

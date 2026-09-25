@@ -189,9 +189,9 @@
       <input type="range" min="1" max="7" step="1" bind:value={zeros} disabled={running} />
       <span class="hint">Im Mittel {fmt(expected)} Versuche nötig (16 hoch {zeros}), {timeHint}.</span>
     </label>
-    <div class="actions">
+    <div class="aktionen">
       <button class="primary" onclick={toggle}>{running ? 'Mining stoppen' : 'Mining starten'}</button>
-      <button onclick={reset}>Zurücksetzen</button>
+      <button class="reset" onclick={reset}>Zurücksetzen</button>
     </div>
   </div>
 
@@ -277,7 +277,6 @@
   .slider { display: grid; gap: 0.3rem; flex: 1 1 18rem; color: var(--fg); }
   .slider input { width: 100%; accent-color: var(--accent); }
   .hint, .lbl { font-size: 0.86rem; color: var(--fg-muted); }
-  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .target { display: grid; gap: 0.2rem; }
   .z { color: var(--accent-strong); font-weight: 700; }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem 1rem; margin: 0; padding: 1rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); }

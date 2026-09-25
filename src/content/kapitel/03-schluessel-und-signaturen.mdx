@@ -49,8 +49,8 @@ Dazu kommen drei feste Werte, die jeder kennt: die Primzahl $p$, ein Startpunkt 
 </details>
 
 <figure>
-  <img src="/img/secp256k1.svg" alt="Links eine Punktwolke der Kurve über einem kleinen endlichen Feld, rechts eine glatte Kurve im Reellen" />
-  <figcaption>Die Kurve secp256k1 links über dem kleinen Zahlenbereich modulo 2087, rechts über den reellen Zahlen.</figcaption>
+  <a href="/img/secp256k1.svg" target="_blank" rel="noopener"><img src="/img/secp256k1.svg" alt="Links eine Punktwolke der Kurve über einem kleinen endlichen Feld, rechts eine glatte Kurve im Reellen" width="1200" height="615" loading="lazy" decoding="async" /></a>
+  <figcaption>Die Kurve secp256k1 links über dem kleinen Zahlenbereich modulo 2087, rechts über den reellen Zahlen. Zum Vergrößern antippen.</figcaption>
 </figure>
 
 Links sieht die Kurve aus wie zufällige Punkte. Rechts ist sie eine glatte Linie. Zum Verstehen nutzt man das rechte Bild. Die Rechenregeln funktionieren in beiden Fällen gleich.
@@ -112,8 +112,8 @@ Eine digitale Signatur (digital signature) beweist, dass jemand den privaten Sch
 </div>
 
 <figure>
-  <img src="/img/signatur_prozess.svg" alt="Ablaufdiagramm: Daten werden gehasht, mit dem privaten Schlüssel signiert und mit dem öffentlichen Schlüssel verifiziert" />
-  <figcaption>Links wird eine Signatur erstellt, rechts wird sie geprüft.</figcaption>
+  <a href="/img/signatur_prozess.svg" target="_blank" rel="noopener"><img src="/img/signatur_prozess.svg" alt="Ablaufdiagramm: Daten werden gehasht, mit dem privaten Schlüssel signiert und mit dem öffentlichen Schlüssel verifiziert" width="1200" height="458" loading="lazy" decoding="async" /></a>
+  <figcaption>Links wird eine Signatur erstellt, rechts wird sie geprüft. Zum Vergrößern antippen.</figcaption>
 </figure>
 
 Bitcoin nutzt dafür den ECDSA (Elliptic Curve Digital Signature Algorithm). Seit dem Taproot-Update von 2021 gibt es zusätzlich Schnorr-Signaturen; hier bleiben wir bei ECDSA. Die Signatur besteht aus zwei Zahlen $r$ und $s$. Signiert wird nicht die Nachricht selbst, sondern ihr Hashwert. In Bitcoin ist das nicht einfach der HASH256-Wert der fertigen Transaktion, sondern der HASH256-Wert einer angepassten Fassung der Transaktion, in der die Signaturen noch fehlen. Diesen Wert nennt man Sighash. Die Demo unten vereinfacht und hasht die Nachricht nur einmal mit SHA-256.

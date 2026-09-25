@@ -251,6 +251,9 @@
 </script>
 
 <div class="demo">
+  <div class="aktionen">
+    <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
+  </div>
   <ol class="tx-list">
     {#each txs as tx, i (i)}
       <li class:active={selected === i}>
@@ -449,9 +452,6 @@
     {/if}
   </div>
 
-  <div class="actions">
-    <button type="button" onclick={reset}>Zurücksetzen</button>
-  </div>
 </div>
 
 <style>
@@ -552,8 +552,7 @@
   .stale-note { color: var(--danger); font-size: 0.85rem; }
   .verdict { margin: 0 0 0.3rem; color: var(--danger); font-weight: 600; }
   .verdict.ok { color: var(--ok); }
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
-  .actions.left { justify-content: flex-start; }
+  .actions.left { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   @media (prefers-reduced-motion: reduce) {
     .node rect, .edge { transition: none; }
   }

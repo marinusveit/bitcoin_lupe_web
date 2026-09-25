@@ -281,10 +281,10 @@
         <input type="text" inputmode="decimal" bind:value={feeText} />
       </label>
     </div>
-    <div class="actions">
+    <div class="aktionen">
       <button type="submit" class="primary">Signieren und senden</button>
       <button type="button" onclick={spendAgain} disabled={!canDoubleSpend}>Denselben Output noch einmal ausgeben</button>
-      <button type="button" onclick={reset}>Zurücksetzen</button>
+      <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
     </div>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     {#if doubleSpend}
@@ -419,7 +419,7 @@
   </section>
 
   {#if history.length > 1}
-    <details class="history">
+    <details class="klein history">
       <summary>Bisherige Transaktionen ({history.length})</summary>
       <ol>
         {#each history as h (h.id)}
@@ -441,7 +441,7 @@
   .fields { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
   .fields label { display: grid; gap: 0.25rem; }
   .fields input, .fields select { width: 100%; }
-  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.9rem; }
+  .aktionen { margin-top: 0.9rem; }
   .error { color: var(--danger); margin: 0.7rem 0 0; font-weight: 600; }
   .rejected { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--radius); background: var(--bg-elevated); }
   .rejected p { margin: 0 0 0.3rem; }
@@ -505,7 +505,6 @@
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .history ol { margin: 0.5rem 0 0; padding-left: 1.4rem; }
   .history li { margin-bottom: 0.2rem; }
-  summary { cursor: pointer; color: var(--fg-muted); }
   @media (max-width: 560px) {
     .flow { grid-template-columns: 1fr; }
     .arrow { justify-self: center; transform: rotate(90deg); }

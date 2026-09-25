@@ -36,7 +36,8 @@
   const PRESET_ORDER: PresetName[] = ['normal', 'fork', 'attack'];
 </script>
 
-<div class="steuerung" role="group" aria-label="Simulation steuern">
+<!-- Aktionsleiste nach globalem Muster .aktionen: Start zuerst, „Zurücksetzen“ (.reset) als letztes Element rechtsbündig. -->
+<div class="steuerung aktionen" role="group" aria-label="Simulation steuern">
   <div class="gruppe">
     <button type="button" class="primary start" onclick={ontoggle}>
       {running ? 'Pause' : 'Start'}
@@ -44,7 +45,7 @@
     {#if !compact}
       <button type="button" onclick={onstep} disabled={running}>Ein Tick</button>
     {/if}
-    <button type="button" onclick={onreset}>Zurücksetzen</button>
+    <span class="tick mono" aria-label="Aktueller Tick">Tick {tick}</span>
   </div>
 
   <div class="gruppe tempo">
@@ -68,7 +69,7 @@
     </div>
   {/if}
 
-  <span class="tick mono" aria-label="Aktueller Tick">Tick {tick}</span>
+  <button type="button" class="reset" onclick={onreset}>Zurücksetzen</button>
 </div>
 
 <style>
@@ -76,7 +77,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.6rem 1.2rem;
+    gap: 0.6rem 0.9rem;
     padding: 0.6rem 0.8rem;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
@@ -92,7 +93,7 @@
     min-width: 5.5rem;
   }
   .tempo input {
-    width: 8rem;
+    width: 6.5rem;
     accent-color: var(--accent);
   }
   output {
@@ -101,10 +102,10 @@
     min-width: 5.5rem;
   }
   .seed {
-    width: 5rem;
+    width: 4.2rem;
   }
   .tick {
-    margin-left: auto;
+    min-width: 4.2rem;
     color: var(--fg-muted);
     font-size: 0.85rem;
   }

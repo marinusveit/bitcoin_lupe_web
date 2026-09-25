@@ -332,6 +332,9 @@
 </script>
 
 <div class="demo">
+  <div class="aktionen">
+    <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
+  </div>
   <div class="tabs" role="tablist" aria-label="Ansicht wählen">
     {#each TABS as t (t)}
       <button
@@ -582,9 +585,6 @@
     </div>
   {/if}
 
-  <div class="actions">
-    <button type="button" onclick={reset}>Zurücksetzen</button>
-  </div>
 </div>
 
 <style>
@@ -662,5 +662,4 @@
   .handle.q { fill: var(--ok); }
   .plbl { font-size: 15px; font-weight: 700; fill: var(--fg); pointer-events: none; }
 
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 </style>

@@ -145,7 +145,7 @@
       <input type="range" min="0" max="8" step="1" bind:value={z} oninput={onParamChange} />
     </label>
   </div>
-  <div class="actions">
+  <div class="aktionen">
     {#if playing}
       <button class="primary" onclick={skipToEnd}>Zum Ende springen</button>
     {:else}
@@ -153,7 +153,7 @@
     {/if}
     <button onclick={() => runBatch(100)} disabled={playing} title="ohne Animation">100 Rennen</button>
     <button onclick={() => runBatch(1000)} disabled={playing} title="ohne Animation">1000 Rennen</button>
-    <button onclick={reset}>Zurücksetzen</button>
+    <button class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
 
   <div class="track" aria-live="polite" bind:this={track}>
@@ -239,7 +239,6 @@
   .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.8rem 2rem; }
   .slider { display: grid; gap: 0.3rem; color: var(--fg); }
   .slider input { width: 100%; }
-  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .track { display: grid; gap: 0.6rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated); overflow-x: auto; }
   .lane { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: 0.6rem; }
   .lane-lbl { font-size: 0.88rem; color: var(--fg-muted); position: sticky; left: 0; background: var(--bg-elevated); z-index: 1; }

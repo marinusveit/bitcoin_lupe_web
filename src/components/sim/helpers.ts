@@ -3,7 +3,7 @@ import type { SimNode, Tx, World } from '../../lib/sim';
 /** Hervorgehobenes Element (per Klick im Protokoll oder in der Kettenansicht). */
 export type Highlight = { kind: 'tx' | 'block'; id: string } | null;
 
-/** Anzahl fester Miner-Farben (CSS-Variablen `--miner-1` bis `--miner-6`). */
+/** Anzahl fester Miner-Farben (CSS-Variablen `--miner-1` bis `--miner-6`, in Simulator.svelte auf `--cat-*` gelegt). */
 export const MINER_SLOTS = 6;
 
 /** Farbplatz eines Miners, fest an seiner ID (m1 → 1, m2 → 2 …), damit die Farbe am Miner hängt. */

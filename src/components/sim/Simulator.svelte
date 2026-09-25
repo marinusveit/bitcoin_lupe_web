@@ -158,23 +158,29 @@
 
 <div class="sim" class:compact data-step-ms={stepMs.toFixed(2)}>
   {#if !compact}
-    <aside class="callout erklaerung" aria-label="Was du hier siehst">
+    <aside class="callout erklaerung" aria-label="Szenario und Aufgaben">
       <p class="szenario"><strong>Szenario {szenario.titel}:</strong> {szenario.text}</p>
-      <p>
-        Die Karte zeigt ein kleines Bitcoin-Netz: Wallets (Kreise) schicken Zahlungen an Knoten (Sechsecke), und die
-        Knoten reichen jede Nachricht an ihre Nachbarn weiter. Orange Punkte sind Transaktionen, blaue Punkte sind
-        Blöcke. Miner (Sechsecke mit Balken für ihre Rechenleistung) finden zufällig neue Blöcke, und unten siehst du,
-        wie daraus eine Kette wird, die sich manchmal kurz gabelt. Das Netz passt die Difficulty alle
-        {world.params.retargetInterval} Blöcke so an, dass im Mittel alle {world.params.targetBlockTicks} Ticks ein Block
-        entsteht (bei Bitcoin: alle 2016 Blöcke auf 10 Minuten). Die Difficulty zählt hier relativ zum Start; anders als
-        bei Bitcoin kann sie auch unter 1 fallen, wenn Rechenleistung wegfällt.
-      </p>
-      <p class="aufgaben-titel">Probier es aus:</p>
-      <ul class="aufgaben">
-        <li>Sende Alice → Bob und verfolge den Punkt.</li>
-        <li>Gib einem Miner die doppelte Hashrate.</li>
-        <li>Starte das Szenario „Double Spend“ und beobachte Bobs Bestätigungen.</li>
-      </ul>
+      <div class="aufgaben-block">
+        <p class="aufgaben-titel">Probier es aus:</p>
+        <ul class="aufgaben">
+          <li>Sende Alice → Bob und verfolge den Punkt.</li>
+          <li>Gib einem Miner die doppelte Hashrate.</li>
+          <li>Starte das Szenario „Double Spend“ und beobachte Bobs Bestätigungen.</li>
+        </ul>
+      </div>
+      <!-- Zugeklappt, damit Start-Knopf und Karte beim Laden im Bild sind (sim-09). -->
+      <details class="klein siehst">
+        <summary>Was du hier siehst</summary>
+        <p>
+          Die Karte zeigt ein kleines Bitcoin-Netz: Wallets (Kreise) schicken Zahlungen an Knoten (Sechsecke), und die
+          Knoten reichen jede Nachricht an ihre Nachbarn weiter. Orange Punkte sind Transaktionen, blaue Punkte sind
+          Blöcke. Miner (Sechsecke mit Balken für ihre Rechenleistung) finden zufällig neue Blöcke, und unten siehst du,
+          wie daraus eine Kette wird, die sich manchmal kurz gabelt. Das Netz passt die Difficulty alle
+          {world.params.retargetInterval} Blöcke so an, dass im Mittel alle {world.params.targetBlockTicks} Ticks ein Block
+          entsteht (bei Bitcoin: alle 2016 Blöcke auf 10 Minuten). Die Difficulty zählt hier relativ zum Start; anders als
+          bei Bitcoin kann sie auch unter 1 fallen, wenn Rechenleistung wegfällt.
+        </p>
+      </details>
     </aside>
   {/if}
 
@@ -193,32 +199,35 @@
 
   <Kennzahlen {world} {version} {compact} />
 
-  <div class="main">
-    <div class="karte-spalte">
-      <Netzkarte
-        {world}
-        {version}
-        {frac}
-        {selectedId}
-        {highlight}
-        onselect={(id) => (selectedId = id)}
-      />
-    </div>
-    {#if !compact}
-      <div class="tafel-spalte">
-        <Knotentafel {world} {version} {selectedId} {highlight} onhighlight={toggleHighlight} />
+  <!-- Nur für das Kapitel-Raster ab 820 px ein eigener Kasten, sonst display: contents. -->
+  <div class="seite">
+    <div class="main">
+      <div class="karte-spalte">
+        <Netzkarte
+          {world}
+          {version}
+          {frac}
+          {selectedId}
+          {highlight}
+          onselect={(id) => (selectedId = id)}
+        />
       </div>
-    {/if}
-  </div>
-
-  <div class="unten">
-    <div class="formulare">
-      <TxFormular {world} {version} onmutate={touch} />
       {#if !compact}
-        <MinerListe {world} {version} onmutate={touch} onselect={(id) => (selectedId = id)} />
+        <div class="tafel-spalte">
+          <Knotentafel {world} {version} {selectedId} {highlight} onhighlight={toggleHighlight} />
+        </div>
       {/if}
     </div>
-    <Protokoll {world} {version} limit={compact ? 10 : 50} {highlight} onhighlight={toggleHighlight} />
+
+    <div class="unten">
+      <div class="formulare">
+        <TxFormular {world} {version} onmutate={touch} />
+        {#if !compact}
+          <MinerListe {world} {version} onmutate={touch} onselect={(id) => (selectedId = id)} />
+        {/if}
+      </div>
+      <Protokoll {world} {version} limit={compact ? 10 : 50} {highlight} onhighlight={toggleHighlight} />
+    </div>
   </div>
 
   {#if !compact}
@@ -228,13 +237,15 @@
 
 <style>
   .sim {
-    /* Miner-Farben: feste Reihenfolge, an der Miner-ID; hell und dunkel geprüft (Farbsehschwäche). */
-    --miner-1: #4a3aa7;
-    --miner-2: #1baf7a;
-    --miner-3: #eda100;
-    --miner-4: #e87ba4;
-    --miner-5: #2a78d6;
-    --miner-6: #008300;
+    /* Miner-Farben: kategoriale Tokens aus global.css (hell und dunkel dort definiert). Kein Miner trägt
+       Grün (--ok), Rot (--danger) oder Orange (--accent = Transaktionen). Beschriftungen stehen in --fg auf
+       einer 16 bis 22 % getönten Fläche, daher reicht der Kontrast in beiden Themen ohne eigene Schriftfarbe. */
+    --miner-1: var(--cat-1);
+    --miner-2: var(--cat-2);
+    --miner-3: var(--cat-4);
+    --miner-4: var(--cat-3);
+    --miner-5: var(--cat-5);
+    --miner-6: var(--cat-6);
     --msg-tx: var(--accent);
     --msg-block: var(--info);
     container-type: inline-size;
@@ -243,25 +254,6 @@
     gap: 1rem;
     margin: 1.5rem 0;
   }
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme='light'])) .sim {
-      --miner-1: #9085e9;
-      --miner-2: #199e70;
-      --miner-3: #c98500;
-      --miner-4: #d55181;
-      --miner-5: #3987e5;
-      --miner-6: #008300;
-    }
-  }
-  :global(:root[data-theme='dark']) .sim {
-    --miner-1: #9085e9;
-    --miner-2: #199e70;
-    --miner-3: #c98500;
-    --miner-4: #d55181;
-    --miner-5: #3987e5;
-    --miner-6: #008300;
-  }
-
   .erklaerung {
     margin: 0;
   }
@@ -275,7 +267,16 @@
     margin: 0;
     padding-left: 1.2rem;
   }
+  .siehst {
+    margin-top: 0.4rem;
+  }
+  .siehst p {
+    margin: 0.3rem 0 0;
+  }
 
+  .seite {
+    display: contents;
+  }
   .main,
   .unten {
     display: grid;
@@ -294,7 +295,17 @@
   }
 
   @container (min-width: 860px) {
-    .main {
+    /* Szenario links, Aufgaben rechts daneben, „Was du hier siehst“ darunter über die volle Breite. */
+    .erklaerung {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      column-gap: 1.5rem;
+      align-items: start;
+    }
+    .erklaerung .siehst {
+      grid-column: 1 / -1;
+    }
+    .sim:not(.compact) .main {
       grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
       align-items: start;
     }
@@ -313,9 +324,19 @@
       order: -1;
     }
   }
-  @container (min-width: 620px) {
+  @container (min-width: 620px) and (max-width: 819.98px) {
     .compact .unten {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+      align-items: start;
+    }
+  }
+  /* Kapitel-Fassung breit (k7-05, ux-19): Karte links, „Neue Transaktion“ und „Ereignisse“ rechts untereinander,
+     damit der Punkt auf der Karte und der Weg der Zahlung gleichzeitig zu sehen sind. */
+  @container (min-width: 820px) {
+    .compact .seite {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 1fr);
+      gap: 1rem;
       align-items: start;
     }
   }

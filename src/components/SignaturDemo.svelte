@@ -80,6 +80,9 @@
 </script>
 
 <div class="demo">
+  <div class="aktionen">
+    <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
+  </div>
   <p class="warning" role="note">
     <strong>Wichtig:</strong> Echte private Schlüssel gibt man nie in eine Webseite ein. Wer den privaten
     Schlüssel kennt, kann über das Geld verfügen. Die Schlüssel hier sind nur zum Üben.
@@ -98,7 +101,7 @@
           <dt>Öffentlicher Schlüssel</dt>
           <dd class="hash">{pub}</dd>
           <dd>
-            <details>
+            <details class="klein">
               <summary>Das ist der Punkt k<sub>pr</sub>·G</summary>
               <dl class="rs">
                 <dt>x</dt>
@@ -150,7 +153,7 @@
         </p>
         <button type="button" onclick={remember}>Signatur merken</button>
       </div>
-      <details>
+      <details class="klein">
         <summary>So steht sie in der Transaktion (DER)</summary>
         <p class="hint">DER ist ein festes Format, in dem r und s mit Längenangaben hintereinander stehen. In der Transaktion folgt dahinter noch ein Byte für den Sighash-Typ, meist 01.</p>
         <p class="hash der">{signatureDer}</p>
@@ -212,9 +215,6 @@
     </section>
   </div>
 
-  <div class="actions">
-    <button type="button" onclick={reset}>Zurücksetzen</button>
-  </div>
 </div>
 
 <style>
@@ -326,7 +326,6 @@
   .memo.same strong { color: var(--ok); }
 
   details { font-size: 0.9rem; }
-  summary { cursor: pointer; color: var(--fg-muted); }
   details[open] { display: grid; gap: 0.4rem; }
   .der { margin: 0; }
 
@@ -384,7 +383,6 @@
   }
   .verdict.ok { border-color: var(--ok); color: var(--ok); }
   .row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 
   /* Breit: Schlüsselstreifen oben, Alice links, Übergabe in der Mitte, Bob rechts. */
   @container (min-width: 700px) {

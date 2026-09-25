@@ -139,9 +139,9 @@
     </label>
   </div>
 
-  <div class="actions">
+  <div class="aktionen">
     <button class="primary" onclick={() => (nonce = (nonce + 1) % 2 ** 32)}>Nonce +1</button>
-    <button onclick={loadGenesis}>Zurücksetzen</button>
+    <button class="reset" onclick={loadGenesis}>Zurücksetzen</button>
   </div>
 
   {#if computed.errors.length}
@@ -201,13 +201,14 @@
   .header-fields label, .txs, .derived { display: grid; gap: 0.25rem; align-content: start; min-width: 0; }
   .f-wide { grid-column: 1 / -1; }
   .f-version input { max-width: 8rem; }
-  /* Feldfarben: Eingabefeld und Byte-Streifen tragen dieselbe Farbe. */
+  /* Feldfarben: Eingabefeld und Byte-Streifen tragen dieselbe Farbe. Kategoriale Töne, weil Grün und Rot hier
+     allein „gültig“ und „ungültig“ bedeuten; die Nonce trägt die Akzentfarbe, weil nur sie der Miner ändert. */
   .fld { border-left: 3px solid var(--fc, var(--border)); padding-left: 0.5rem; }
-  .version, .sw.version, .byte.version { --fc: color-mix(in srgb, var(--fg-muted) 70%, var(--bg-elevated)); }
-  .prev, .sw.prev, .byte.prev { --fc: color-mix(in srgb, var(--info) 60%, var(--bg-elevated)); }
-  .root, .sw.root, .byte.root { --fc: color-mix(in srgb, var(--ok) 60%, var(--bg-elevated)); }
-  .time, .sw.time, .byte.time { --fc: color-mix(in srgb, var(--warn) 70%, var(--bg-elevated)); }
-  .bits, .sw.bits, .byte.bits { --fc: color-mix(in srgb, var(--danger) 55%, var(--bg-elevated)); }
+  .version, .sw.version, .byte.version { --fc: color-mix(in srgb, var(--cat-6) 70%, var(--bg-elevated)); }
+  .prev, .sw.prev, .byte.prev { --fc: color-mix(in srgb, var(--cat-5) 60%, var(--bg-elevated)); }
+  .root, .sw.root, .byte.root { --fc: color-mix(in srgb, var(--cat-2) 60%, var(--bg-elevated)); }
+  .time, .sw.time, .byte.time { --fc: color-mix(in srgb, var(--cat-3) 70%, var(--bg-elevated)); }
+  .bits, .sw.bits, .byte.bits { --fc: color-mix(in srgb, var(--cat-1) 60%, var(--bg-elevated)); }
   .nonce, .sw.nonce, .byte.nonce { --fc: var(--accent); }
   .strip { margin: 0; display: grid; gap: 0.5rem; }
   .strip-title { margin: 0; font-weight: 600; }
@@ -226,7 +227,6 @@
   .small-btn { font-size: 0.85rem; padding: 0.25rem 0.6rem; justify-self: start; }
   .derived .hash { padding: 0.45rem 0.6rem; background: var(--bg-muted); border-radius: var(--radius); }
   .hint { font-size: 0.85rem; color: var(--fg-muted); }
-  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .errors { color: var(--danger); margin: 0; }
   .compare { border: 1px solid var(--border); border-left: 4px solid; border-radius: var(--radius); padding: 0.9rem 1rem; background: var(--bg-elevated); display: grid; gap: 0.6rem; }
   .compare.ok { border-left-color: var(--ok); }

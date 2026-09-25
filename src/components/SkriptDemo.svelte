@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import {
@@ -122,6 +123,17 @@
     return { text: value, label };
   }
 
+  let backButton: HTMLButtonElement | undefined = $state();
+
+  /** Vorwärts auf Schritt `n`. Am Ende wird „Schritt“ deaktiviert: Fokus auf „Schritt zurück“, damit die Tastatur ihn nicht verliert. */
+  async function goTo(n: number) {
+    pos = Math.min(n, result.steps.length);
+    if (pos >= result.steps.length && pos > 0) {
+      await tick();
+      backButton?.focus();
+    }
+  }
+
   function reset() {
     mode = 'p2pkh';
     tamper = false;
@@ -182,11 +194,11 @@
     <span class="item"><span class="key scriptPubKey"></span>scriptPubKey: steht im alten Output</span>
   </p>
 
-  <div class="actions">
-    <button class="primary" onclick={() => (pos = Math.min(at + 1, result.steps.length))} disabled={done}>Schritt</button>
-    <button onclick={() => (pos = result.steps.length)} disabled={done}>Alle</button>
-    <button onclick={() => (pos = 0)} disabled={at === 0}>Zurück zum Anfang</button>
-    <button onclick={reset}>Zurücksetzen</button>
+  <div class="aktionen">
+    <button type="button" class="primary" onclick={() => goTo(at + 1)} disabled={done}>Schritt</button>
+    <button type="button" onclick={() => goTo(result.steps.length)} disabled={done}>Alle</button>
+    <button type="button" bind:this={backButton} onclick={() => (pos = at - 1)} disabled={at === 0}>◀ Schritt zurück</button>
+    <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
 
   {#if mode !== 'frei'}
@@ -222,7 +234,7 @@
     </div>
     <div class="explain">
       <h4>Schritt {at} von {result.steps.length}</h4>
-      <p class="note">{note}</p>
+      <p class="note" aria-live="polite">{note}</p>
       {#if done && (at > 0 || noSteps)}
         <p class="verdict" class:ok={result.ok} class:bad={!result.ok} role="status">
           {#if result.ok}
@@ -270,7 +282,6 @@
   .key { display: inline-block; flex: none; width: 1.2rem; height: 3px; border-radius: 2px; }
   .key.scriptSig { background: var(--info); }
   .key.scriptPubKey { background: var(--accent); }
-  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
   .machine { display: grid; grid-template-columns: minmax(12rem, 18rem) 1fr; gap: 1.5rem; }
   h4 { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--fg-muted); }
   /* Unten das älteste, oben das zuletzt abgelegte Element: Reihenfolge per column-reverse. */

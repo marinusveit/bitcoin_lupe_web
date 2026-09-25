@@ -21,6 +21,13 @@
   --warn: #b7791f;
   --danger: #b3261e;
   --info: #2b6cb0;
+  /* Kategoriale Farben für Feldgruppen, Miner, Kurven: ohne Bedeutung „gültig/ungültig“ (das sind --ok/--danger). */
+  --cat-1: #6b5bd2;         /* Violett */
+  --cat-2: #1f8a8a;         /* Petrol */
+  --cat-3: #b0862a;         /* Ocker */
+  --cat-4: #c2417a;         /* Pink */
+  --cat-5: #3b7bbf;         /* Blau */
+  --cat-6: #6b6f78;         /* Grau */
   --radius: 6px;
   --radius-sm: 3px;       /* Chips, Farbmarker, kleine Tags */
   --shadow: none;
@@ -47,6 +54,12 @@
     --warn: #e0a83e;
     --danger: #ef6f66;
     --info: #6fa8e6;
+    --cat-1: #a394f0;
+    --cat-2: #4fc3c3;
+    --cat-3: #d9b25a;
+    --cat-4: #ef7fb0;
+    --cat-5: #7fb2ea;
+    --cat-6: #9aa0ab;
     --shadow: none;
     color-scheme: dark;
   }
@@ -67,6 +80,12 @@
   --warn: #e0a83e;
   --danger: #ef6f66;
   --info: #6fa8e6;
+  --cat-1: #a394f0;
+  --cat-2: #4fc3c3;
+  --cat-3: #d9b25a;
+  --cat-4: #ef7fb0;
+  --cat-5: #7fb2ea;
+  --cat-6: #9aa0ab;
   --shadow: none;
   color-scheme: dark;
 }
@@ -123,6 +142,19 @@ th { color: var(--fg-muted); }
 
 figure { margin: 1.5rem 0; }
 figure img, figure svg { max-width: 100%; height: auto; }
+/* Abbildungen aus der Arbeit sind weiße SVGs: als gedämpfte Papierkachel setzen, damit sie im Dark Mode nicht leuchten. */
+.kapitel figure > img, .kapitel figure > a > img {
+  display: block;
+  background: #fff;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.kapitel figure > a { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .kapitel figure img { filter: brightness(0.86); }
+}
+:root[data-theme="dark"] .kapitel figure img { filter: brightness(0.86); }
 figcaption { color: var(--fg-muted); font-size: 0.9rem; margin-top: 0.4rem; }
 
 blockquote {
@@ -190,6 +222,21 @@ details.vertiefung > summary:focus-visible { outline: 2px solid var(--accent); o
 details.vertiefung > :not(summary) { margin-left: 1rem; margin-right: 1rem; }
 details.vertiefung > summary + * { margin-top: 0.9rem; }
 details.vertiefung > :last-child { margin-bottom: 1rem; }
+
+/* Schlanke Aufklappvariante in Demos: gleiche +/−-Marke, ohne Rahmen. */
+details.klein > summary {
+  display: flex; align-items: baseline; gap: 0.5rem;
+  font-size: 0.9rem; color: var(--fg-muted); cursor: pointer; list-style: none; padding: 0.2rem 0;
+}
+details.klein > summary::-webkit-details-marker { display: none; }
+details.klein > summary::before { content: "+"; width: 0.8rem; flex: none; font-family: var(--font-mono); font-weight: 700; }
+details.klein[open] > summary::before { content: "−"; }
+details.klein > summary:hover { color: var(--fg); }
+details.klein > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Aktionsleiste aller Demos: Primärknopf zuerst, „Zurücksetzen“ (.reset) als letztes Element rechtsbündig abgesetzt. */
+.aktionen { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.aktionen > .reset { margin-left: auto; }
 
 /* Kasten am Kapitelende: <div class="mitnehmen"> **Das nimmst du mit:** … </div> (Überschrift steht im MDX) */
 .mitnehmen {

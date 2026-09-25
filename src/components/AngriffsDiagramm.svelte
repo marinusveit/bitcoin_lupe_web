@@ -62,12 +62,12 @@
 </script>
 
 <div class="demo">
-  <div class="controls">
+  <div class="aktionen">
     <label class="slider">
       <span>Dein Angreifer besitzt <strong>{qLabel(ownQ)}</strong> der Rechenleistung</span>
       <input type="range" min="0.01" max="0.6" step="0.01" bind:value={ownQ} />
     </label>
-    <button onclick={reset}>Zurücksetzen</button>
+    <button class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
   {#if atLeastHalf(ownQ)}
     <p class="warn" role="status">Ab 50 % holt der Angreifer immer auf, egal wie lange der Händler wartet.</p>
@@ -154,7 +154,8 @@
 
 <style>
   .demo { display: grid; gap: 0.8rem; }
-  .controls { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: end; justify-content: space-between; }
+  /* Der Regler steht links in der Aktionsleiste; der Knopf sitzt auf Höhe des Reglers, nicht der Beschriftung. */
+  .aktionen { align-items: end; column-gap: 2rem; }
   .slider { display: grid; gap: 0.3rem; flex: 1 1 18rem; color: var(--fg); }
   .slider input { width: 100%; accent-color: var(--info); }
   .lbl { font-size: 0.85rem; color: var(--fg-muted); }

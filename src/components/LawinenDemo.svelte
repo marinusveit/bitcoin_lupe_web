@@ -96,9 +96,9 @@
     im Schnitt etwa die Hälfte aller Bits. Man nennt das Lawineneffekt.
   </p>
 
-  <div class="actions">
+  <div class="aktionen">
     <button type="button" class="primary" onclick={changeOneChar}>Ein Zeichen von Text A ändern</button>
-    <button type="button" onclick={reset}>Zurücksetzen</button>
+    <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
   </div>
 </div>
 
@@ -125,5 +125,4 @@
   .change .hash { color: var(--accent-strong); font-weight: 700; white-space: pre; }
   .stat { display: block; font-size: 0.9rem; color: var(--fg-muted); margin-top: 0.2rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 </style>

@@ -42,6 +42,9 @@
 </script>
 
 <div class="demo">
+  <div class="aktionen">
+    <button type="button" class="reset" onclick={reset}>Zurücksetzen</button>
+  </div>
   <label class="field">
     <span>Eingabe (beliebiger Text)</span>
     <input
@@ -115,9 +118,6 @@
     also 256 Bit. Leer lassen geht auch: Auch der leere Text hat einen Hash.
   </p>
 
-  <div class="actions">
-    <button type="button" onclick={reset}>Zurücksetzen</button>
-  </div>
 </div>
 
 <style>
@@ -160,5 +160,4 @@
   .prev-hex .same { color: var(--fg); background: var(--accent-soft); font-weight: 700; border-radius: 2px; }
   .count { margin: 0.4rem 0 0; color: var(--fg-muted); font-size: 0.88rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 </style>

@@ -37,7 +37,8 @@
   const M = { left: 52, right: 14 };
   const PANEL = 150;
   const TOP1 = 26;
-  const TOP2 = TOP1 + PANEL + 46;
+  // Lücke zwischen den Feldern: Titel des unteren Felds und darunter die Beschriftung der Obergrenze.
+  const TOP2 = TOP1 + PANEL + 56;
   const H = TOP2 + PANEL + 48;
 
   const x = (h: number) => M.left + (h / maxH) * (W - M.left - M.right);
@@ -121,16 +122,19 @@
 </script>
 
 <div class="demo">
+  <div class="aktionen">
+    <div class="switch" role="group" aria-label="Zeitraum der x-Achse">
+      <button type="button" aria-pressed={range === 'short'} onclick={() => setRange('short')}>bis 2048</button>
+      <button type="button" aria-pressed={range === 'full'} onclick={() => setRange('full')}>bis 2140</button>
+    </div>
+    <button class="reset" onclick={() => { range = 'short'; pinned = Math.min(today, SHORT_HEIGHT); hover = null; }}>Zurücksetzen</button>
+  </div>
+
   <div class="readout" aria-live="polite">
     <div><span class="lbl">Blockhöhe</span><strong>{nf(readout.height)}</strong></div>
     <div><span class="lbl">Jahr (ungefähr)</span><strong>{readout.year}</strong></div>
     <div><span class="lbl">Blockzuschuss</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
     <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, readout.supply > 20_990_000 ? 4 : 0)} BTC</strong><span class="lbl">{nf(Math.floor((readout.supply / 21e6) * 10000) / 100, 2)} % von 21 Mio.</span></div>
-  </div>
-
-  <div class="switch" role="group" aria-label="Zeitraum der x-Achse">
-    <button type="button" aria-pressed={range === 'short'} onclick={() => setRange('short')}>bis 2048</button>
-    <button type="button" aria-pressed={range === 'full'} onclick={() => setRange('full')}>bis 2140</button>
   </div>
 
   <div class="chart" bind:clientWidth={width}>
@@ -153,11 +157,13 @@
       <path class="series" d={rewardPath} />
 
       <!-- Feld 2: Gesamtmenge -->
-      <text class="title" x={M.left} y={TOP2 - 10}>Bitcoin insgesamt in Millionen</text>
-      {#each [0, 5, 10, 15, 21] as t (t)}
+      <text class="title" x={M.left} y={TOP2 - 24}>Bitcoin insgesamt in Millionen</text>
+      {#each [0, 5, 10, 15, 20] as t (t)}
         <line class="grid" x1={M.left} x2={W - M.right} y1={y2(t)} y2={y2(t)} />
         <text class="tick" x={M.left - 8} y={y2(t) + 4} text-anchor="end">{t}</text>
       {/each}
+      <line class="cap" x1={M.left} x2={W - M.right} y1={y2(21)} y2={y2(21)} />
+      <text class="cap-label" x={W - M.right} y={y2(21) - 5} text-anchor="end">Obergrenze 21 Mio.</text>
       <path class="area" d={supplyArea} />
       <path class="series" d={supplyLine} />
 
@@ -169,25 +175,24 @@
       {/each}
       <text class="tick" x={W - M.right} y={H - 2} text-anchor="end">Blockhöhe und Jahr</text>
 
-      <!-- heute -->
+      <!-- heute, je Feld gezeichnet, damit die Linie nicht durch den Titel des unteren Felds läuft -->
       {#if today <= maxH}
-        <line class="today" x1={x(today)} x2={x(today)} y1={TOP1} y2={TOP2 + PANEL} />
+        <line class="today" x1={x(today)} x2={x(today)} y1={TOP1} y2={TOP1 + PANEL} />
+        <line class="today" x1={x(today)} x2={x(today)} y1={TOP2} y2={TOP2 + PANEL} />
         <text class="today-label" x={x(today) + 5} y={TOP1 + 12}>heute (≈ {todayYear})</text>
       {/if}
 
       <!-- aktuelle Position -->
-      <line class="cross" x1={x(active)} x2={x(active)} y1={TOP1} y2={TOP2 + PANEL} />
+      <line class="cross" x1={x(active)} x2={x(active)} y1={TOP1} y2={TOP1 + PANEL} />
+      <line class="cross" x1={x(active)} x2={x(active)} y1={TOP2} y2={TOP2 + PANEL} />
       <circle class="dot" cx={x(active)} cy={y1(readout.reward)} r="4.5" />
       <circle class="dot" cx={x(active)} cy={y2(readout.supply / 1e6)} r="4.5" />
     </svg>
   </div>
 
-  <div class="below">
-    <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre. Zum Zuschuss kommen die Gebühren der Transaktionen, sie sind hier nicht eingezeichnet.</p>
-    <button onclick={() => { range = 'short'; pinned = Math.min(today, SHORT_HEIGHT); hover = null; }}>Zurücksetzen</button>
-  </div>
+  <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre. Zum Zuschuss kommen die Gebühren der Transaktionen, sie sind hier nicht eingezeichnet.</p>
 
-  <details>
+  <details class="klein">
     <summary>Als Tabelle anzeigen (erste elf Epochen)</summary>
     <table>
       <thead><tr><th>Epoche</th><th class="num">ab Block</th><th class="num">ab Jahr ≈</th><th class="num">Zuschuss</th><th class="num">insgesamt am Ende</th></tr></thead>
@@ -206,7 +211,7 @@
   .readout div { display: grid; }
   .readout strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
   .lbl { font-size: 0.82rem; color: var(--fg-muted); }
-  .switch { justify-self: start; display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .switch button { border: 0; border-radius: 0; padding: 0.25rem 0.8rem; background: transparent; color: var(--fg-muted); }
   .switch button[aria-pressed='true'] { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
   .chart { width: 100%; touch-action: pan-y; }
@@ -218,13 +223,13 @@
   .title { fill: var(--fg); font-size: 13px; font-weight: 600; }
   .series { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .area { fill: var(--accent); opacity: 0.1; }
+  .cap { stroke: var(--fg-muted); stroke-width: 1; stroke-dasharray: 4 3; }
+  .cap-label { fill: var(--fg-muted); font-size: 12px; }
   .today { stroke: var(--fg-muted); stroke-width: 1; }
   .today-label { fill: var(--fg-muted); font-size: 12px; }
   .cross { stroke: var(--fg); stroke-width: 1; opacity: 0.6; }
   .dot { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
-  .below { display: flex; justify-content: space-between; align-items: start; gap: 1rem; flex-wrap: wrap; }
-  .hint { font-size: 0.88rem; color: var(--fg-muted); margin: 0; flex: 1 1 20rem; }
-  summary { cursor: pointer; color: var(--fg-muted); }
+  .hint { font-size: 0.88rem; color: var(--fg-muted); margin: 0; }
   details table { font-size: 0.9rem; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   @media (max-width: 480px) { details table { font-size: 0.78rem; } details th, details td { padding: 0.35rem 0.3rem; } }

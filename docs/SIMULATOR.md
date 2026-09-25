@@ -84,7 +84,7 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
 - **Netzkarte** (SVG, links): Knoten als Kreise (Wallet mit Anfangsbuchstabe, Full Node als Sechseck, Miner als
   Sechseck mit Hashrate-Balken), Links als Linien, Nachrichten als bewegte Punkte (Tx orange, Block blau) zwischen
   Absende- und Ankunftstick interpoliert. Klick wählt einen Knoten aus. Angreifer rot umrandet.
-- **Steuerung**: Start/Pause, Ein Tick, Geschwindigkeit (1 bis 20 Ticks pro Sekunde), Zurücksetzen, Szenario-Auswahl
+- **Steuerung** (Aktionsleiste, „Zurücksetzen“ rechtsbündig zuletzt): Start/Pause, Ein Tick, Tick-Zähler, Geschwindigkeit (1 bis 20 Ticks pro Sekunde), Szenario-Auswahl
   (Normalbetrieb, Gleichzeitiger Fund, Double Spend), Formular „Neue Transaktion“ (von, an, Betrag, Gebühr), Miner
   hinzufügen/entfernen, Hashrate je Miner, Schalter „unehrlich“.
 - **Detailtafel** rechts für den gewählten Knoten: Wallet zeigt Guthaben bestätigt/unbestätigt und UTXO-Liste;
@@ -102,7 +102,7 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   Szenarios ist ausgewählt: Normalbetrieb Alice, Gleichzeitiger Fund Knoten 1, Double Spend das Opfer Bob.
 - **Startwert**: Der volle Simulator startet mit Seed 1. Die Kapitelfassung (`compact`, Kapitel 7) startet mit Seed 54:
   erster Block in Tick 18, dann 62, ab Tick 64 eine Gabelung (M1 und M3 finden Block 2), Reorganisation in Tick 144.
-- Erklärkasten oben mit drei Sätzen, was man sieht, und drei Aufgaben („Sende Alice → Bob und verfolge den Punkt“,
+- Erklärkasten oben mit Szenariotext und drei Aufgaben; die Erklärung „Was du hier siehst“ ist zugeklappt (`details.klein`), damit Start und Karte beim Laden im Bild sind. Aufgaben („Sende Alice → Bob und verfolge den Punkt“,
   „Gib einem Miner die doppelte Hashrate“, „Starte das Szenario Double Spend und beobachte Bobs Bestätigungen“).
 - Mobil: Karte oben, Tafeln darunter; keine horizontale Scrollleiste bei 360 px.
 - Barrierefreiheit: alle Steuerelemente sind echte Buttons/Inputs mit Label, Live-Region für das Protokoll.
