@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sha256dHex } from '../lib/hash';
+  import { reverseHex, sha256dHex } from '../lib/hash';
   import { buildMerkleTree, hashPair, merkleProof, verifyMerkleProof } from '../lib/merkle';
 
   const START_TXS = ['Alice → Bob 2 BTC', 'Bob → Carol 1 BTC', 'Carol → Dave 0,5 BTC', 'Dave → Eve 0,2 BTC'];
@@ -10,7 +10,9 @@
     'Heidi → Alice 1,5 BTC',
   ];
   const MAX_TX = 8;
-  const START_ROOT = buildMerkleTree(START_TXS.map((t) => sha256dHex(t))).root;
+  /** TxID in Anzeige-Reihenfolge: Bitcoin zeigt den HASH256-Wert byte-umgedreht an (wie Block-Explorer). */
+  const txidOf = (text: string) => reverseHex(sha256dHex(text));
+  const START_ROOT = buildMerkleTree(START_TXS.map(txidOf)).root;
 
   // SVG-Maße in viewBox-Einheiten
   const SLOT = 100;
@@ -46,6 +48,8 @@
   let flashLeaf = $state<number | null>(null);
   /** Im Block-Header eingefrorene Wurzel; `null`, solange nichts eingetragen ist. */
   let headerRoot = $state<string | null>(START_ROOT);
+  /** Wurde eine abweichende Wurzel neu in den Header geschrieben? Dann folgt der Hinweis „anderer Block“. */
+  let rewritten = $state(false);
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
   /** Beim schrittweisen Beweis: bis zu welcher Ebene die Rechnung schon gezeigt wird (null = alles). */
   let revealed = $state<number | null>(null);
@@ -71,7 +75,7 @@
     clearTimeout(flashTimer);
   });
 
-  const txids = $derived(txs.map((t) => sha256dHex(t)));
+  const txids = $derived(txs.map(txidOf));
   const tree = $derived(buildMerkleTree(txids));
 
   const layout = $derived.by(() => {
@@ -180,6 +184,7 @@
 
   function edit(i: number, value: string) {
     txs[i] = value;
+    rewritten = false;
     flashLeaf = i;
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => (flashLeaf = null), 700);
@@ -209,6 +214,7 @@
   }
 
   function freezeRoot() {
+    rewritten = headerRoot !== null && !headerMatches;
     headerRoot = tree.root;
   }
 
@@ -219,6 +225,7 @@
     selected = null;
     flashLeaf = null;
     headerRoot = START_ROOT;
+    rewritten = false;
   }
 </script>
 
@@ -258,6 +265,12 @@
       </p>
     {/if}
     <button type="button" onclick={freezeRoot} disabled={headerMatches}>Wurzel in den Block-Header schreiben</button>
+    {#if rewritten && headerMatches}
+      <p class="header-note">
+        Jetzt steht eine neue Wurzel im Header. Damit ist es ein anderer Block: Seine Block-ID ändert sich, und der
+        Proof of Work müsste neu berechnet werden (Kapitel 6).
+      </p>
+    {/if}
   </div>
 
   <figure class="tree">
@@ -340,8 +353,8 @@
   <div class="proof" aria-live="polite">
     {#if selected === null}
       <p class="hint">
-        Wer die Werte von Hand nachrechnen will: Bitcoin dreht die Bytes vor dem Hashen um, wie beim Block-Header in
-        Kapitel 6. Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu
+        Bitcoin zeigt Hashes mit umgedrehter Byte-Reihenfolge an (wie beim Block-Header in Kapitel 6). Wer von Hand
+        nachrechnet, muss sie vor dem Aneinanderhängen zurückdrehen. Klicke im Baum auf ein Blatt (Tx 1, Tx 2, …). Dann siehst du, welche Hashes man braucht, um zu
         beweisen, dass diese Transaktion im Block steckt. Ändere danach einen Text: Alle Knoten bis zur
         Wurzel ändern sich mit{headerRoot === null ? '.' : ', und der Beweis passt nicht mehr zur Wurzel im Header.'}
       </p>
@@ -493,6 +506,7 @@
   .header-line { margin: 0; flex: 1 1 16rem; min-width: 0; overflow-wrap: anywhere; }
   .header-state { color: var(--fg-muted); font-size: 0.85rem; }
   .header-box.mismatch .header-state { color: var(--danger); }
+  .header-note { margin: 0; flex: 1 1 100%; font-size: 0.9rem; }
 
   .proof { border-top: 1px solid var(--border); padding-top: 0.9rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }

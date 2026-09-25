@@ -12,7 +12,7 @@ Im letzten Kapitel war ein Output eine Kiste mit Schloss und der Input der passe
 
 ## Schloss und Schlüssel als Skript
 
-Der `ScriptPubKey` im Output beschreibt die Bedingungen, unter denen die Bitcoins ausgegeben werden dürfen. Das `ScriptSig` im Input liefert die Daten, die diese Bedingungen erfüllen. Zum Prüfen werden beide zu einem Skript zusammengesetzt und ausgeführt. Die Skriptsprache ist absichtlich einfach und kennt zum Beispiel keine Schleifen.
+Der `ScriptPubKey` im Output beschreibt die Bedingungen, unter denen die Bitcoins ausgegeben werden dürfen. Das `ScriptSig` im Input liefert die Daten, die diese Bedingungen erfüllen. Zum Prüfen führt ein Knoten zuerst das `ScriptSig` aus und danach das `ScriptPubKey`, beide auf demselben Stack: Was das erste Skript ablegt, findet das zweite vor. Die Skriptsprache ist absichtlich einfach und kennt zum Beispiel keine Schleifen.
 
 ## Der Stack
 
@@ -79,7 +79,7 @@ In der Tabelle steht das oberste Stack-Element rechts, in der Demo oben.
 
 | Schritt | Stack danach | Was passiert |
 | --- | --- | --- |
-| 1 | (leer) | ScriptSig und ScriptPubKey werden zu einem Skript verbunden. |
+| 1 | (leer) | Das ScriptSig läuft zuerst; sein Stack wird danach an das ScriptPubKey übergeben. |
 | 2 | Sig, PubKey | Die Daten aus dem ScriptSig kommen auf den Stack. |
 | 3 | Sig, PubKey, PubKey | `OP_DUP` verdoppelt den Schlüssel: eine Kopie für das Commitment, eine für die Signatur. |
 | 4 | Sig, PubKey, HASH160(PubKey) | `OP_HASH160` berechnet den Hash des Schlüssels. |

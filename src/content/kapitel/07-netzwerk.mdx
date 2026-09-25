@@ -46,9 +46,10 @@ Bei Blöcken prüft der Knoten unter anderem diese Punkte:
 - Die Block-ID ist höchstens so groß wie das Target.
 - Die erste Transaktion ist die Coinbase-Transaktion.
 - Die Merkle-Wurzel stimmt.
-- Der Zeitstempel ist aktuell genug.
+- Der Zeitstempel ist plausibel: höchstens zwei Stunden in der Zukunft und jünger als der Median der letzten elf Blöcke (Kapitel 6).
 
 {/* KORRIGIERT gegenüber der Arbeit: „kleiner als das Target“ ersetzt durch „höchstens so groß wie“, Beleg in Kapitel 6 (Bitcoin Core src/pow.cpp, CheckProofOfWork). */}
+{/* ERGÄNZT gegenüber der Arbeit: Die Arbeit nennt beim Zeitstempel nur die Zwei-Stunden-Grenze; die Median-Regel steht wie in Kapitel 6. */}
 
 **3. Die Blockchain speichern.** Ohne die Kette kann ein Knoten neue Daten nicht prüfen. Außerdem gibt er sie an neue Teilnehmer weiter, damit auch diese auf den aktuellen Stand kommen.
 
@@ -96,7 +97,7 @@ Mit allen Kapiteln zusammen lässt sich der Weg einer Zahlung verfolgen:
 1. Alice erstellt eine Transaktion. Sie wählt UTXOs als Inputs und legt Outputs für den Empfänger und ihr Rückgeld an (Kapitel 4).
 2. Sie signiert die Transaktion mit ihrem privaten Schlüssel (Kapitel 3 und 5).
 3. Sie schickt die Transaktion an einen Knoten. Er prüft sie und gibt sie an andere Knoten weiter.
-4. Miner legen die Transaktion in ihren Mempool und nehmen sie in einen Kandidatenblock auf (Kapitel 6).
+4. Die Knoten legen die Transaktion in ihren Mempool. Ein Miner nimmt sie in einen Kandidatenblock auf (Kapitel 6).
 5. Ein Miner findet eine passende Nonce und verschickt den neuen Block.
 6. Jeder Knoten prüft den Block, hängt ihn an seine Kette und aktualisiert seine UTXO-Menge.
 7. Der Empfänger wartet, bis einige weitere Blöcke darauf folgen. Warum, zeigt Kapitel 8.
@@ -105,7 +106,7 @@ Mit allen Kapiteln zusammen lässt sich der Weg einer Zahlung verfolgen:
 
 Die Demo spielt diesen Weg in einem kleinen Netz ab. Wallets sind Kreise, Knoten sind Sechsecke, und Miner sind Sechsecke mit Balken für ihre Rechenleistung. Orange Punkte sind Transaktionen, blaue Punkte sind Blöcke.
 
-<Werkbank aufgabe="Drücke „Start“ und dann „Senden“: Alice schickt Bob 2 BTC. Verfolge den orangen Punkt von Knoten zu Knoten. Sag vorher: Kommt die Zahlung schneller bei allen Knoten an oder schneller in einen Block (blauer Punkt)? Die drei Punkte unter dem Formular zeigen dir, wie weit sie ist." deutung="Die Transaktion wandert von Nachbar zu Nachbar, bis ein Miner sie in einen Block packt. Der Block wandert dann auf dieselbe Weise durchs Netz, und jeder Knoten hängt ihn an seine Kette.">
+<Werkbank aufgabe="Drücke „Start“ und dann „Senden“: Alice schickt Bob 2 BTC. Verfolge den orangen Punkt von Knoten zu Knoten. Sag vorher: Kommt die Zahlung schneller bei allen Knoten an oder schneller in einen Block (blauer Punkt)? Die drei Punkte unter dem Formular zeigen dir, wie weit sie ist." deutung="Die Transaktion ist nach kurzer Zeit bei allen Knoten und wartet dort im Mempool, bis ein Miner sie in einen Block packt. Der Block wandert dann auf dieselbe Weise durchs Netz, und jeder Knoten hängt ihn an seine Kette.">
   <NetzwerkDemo client:only="svelte" />
 </Werkbank>
 

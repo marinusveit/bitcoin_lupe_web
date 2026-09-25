@@ -75,7 +75,7 @@ export function produceBlock(world: World, miner: MinerNode, emit: Emit): Block 
   if (difficulty !== parent.difficulty) {
     emit({
       kind: 'retarget',
-      text: `Difficulty-Anpassung ab Block ${height}: ${formatDifficulty(parent.difficulty)} → ${formatDifficulty(difficulty)}`,
+      text: `Difficulty-Anpassung ab Block ${height}: ${formatDifficulty(parent.difficulty, world.params.difficulty)} → ${formatDifficulty(difficulty, world.params.difficulty)}`,
       nodeId: miner.id,
       blockHash: block.hash,
     });
@@ -90,8 +90,12 @@ export function produceBlock(world: World, miner: MinerNode, emit: Emit): Block 
   return block;
 }
 
-export function formatDifficulty(d: number): string {
-  return d.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+/**
+ * Difficulty relativ zum Start (Genesis = 1), wie Kapitel 6 sie definiert. Intern ist die
+ * Difficulty die erwartete Rechenarbeit je Block (Fundchance je Tick = Hashrate / Difficulty).
+ */
+export function formatDifficulty(d: number, start: number): string {
+  return (d / start).toLocaleString('de-DE', { maximumFractionDigits: 2 });
 }
 
 /** Ein Tick Mining: je Miner ein Bernoulli-Versuch mit p = hashrate / difficulty. */

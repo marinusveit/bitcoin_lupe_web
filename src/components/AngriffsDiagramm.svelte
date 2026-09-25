@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { atLeastHalf, attackerSuccessProbability as catchUp, confirmationsFor } from '../lib/nakamoto';
+  import {
+    atLeastHalf,
+    attackerSuccessProbability as catchUp,
+    confirmationsFor,
+    exactAttackerSuccessProbability,
+  } from '../lib/nakamoto';
 
   const FIXED = [0.1, 0.2, 0.3, 0.4, 0.45];
   // Geordnete Anteile: ein Farbton, von blass (kleines q) nach kräftig (großes q).
@@ -30,11 +35,16 @@
   const pct = (v: number, d = 1) =>
     `${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: v < 0.001 && v > 0 ? 4 : d })} %`;
   const qLabel = (q: number) => `${Math.round(q * 100)} %`;
+  /** Wartezeit ab der Zahlung: der Block mit der Zahlung plus z Blöcke danach, im Mittel zehn Minuten je Block. */
+  const waitLabel = (z: number) => {
+    const min = (z + 1) * 10;
+    return min < 120 ? `${min} min` : `${(min / 60).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`;
+  };
 
   const table = $derived(
     [...FIXED.map((q) => ({ q, own: false })), { q: ownQ, own: true }]
       .sort((a, b) => a.q - b.q || Number(a.own) - Number(b.own))
-      .map((r) => ({ ...r, z: confirmationsFor(r.q) })),
+      .map((r) => ({ ...r, z: confirmationsFor(r.q), zExact: confirmationsFor(r.q, 0.001, exactAttackerSuccessProbability) })),
   );
 
   function toZ(event: PointerEvent): number {
@@ -110,23 +120,36 @@
 
   <table>
     <caption>Wie viele Blöcke abwarten für unter 0,1 % Risiko?</caption>
-    <thead><tr><th>Anteil des Angreifers q</th><th class="num">nötiges z</th><th class="num">Wartezeit etwa</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Anteil des Angreifers q</th>
+        <th class="num">nötiges z (Whitepaper)</th>
+        <th class="num">nötiges z (genaue Rechnung)</th>
+        <th class="num">Wartezeit ab der Zahlung (genau)</th>
+      </tr>
+    </thead>
     <tbody>
       {#each table as r (r.q + ':' + r.own)}
         <tr class:own={r.own}>
           <td>{qLabel(r.q)}{r.own ? ' (dein Wert)' : ''}</td>
-          {#if r.z === null}
+          {#if r.z === null || r.zExact === null}
+            <td class="num">nie sicher</td>
             <td class="num">nie sicher</td>
             <td class="num">–</td>
           {:else}
             <td class="num">{r.z}</td>
-            <td class="num">{r.z * 10 < 120 ? `${r.z * 10} min` : `${(r.z / 6).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`}</td>
+            <td class="num">{r.zExact}</td>
+            <td class="num">{waitLabel(r.zExact)}</td>
           {/if}
         </tr>
       {/each}
     </tbody>
   </table>
-  <p class="hint">Ein Block kommt im Mittel alle zehn Minuten. Viele Händler warten sechs Bestätigungen, also z = 5 und etwa eine Stunde ab der Zahlung.</p>
+  <p class="hint">
+    Die Formel aus dem Whitepaper ist eine Näherung, nach der genauen Rechnung sind oft mehr Blöcke nötig. Ein Block
+    kommt im Mittel alle zehn Minuten. Viele Händler warten sechs Bestätigungen, also z = 5 und etwa eine Stunde ab der
+    Zahlung. Nach der genauen Rechnung braucht ein Händler bei 10 % für unter 0,1 % Risiko aber sechs Blöcke nach dem Block mit der Zahlung (z = 6), also sieben Bestätigungen.
+  </p>
 </div>
 
 <style>

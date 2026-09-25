@@ -18,7 +18,13 @@
   let zeros = $state(START_ZEROS);
   let running = $state(false);
   let iterations = $state(0);
-  let rate = $state(0);
+  /** Versuche pro Sekunde; `null`, solange zu wenige Versuche für eine verlässliche Rate gezählt sind. */
+  let rate: number | null = $state(null);
+  /**
+   * Letzte verlässliche Rate, für den Vergleich mit dem Bitcoin-Netz. Netzwert in der Schlussnotiz:
+   * Difficulty D ≈ 1,5·10^14 (Stand 2026), D · 2^32 / 600 s ≈ 1,1·10^21 Versuche je Sekunde.
+   */
+  let lastRate: number | null = $state(null);
   let elapsed = $state(0);
   let currentHash = $state('');
   let currentNonce = $state(0);
@@ -29,7 +35,16 @@
   let zeroHist: number[] = $state([]);
 
   let handle: MiningHandle | null = null;
-  let startedAt = 0;
+
+  /** Unterhalb dieser Versuchszahl ist die gemessene Rate zu ungenau und wird nicht angezeigt. */
+  const MIN_RATE_ITERATIONS = 20_000;
+  /** Rate aus der reinen Rechenzeit im Worker, erst ab genug Versuchen. */
+  function rateOf(n: number, ms: number): number | null {
+    if (n < MIN_RATE_ITERATIONS || ms <= 0) return null;
+    const r = n / (ms / 1000);
+    lastRate = r;
+    return r;
+  }
 
   const target = $derived(2n ** BigInt(256 - 4 * zeros) - 1n);
   const expected = $derived(16 ** zeros);
@@ -42,7 +57,7 @@
   function start() {
     error = '';
     iterations = 0;
-    rate = 0;
+    rate = null;
     elapsed = 0;
     currentHash = '';
     lastFind = null;
@@ -57,7 +72,6 @@
       nBits: targetToNBits(t),
       nonce: 0,
     };
-    startedAt = performance.now();
     running = true;
     const h = startMining(
       header,
@@ -66,8 +80,8 @@
         currentHash = p.hash;
         currentNonce = p.nonce;
         if (p.zeroHist) zeroHist = p.zeroHist;
-        elapsed = (performance.now() - startedAt) / 1000;
-        rate = elapsed > 0 ? p.iterations / elapsed : 0;
+        elapsed = p.elapsedMs / 1000;
+        rate = rateOf(p.iterations, p.elapsedMs);
       },
       { target: t, chunkSize: 20_000 },
     );
@@ -78,13 +92,13 @@
         running = false;
         handle = null;
         if (outcome.status === 'found') {
-          const seconds = (performance.now() - startedAt) / 1000;
+          const seconds = outcome.elapsedMs / 1000;
           const find = { zeros: n, iterations: outcome.iterations, seconds, nonce: outcome.nonce, hash: outcome.hash };
           lastFind = find;
           // Anzeige auf den Endstand setzen; der letzte Fortschrittsbericht liegt vor dem Treffer.
           iterations = outcome.iterations;
           elapsed = seconds;
-          rate = seconds > 0 ? outcome.iterations / seconds : 0;
+          rate = rateOf(outcome.iterations, outcome.elapsedMs);
           currentNonce = outcome.nonce;
           currentHash = outcome.hash;
           if (outcome.zeroHist) zeroHist = outcome.zeroHist;
@@ -116,7 +130,7 @@
     stop();
     zeros = START_ZEROS;
     iterations = 0;
-    rate = 0;
+    rate = null;
     elapsed = 0;
     currentHash = '';
     lastFind = null;
@@ -127,7 +141,7 @@
 
   onDestroy(stop);
 
-  /** Schwierigkeit, für die die Balken gelten (während des Laufs der Regler, danach der Fund). */
+  /** Stufe, für die die Balken gelten (während des Laufs der Regler, danach der Fund). */
   const histZeros = $derived(lastFind && !running ? lastFind.zeros : zeros);
   const histTotal = $derived(zeroHist.reduce((a, b) => a + b, 0));
   /** Balken 0 bis mindestens zur Schwierigkeit; darüber nur, wenn es Treffer gab. */
@@ -155,7 +169,7 @@
 <div class="demo">
   <div class="controls">
     <label class="slider">
-      <span>Schwierigkeit: <strong>{zeros}</strong> führende Null{zeros === 1 ? '' : 'en'} im Hash</span>
+      <span>Stufe: <strong>{zeros}</strong> führende Null{zeros === 1 ? '' : 'en'} im Hash</span>
       <input type="range" min="1" max="7" step="1" bind:value={zeros} disabled={running} />
       <span class="hint">Im Mittel {fmt(expected)} Versuche nötig (16 hoch {zeros}).</span>
     </label>
@@ -168,12 +182,13 @@
   <div class="target">
     <span class="lbl">Target (Obergrenze): der Hash muss als Zahl kleiner oder gleich sein</span>
     <span class="hash"><span class="z">{'0'.repeat(zeros)}</span>{targetHex(zeros).slice(zeros)}</span>
+    <span class="hint">Das echte Target ist keine so runde Zahl wie hier, siehe nBits weiter unten.</span>
   </div>
 
   <dl class="stats" aria-live="polite">
     <div><dt>Versuche</dt><dd>{fmt(iterations)}</dd></div>
-    <div><dt>Versuche pro Sekunde</dt><dd>{fmt(rate)}</dd></div>
-    <div><dt>Zeit</dt><dd>{fmt(elapsed, 1)} s</dd></div>
+    <div><dt>Versuche pro Sekunde</dt><dd>{rate === null ? '–' : fmt(rate)}</dd></div>
+    <div><dt>Zeit</dt><dd>{fmt(elapsed, 2)} s</dd></div>
     <div class="wide">
       <dt>{running ? 'Aktueller Hash' : lastFind ? 'Gefundener Hash' : 'Hash'}</dt>
       <dd class="hash">{#if lastFind && !running}<span class="z">{lastFind.hash.slice(0, lastFind.zeros)}</span>{lastFind.hash.slice(lastFind.zeros)}{:else}{currentHash || '–'}{/if}</dd>
@@ -221,7 +236,7 @@
     <div class="table-wrap">
     <table>
       <caption>Letzte Funde</caption>
-      <thead><tr><th>Schwierigkeit</th><th class="num">erwartet</th><th class="num">Versuche</th><th class="num">Sekunden</th></tr></thead>
+      <thead><tr><th>Stufe</th><th class="num">erwartet</th><th class="num">Versuche</th><th class="num">Sekunden</th></tr></thead>
       <tbody>
         {#each history as f, i (i + ':' + f.nonce)}
           <tr><td>{f.zeros} Null{f.zeros === 1 ? '' : 'en'}</td><td class="num">{fmt(16 ** f.zeros)}</td><td class="num">{fmt(f.iterations)}</td><td class="num">{fmt(f.seconds, 2)}</td></tr>
@@ -232,8 +247,9 @@
   {/if}
 
   <p class="note">
-    Jede weitere Null macht die Suche im Mittel 16-mal aufwendiger. Ein echter Bitcoin-Block braucht 2026 etwa
-    19 führende Null-Hexzeichen, das ist grob 280 Billionen Mal so viel Arbeit wie Stufe 7 hier (nur nach den führenden Nullen gezählt).
+    Jede weitere Null macht die Suche im Mittel 16-mal aufwendiger. Das ganze Bitcoin-Netz schafft 2026 etwa eine
+    Trilliarde (10<sup>21</sup>) Versuche pro Sekunde{#if lastRate === null}. Wie viele dein Rechner schafft, steht
+    hier nach der ersten längeren Suche.{:else}, dein Rechner gerade {fmt(lastRate)}.{/if}
   </p>
 </div>
 

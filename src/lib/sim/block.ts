@@ -1,28 +1,18 @@
 import { sha256 } from '@noble/hashes/sha2.js';
-import { concatBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import { bytesToHex, hexToBytes, sha256dBytes, sha256dHex } from '../hash';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes, sha256dHex } from '../hash';
+import { merkleRoot as bitcoinMerkleRoot } from '../merkle';
 import type { Block, SimParams, Tx } from './types';
 import { makeTx } from './tx';
 
 export const ZERO_HASH = '0'.repeat(64);
 
 /**
- * Merkle-Wurzel über die TxIDs (sha256d paarweise, ungerade Anzahl: letztes Element doppelt).
- * Anders als `merkleRoot` in `src/lib/merkle.ts` ohne Byte-Drehung; die Werte unterscheiden sich daher.
+ * Merkle-Wurzel über die TxIDs in Anzeige-Reihenfolge, dieselbe Rechnung wie in Kapitel 2
+ * (`src/lib/merkle.ts`, mit Byte-Drehung wie in Bitcoin). Ohne Transaktionen: Null-Hash.
  */
 export function merkleRoot(txids: string[]): string {
-  if (txids.length === 0) return ZERO_HASH;
-  let level: Uint8Array[] = txids.map((id) => hexToBytes(id));
-  while (level.length > 1) {
-    const next: Uint8Array[] = [];
-    for (let i = 0; i < level.length; i += 2) {
-      const left = level[i]!;
-      const right = level[i + 1] ?? left;
-      next.push(sha256dBytes(concatBytes(left, right)));
-    }
-    level = next;
-  }
-  return bytesToHex(level[0]!);
+  return txids.length === 0 ? ZERO_HASH : bitcoinMerkleRoot(txids);
 }
 
 export function headerString(prevHash: string, root: string, nonce: number, height: number): string {
@@ -96,6 +86,8 @@ export function nextDifficulty(
   const actual = Math.max(1, parent.timestampTick - first.timestampTick);
   const expected = gaps * params.targetBlockTicks;
   const factor = Math.min(4, Math.max(0.25, expected / actual));
+  // Anders als bei Bitcoin (powLimit) darf die Difficulty hier unter den Startwert fallen; ein Deckel
+  // würde die Zufallsfolge der Seeds ändern (Test Seed 21). Der Simulator-Text nennt die Abweichung.
   return parent.difficulty * factor;
 }
 

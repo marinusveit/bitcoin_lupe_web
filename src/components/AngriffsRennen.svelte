@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { atLeastHalf, attackerSuccessProbability, simulateRace, type RaceResult } from '../lib/nakamoto';
+  import {
+    atLeastHalf,
+    attackerSuccessProbability,
+    exactAttackerSuccessProbability,
+    simulateRace,
+    type RaceResult,
+  } from '../lib/nakamoto';
 
   const START_Q = 0.3;
   const START_Z = 3;
@@ -23,6 +29,7 @@
 
   const pct = (v: number, d = 1) => `${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: d })} %`;
   const formula = $derived(attackerSuccessProbability(q, z));
+  const exact = $derived(exactAttackerSuccessProbability(q, z));
 
   /** Stand des Rennens nach `shown` Blockfunden. */
   const view = $derived.by(() => {
@@ -174,8 +181,10 @@
         Der Angreifer hat aufgeholt!
       {/if}
     {:else if race.outcome === 'success' && race.steps.length === 0}
-      <strong class="bad">Angriff gelungen:</strong> Der Händler hat ohne Bestätigung geliefert. Der Angreifer muss nichts aufholen
-      und veröffentlicht einfach seine Zahlung an sich selbst.
+      <strong class="bad">Angriff gelungen:</strong> Der Händler hat schon nach einer Bestätigung geliefert (z = 0). Im
+      Modell des Whitepapers hat der Angreifer seinen Block mit der Gegenzahlung da schon fertig, die Ketten sind sofort
+      gleich lang, und das zählt als Erfolg. Im echten Netz braucht er noch einen Block Vorsprung; die Chance dafür ist
+      q/p, hier {pct(Math.min(1, q / (1 - q)))}.
     {:else if race.outcome === 'success'}
       <strong class="bad">Angriff gelungen:</strong> Nach {race.steps.length} Blöcken hat die Kette des Angreifers die ehrliche eingeholt.
       Sobald sie länger ist, wechseln die Knoten zu ihr, und die Zahlung an den Händler verschwindet.
@@ -190,6 +199,7 @@
     <div><dt>davon gelungen</dt><dd>{wins}</dd></div>
     <div><dt>Quote im Experiment</dt><dd>{runs > 0 ? pct(wins / runs) : '–'}</dd></div>
     <div><dt>Formel aus dem Whitepaper</dt><dd>{pct(formula, formula < 0.01 ? 2 : 1)}</dd></div>
+    <div><dt>genaue Rechnung</dt><dd>{pct(exact, exact < 0.01 ? 2 : 1)}</dd></div>
   </dl>
   <p class="hint">
     {#if atLeastHalf(q)}
@@ -198,9 +208,9 @@
       scheitern hier trotzdem einige Rennen.
     {:else}
       Je mehr Rennen du laufen lässt, desto stabiler wird die Quote. Ein einzelnes Rennen kann immer anders
-      ausgehen, das ist Zufall. Die Quote liegt meist etwas über der Formel, denn die Formel im Whitepaper ist
-      eine Näherung, die das Risiko unterschätzt. Außerdem gibt der Angreifer in der Simulation bei {GIVE_UP}
-      Blöcken Rückstand auf.
+      ausgehen, das ist Zufall. Die Formel aus dem Whitepaper ist eine Näherung. Die Simulation rechnet genauer,
+      deshalb weichen die Werte etwas ab, je nach Einstellung nach oben oder unten. Außerdem gibt der Angreifer in
+      der Simulation bei {GIVE_UP} Blöcken Rückstand auf.
     {/if}
     Wie im Whitepaper zählt es als Erfolg, sobald die heimliche Kette gleich lang ist. Im echten Netz muss
     sie länger sein, damit die Knoten zu ihr wechseln.

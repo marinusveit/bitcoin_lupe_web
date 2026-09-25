@@ -20,4 +20,21 @@ describe('MerkleDemo', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Tx 3: Merkle-Beweis anzeigen' }));
     expect(screen.getByText(/Beweis scheitert/)).toBeTruthy();
   });
+
+  it('zeigt Bitcoin-konforme TxIDs (byte-umgedrehter HASH256) und die passende Wurzel', () => {
+    render(MerkleDemo);
+    expect(screen.getByText(/TxID 9e7f5fd0/)).toBeTruthy();
+    expect(screen.getByTitle(/^787d7c7a905b523d/)).toBeTruthy();
+  });
+
+  it('erklärt nach dem Neuschreiben einer abweichenden Wurzel, dass es ein anderer Block ist', async () => {
+    render(MerkleDemo);
+    const note = /anderer Block/;
+    await fireEvent.click(screen.getByRole('button', { name: 'Transaktion hinzufügen' }));
+    expect(screen.queryByText(note)).toBeNull();
+    const input = screen.getAllByRole('textbox')[2]!;
+    await fireEvent.input(input, { target: { value: 'Carol → Dave 5 BTC' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Wurzel in den Block-Header schreiben' }));
+    expect(screen.getByText(note)).toBeTruthy();
+  });
 });

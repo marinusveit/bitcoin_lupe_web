@@ -8,11 +8,13 @@ interface Props {
   aufgabe?: string;
   deutung?: string;
   titel?: string;
+  /** Optionaler Anker, damit der Kapiteltext zur Demo zurückspringen kann. */
+  id?: string;
 }
-const { aufgabe, deutung, titel } = Astro.props;
+const { aufgabe, deutung, titel, id } = Astro.props;
 ---
 
-<section class="werkbank">
+<section class="werkbank" id={id}>
   {aufgabe && (
     <p class="aufgabe">
       <span class="marke">Probiere</span>

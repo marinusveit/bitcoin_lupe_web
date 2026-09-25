@@ -92,11 +92,18 @@
       ? 'Das Skript enthält keinen Befehl, der ausgeführt werden kann.'
       : at === 0
         ? 'Noch nichts ausgeführt. Der Stapel ist leer. Drücke „Schritt“.'
-        : result.steps[at - 1]!.note,
+        : handover(at)
+          ? `scriptSig ist fertig. Sein Stapel wird an das Sperr-Skript (scriptPubKey) übergeben. ${result.steps[at - 1]!.note}`
+          : result.steps[at - 1]!.note,
   );
 
+  /** Ist Schritt `n` der erste des scriptPubKey nach einem scriptSig? Dort startet das zweite Programm. */
+  function handover(n: number): boolean {
+    return n >= 2 && result.steps[n - 1]!.phase === 'scriptPubKey' && result.steps[n - 2]!.phase === 'scriptSig';
+  }
+
   function display(value: string): { text: string; label?: string } {
-    if (value === '') return { text: '(leer)', label: '0 / falsch' };
+    if (value === '') return { text: '0', label: 'falsch (leere Byte-Folge)' };
     const label = labels.get(value.toLowerCase());
     if (value === '01') return { text: '01', label: '1 / wahr' };
     if (value.length > 24) return { text: `${value.slice(0, 10)}…${value.slice(-6)}`, label };

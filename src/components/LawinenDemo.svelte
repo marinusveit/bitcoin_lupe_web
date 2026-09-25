@@ -23,24 +23,33 @@
   const lowest = $derived(history.length ? Math.min(...history) : null);
   const highest = $derived(history.length ? Math.max(...history) : null);
 
+  /** Zuletzt per Knopf geändertes Zeichen (Position ab 1); `null` nach Handeingabe oder Zurücksetzen. */
+  let lastChange = $state<{ pos: number; from: string; to: string } | null>(null);
+
+  // Ausgangspunkt ist immer Text A: B unterscheidet sich danach in genau einem Zeichen von A.
   function changeOneChar() {
-    const chars = Array.from(right);
+    const chars = Array.from(left);
     if (chars.length === 0) {
       right = ALPHABET[Math.floor(Math.random() * 26)]!;
+      lastChange = null;
       return;
     }
     const pos = Math.floor(Math.random() * chars.length);
-    let replacement = chars[pos]!;
-    while (replacement === chars[pos]) {
-      replacement = ALPHABET[Math.floor(Math.random() * ALPHABET.length)]!;
+    const from = chars[pos]!;
+    let to = from;
+    while (to === from) {
+      to = ALPHABET[Math.floor(Math.random() * ALPHABET.length)]!;
     }
-    chars[pos] = replacement;
+    chars[pos] = to;
     right = chars.join('');
-    const count = Array.from(toBitString(sha256Hex(left)), (b, i) => b !== bitsRight[i]).filter(Boolean).length;
+    lastChange = { pos: pos + 1, from, to };
+    const newBits = toBitString(sha256Hex(right));
+    const count = Array.from(bitsLeft, (b, i) => b !== newBits[i]).filter(Boolean).length;
     history = [...history, count];
   }
 
   function reset() {
+    lastChange = null;
     left = START_LEFT;
     right = START_RIGHT;
     history = [];
@@ -54,9 +63,9 @@
         <label class="field">
           <span>{side.label}</span>
           {#if side.id === 'l'}
-            <input type="text" bind:value={left} spellcheck="false" autocomplete="off" />
+            <input type="text" bind:value={left} oninput={() => (lastChange = null)} spellcheck="false" autocomplete="off" />
           {:else}
-            <input type="text" bind:value={right} spellcheck="false" autocomplete="off" />
+            <input type="text" bind:value={right} oninput={() => (lastChange = null)} spellcheck="false" autocomplete="off" />
           {/if}
         </label>
         <div class="bits hash" aria-label={`SHA-256 von ${side.label} als Bitmuster`}>
@@ -75,6 +84,9 @@
 
   <p class="summary" aria-live="polite">
     <strong>{diffCount} von 256 Bits</strong> unterschiedlich ({percent} %)
+    {#if lastChange}
+      <span class="change">Text B = Text A mit geändertem Zeichen {lastChange.pos}: <span class="hash">„{lastChange.from}“ → „{lastChange.to}“</span></span>
+    {/if}
     {#if mean !== null}
       <span class="stat">Nach {history.length} {history.length === 1 ? 'Änderung' : 'Änderungen'}: im Mittel {meanText} Bits, kleinster Wert {lowest}, größter Wert {highest}</span>
     {/if}
@@ -85,7 +97,7 @@
   </p>
 
   <div class="actions">
-    <button type="button" class="primary" onclick={changeOneChar}>Ein Zeichen ändern</button>
+    <button type="button" class="primary" onclick={changeOneChar}>Ein Zeichen von Text A ändern</button>
     <button type="button" onclick={reset}>Zurücksetzen</button>
   </div>
 </div>
@@ -109,6 +121,8 @@
   .bit-row span.diff { background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; }
   .summary { margin: 0; font-size: 1.1rem; }
   .summary strong { color: var(--accent-strong); }
+  .change { display: block; font-size: 0.95rem; margin-top: 0.2rem; }
+  .change .hash { color: var(--accent-strong); font-weight: 700; white-space: pre; }
   .stat { display: block; font-size: 0.9rem; color: var(--fg-muted); margin-top: 0.2rem; }
   .hint { margin: 0; color: var(--fg-muted); font-size: 0.92rem; }
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }

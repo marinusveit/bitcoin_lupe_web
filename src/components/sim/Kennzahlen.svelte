@@ -33,11 +33,11 @@
 <dl class="kennzahlen" aria-label="Kennzahlen des Netzes">
   <div><dt>{compact ? 'Höhe der Kette' : 'Höhe'}</dt><dd>{s.height}</dd></div>
   {#if !compact}
-    <div><dt>Difficulty</dt><dd>{formatDifficulty(s.difficulty)}</dd></div>
+    <div><dt>Difficulty (Start = 1)</dt><dd>{formatDifficulty(s.difficulty, world.params.difficulty)}</dd></div>
     <div><dt>Gesamt-Hashrate</dt><dd>{fmtNumber(s.totalHashrate)}</dd></div>
     <div>
-      <dt>Mittlerer Blockabstand</dt>
-      <dd>{s.meanBlockInterval === null ? 'noch kein Block' : `${fmtNumber(s.meanBlockInterval, 0)} ${Math.round(s.meanBlockInterval) === 1 ? 'Tick' : 'Ticks'}`}</dd>
+      <dt>Mittlerer Blockabstand (Ziel {world.params.targetBlockTicks})</dt>
+      <dd>{s.meanBlockInterval === null || s.height < 3 ? 'zu wenige Blöcke' : `${fmtNumber(s.meanBlockInterval, 0)} ${Math.round(s.meanBlockInterval) === 1 ? 'Tick' : 'Ticks'}`}</dd>
     </div>
     <div><dt>Coins im Umlauf</dt><dd>{formatBtc(s.coinsInCirculation)}</dd></div>
   {/if}

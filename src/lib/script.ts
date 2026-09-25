@@ -6,9 +6,13 @@ import { verifySignature } from './keys';
  * `OP_DUP` oder Datenpushes als Hex (z. B. ein Public Key). Der Stapel enthält Byte-Folgen,
  * in den Schritten als Hex dargestellt (leerer String = leere Byte-Folge = falsch/0).
  *
- * Vereinfachungen gegenüber Bitcoin: scriptSig und scriptPubKey laufen nacheinander auf
- * demselben Stapel; Signaturen haben kein angehängtes Sighash-Typ-Byte; OP_CHECKSIG prüft
- * gegen `ctx.messageHash` (vereinfachte Sighash, siehe `sighash` in `transaction.ts`).
+ * Wie Bitcoin Core (seit dem Fix zu CVE-2010-5141, interpreter.cpp `VerifyScript`) laufen
+ * scriptSig und scriptPubKey als zwei getrennte Programme nacheinander; der Stapel nach dem
+ * scriptSig wird an das scriptPubKey übergeben. Die Skripte werden nicht zu einem verkettet.
+ *
+ * Vereinfachungen gegenüber Bitcoin: Signaturen haben kein angehängtes Sighash-Typ-Byte;
+ * OP_CHECKSIG prüft gegen `ctx.messageHash` (vereinfachte Sighash, siehe `sighash` in
+ * `transaction.ts`).
  */
 
 /** Kontext der Ausführung: der Hash, den OP_CHECKSIG als signierte Nachricht verwendet. */

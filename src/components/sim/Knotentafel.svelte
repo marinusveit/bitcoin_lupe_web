@@ -10,6 +10,7 @@
     privateLead,
     txFee,
     walletBalance,
+    withPendingOutputs,
     type Block,
     type Tx,
     type World,
@@ -44,10 +45,11 @@
       const via = chainNodeOf(world, n.id);
       const bal = walletBalance(world, n.id);
       const utxos = (bal?.utxos ?? []).map((u) => ({ ...u, conf: via ? confirmations(via, u.txid) : 0 }));
+      const lookup = via ? withPendingOutputs(via.utxo, Object.values(via.mempool)) : {};
       const pending = via
         ? Object.values(via.mempool)
-            .filter((tx) => tx.outputs.some((o) => o.address === n.address) || tx.inputs.some((i) => via.utxo[`${i.txid}:${i.vout}`]?.address === n.address))
-            .map((tx) => ({ txid: tx.txid, text: describe(tx, via.utxo) }))
+            .filter((tx) => tx.outputs.some((o) => o.address === n.address) || tx.inputs.some((i) => lookup[`${i.txid}:${i.vout}`]?.address === n.address))
+            .map((tx) => ({ txid: tx.txid, text: describe(tx, lookup) }))
         : [];
       let attack: { conf: number; gone: boolean; attacker: string; amount: number } | null = null;
       const a = world.attack;
@@ -73,7 +75,8 @@
     }
     const minerNames: Record<string, string> = {};
     for (const b of blocks) minerNames[b.minerId] = world.nodes[b.minerId]?.name ?? b.minerId.toUpperCase();
-    const mempool = Object.values(n.mempool).map((tx) => ({ txid: tx.txid, text: describe(tx, n.utxo), fee: txFee(tx, n.utxo) }));
+    const outputs = withPendingOutputs(n.utxo, Object.values(n.mempool));
+    const mempool = Object.values(n.mempool).map((tx) => ({ txid: tx.txid, text: describe(tx, outputs), fee: txFee(tx, outputs) }));
     mempool.sort((a, b) => b.fee - a.fee);
     const peers = n.peers.map((p) => world.nodes[p]?.name ?? p);
     const miner =
@@ -157,7 +160,7 @@
     </p>
     {#if view.miner}
       <p class="status">
-        Hashrate {view.miner.hashrate}, Difficulty {formatDifficulty(view.miner.difficulty)}, Chance je Tick {(
+        Hashrate {view.miner.hashrate}, Difficulty {formatDifficulty(view.miner.difficulty, world.params.difficulty)}, Chance je Tick {(
           (view.miner.hashrate / view.miner.difficulty) *
           100
         ).toLocaleString('de-DE', { maximumFractionDigits: 2 })} %{#if view.miner.balance}, Guthaben {formatBtc(view.miner.balance.confirmed)}{/if}.

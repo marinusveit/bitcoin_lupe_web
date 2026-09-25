@@ -64,9 +64,22 @@
     return `${(sat / SAT).toLocaleString('de-DE', { maximumFractionDigits: 8 })} BTC`;
   }
 
-  function parseBtc(text: string): number {
-    const n = Number(String(text).trim().replace(',', '.'));
-    return Number.isFinite(n) ? Math.round(n * SAT) : NaN;
+  /**
+   * Liest einen BTC-Betrag streng: Ziffern, optional Komma oder Punkt mit höchstens 8 Nachkommastellen.
+   * Liefert Satoshi oder eine Meldung. Tausenderpunkte, Hex und Exponenten werden abgelehnt statt still umgedeutet.
+   */
+  function parseBtc(text: string): number | string {
+    const t = String(text).trim();
+    if (/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(t)) {
+      return 'Bitte ohne Tausenderpunkt eingeben und Nachkommastellen mit Komma abtrennen, z. B. 2,5.';
+    }
+    const m = /^(-?)(\d+)(?:[.,](\d+))?$/.exec(t);
+    if (!m) return 'Bitte eine Zahl wie 2,5 eingeben.';
+    const frac = m[3] ?? '';
+    if (frac.length > 8) return 'Höchstens 8 Nachkommastellen: Der kleinste Betrag ist 1 Satoshi = 0,00000001 BTC.';
+    const sat = Number(m[2]) * SAT + Number(frac.padEnd(8, '0'));
+    if (!Number.isSafeInteger(sat)) return 'Diese Zahl ist zu groß.';
+    return m[1] ? -sat : sat;
   }
 
   function short(hex: string): string {
@@ -176,6 +189,8 @@
     const value = parseBtc(amount);
     const feeSat = parseBtc(feeText);
     if (sender === receiver) return void (error = 'Absender und Empfänger müssen verschieden sein.');
+    if (typeof value === 'string') return void (error = `Betrag: ${value}`);
+    if (typeof feeSat === 'string') return void (error = `Gebühr: ${feeSat}`);
     if (!(value > 0)) return void (error = 'Gib einen Betrag größer als 0 ein, z. B. 2,5.');
     if (!(feeSat >= 0)) return void (error = 'Die Gebühr muss 0 oder größer sein.');
 
@@ -260,8 +275,10 @@
         <p class="small">{doubleSpend.attempt}</p>
         <p class="verdict">{doubleSpend.verdict}</p>
         <p class="muted small">
-          Jeder Knoten prüft, ob die Inputs noch in der UTXO-Menge stehen. So kann niemand dieselben Coins zweimal
-          ausgeben (doppelte Ausgabe).
+          In der Demo kommt jede Transaktion sofort in einen Block. In Wirklichkeit wartet sie zuerst im Mempool
+          (Kapitel 6). Eine zweite Transaktion mit denselben Inputs nimmt ein Knoten dort nicht an, höchstens als Ersatz
+          mit höherer Gebühr. Endgültig entscheidet der Block: Ein Block, der einen schon verbrauchten Output ausgibt,
+          ist ungültig. So kommt nur eine der beiden Transaktionen in die Blockchain.
         </p>
       </div>
     {/if}
@@ -271,6 +288,8 @@
     <p class="caption">
       {#if latest.from}
         Zuletzt: {latest.from} zahlt {latest.to}. Alle Inputs sind mit {latest.from}s Signatur entsperrt und geprüft.
+        In der Demo kommt jede Transaktion sofort in einen Block. In Wirklichkeit wartet sie zuerst im Mempool
+        (Kapitel 6). Erst mit dem Block ist sie bestätigt.
       {:else}
         Startzustand: Die Coinbase-Transaktion erzeugt 50 neue BTC für Alice.
       {/if}

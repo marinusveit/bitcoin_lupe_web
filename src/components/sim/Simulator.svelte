@@ -118,7 +118,10 @@
         Die Karte zeigt ein kleines Bitcoin-Netz: Wallets (Kreise) schicken Zahlungen an Knoten (Sechsecke), und die
         Knoten reichen jede Nachricht an ihre Nachbarn weiter. Orange Punkte sind Transaktionen, blaue Punkte sind
         Blöcke. Miner (Sechsecke mit Balken für ihre Rechenleistung) finden zufällig neue Blöcke, und unten siehst du,
-        wie daraus eine Kette wird, die sich manchmal kurz gabelt.
+        wie daraus eine Kette wird, die sich manchmal kurz gabelt. Das Netz passt die Difficulty alle
+        {world.params.retargetInterval} Blöcke so an, dass im Mittel alle {world.params.targetBlockTicks} Ticks ein Block
+        entsteht (bei Bitcoin: alle 2016 Blöcke auf 10 Minuten). Die Difficulty zählt hier relativ zum Start; anders als
+        bei Bitcoin kann sie auch unter 1 fallen, wenn Rechenleistung wegfällt.
       </p>
       <p class="aufgaben-titel">Probier es aus:</p>
       <ul class="aufgaben">

@@ -31,12 +31,55 @@ export function attackerSuccessProbability(q: number, z: number): number {
   return Math.min(1, Math.max(0, 1 - sum));
 }
 
-/** Nötige Bestätigungen für ein Risiko unter `limit`; `null`, wenn kein Warten hilft (q ab 50 %). */
-export function confirmationsFor(q: number, limit = 0.001): number | null {
+/**
+ * Genaue Wahrscheinlichkeit, dass der Angreifer aufholt (Grunspan/Pérez-Marco 2018). Anders als
+ * Nakamoto nimmt sie nicht an, dass die Ehrlichen für z Blöcke genau die mittlere Zeit brauchen:
+ * Die Zahl der Angreiferblöcke bis dahin ist negativ-binomialverteilt. Geschlossene Form
+ * 1 − Σ_{k=0}^{z−1} C(k+z−1, k) · (p^z q^k − q^z p^k), in Log-Rechnung gegen Überlauf bei großem z.
+ * Wegen der Differenz 1 − Summe ist das Ergebnis nur auf etwa 1e−12 genau, für Schwellen wie 0,1 % reicht das.
+ */
+export function exactAttackerSuccessProbability(q: number, z: number): number {
+  if (z === 0 || atLeastHalf(q)) return 1;
+  if (q <= 0) return 0;
+  const p = 1 - q;
+  const logP = Math.log(p);
+  const logQ = Math.log(q);
+  let sum = 0;
+  let logBinom = 0;
+  for (let k = 0; k < z; k++) {
+    if (k > 0) logBinom += Math.log(k + z - 1) - Math.log(k);
+    sum += Math.exp(logBinom + z * logP + k * logQ) - Math.exp(logBinom + z * logQ + k * logP);
+  }
+  return Math.min(1, Math.max(0, 1 - sum));
+}
+
+/** Suchgrenze für `confirmationsFor`; darüber liegen nur q, die kaum von 50 % zu unterscheiden sind. */
+const MAX_CONFIRMATIONS = 1 << 20;
+
+/**
+ * Nötige Bestätigungen für ein Risiko unter `limit` nach der Formel `probability` (Standard:
+ * Whitepaper). Die Wahrscheinlichkeit fällt mit z, deshalb erst verdoppeln, dann halbieren.
+ * `null`, wenn kein Warten hilft (q ab 50 %) oder mehr als 2^20 Blöcke nötig wären.
+ */
+export function confirmationsFor(
+  q: number,
+  limit = 0.001,
+  probability: (q: number, z: number) => number = attackerSuccessProbability,
+): number | null {
   if (atLeastHalf(q)) return null;
-  let z = 0;
-  while (attackerSuccessProbability(q, z) >= limit && z < 5000) z++;
-  return z;
+  if (probability(q, 0) < limit) return 0;
+  let high = 1;
+  while (probability(q, high) >= limit) {
+    if (high >= MAX_CONFIRMATIONS) return null;
+    high *= 2;
+  }
+  let low = high / 2; // probability(q, low) >= limit
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2);
+    if (probability(q, mid) >= limit) low = mid;
+    else high = mid;
+  }
+  return high;
 }
 
 /** Wer den nächsten Block gefunden hat. */

@@ -1,13 +1,33 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { blockSubsidy, HALVING_INTERVAL, SATOSHI_PER_BTC, totalSupply } from '../lib';
 
   const MAX_HEIGHT = 6_930_000;
-  const TODAY = 965_000;
   const ERAS = Math.ceil(MAX_HEIGHT / HALVING_INTERVAL);
+
+  /**
+   * Blockhöhe „heute“ ohne Netzzugriff geschätzt: Block 840 000 kam am 20.04.2024, danach im Mittel
+   * ein Block alle 10 Minuten (600 000 ms).
+   */
+  const estimateHeight = (ms: number) =>
+    Math.min(MAX_HEIGHT, Math.max(0, 840_000 + Math.floor((ms - Date.UTC(2024, 3, 20)) / 600_000)));
+  // Fester Startwert für das vorgerenderte HTML und die Hydrierung (Stand 25.09.2026); erst im Browser
+  // wird auf das aktuelle Datum umgestellt, damit Server- und Browser-Ausgabe beim Hydrieren gleich sind.
+  const STAND_MS = Date.UTC(2026, 8, 25);
+  let today = $state(estimateHeight(STAND_MS));
+  let todayYear = $state(new Date(STAND_MS).getUTCFullYear());
 
   let width = $state(720);
   let hover: number | null = $state(null);
-  let pinned = $state(TODAY);
+  let pinned = $state(estimateHeight(STAND_MS));
+
+  // onMount läuft nur im Browser, nach dem Hydrieren.
+  onMount(() => {
+    const wasToday = pinned === today;
+    today = estimateHeight(Date.now());
+    todayYear = new Date().getFullYear();
+    if (wasToday) pinned = today;
+  });
 
   const W = $derived(Math.max(300, width));
   const M = { left: 52, right: 14 };
@@ -30,7 +50,7 @@
   };
   const btc = (sat: number) => sat / SATOSHI_PER_BTC;
 
-  // Treppe der Blockbelohnung: waagrecht je Epoche, senkrecht bei jeder Halbierung.
+  // Treppe des Blockzuschusses: waagrecht je Epoche, senkrecht bei jeder Halbierung.
   const rewardPath = $derived.by(() => {
     let d = `M${x(0)},${y1(50)}`;
     for (let e = 0; e < ERAS; e++) {
@@ -75,13 +95,15 @@
     return Math.round(Math.min(MAX_HEIGHT, Math.max(0, h)));
   }
 
-  const eraRows = Array.from({ length: 10 }, (_, e) => {
+  // Elf Epochen: In Epoche 11 wird zum ersten Mal auf ganze Satoshi abgerundet (4 882 812,5 → 4 882 812 sat).
+  const eraRows = Array.from({ length: 11 }, (_, e) => {
     const first = e * HALVING_INTERVAL;
     return {
       era: e + 1,
       first,
       year: Math.floor(eraStart(e)),
       reward: btc(blockSubsidy(first)),
+      roundedDown: e > 0 && blockSubsidy(first) * 2 !== blockSubsidy(first - HALVING_INTERVAL),
       supplyEnd: btc(totalSupply(first + HALVING_INTERVAL - 1)),
     };
   });
@@ -91,7 +113,7 @@
   <div class="readout" aria-live="polite">
     <div><span class="lbl">Blockhöhe</span><strong>{nf(readout.height)}</strong></div>
     <div><span class="lbl">Jahr (ungefähr)</span><strong>{readout.year}</strong></div>
-    <div><span class="lbl">Blockbelohnung</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
+    <div><span class="lbl">Blockzuschuss</span><strong>{nf(readout.reward, 8)} BTC</strong></div>
     <div><span class="lbl">Bitcoin insgesamt</span><strong>{nf(readout.supply, readout.supply > 20_990_000 ? 4 : 0)} BTC</strong><span class="lbl">{nf(Math.floor((readout.supply / 21e6) * 10000) / 100, 2)} % von 21 Mio.</span></div>
   </div>
 
@@ -101,13 +123,13 @@
       width={W}
       height={H}
       role="img"
-      aria-label="Blockbelohnung und Gesamtmenge an Bitcoin über der Blockhöhe"
+      aria-label="Blockzuschuss und Gesamtmenge an Bitcoin über der Blockhöhe"
       onpointermove={(e) => (hover = toHeight(e))}
       onpointerdown={(e) => (pinned = toHeight(e))}
       onpointerleave={() => (hover = null)}
     >
-      <!-- Feld 1: Blockbelohnung -->
-      <text class="title" x={M.left} y={TOP1 - 10}>Blockbelohnung je Block in BTC</text>
+      <!-- Feld 1: Blockzuschuss -->
+      <text class="title" x={M.left} y={TOP1 - 10}>Blockzuschuss je Block in BTC</text>
       {#each [0, 10, 20, 30, 40, 50] as t (t)}
         <line class="grid" x1={M.left} x2={W - M.right} y1={y1(t)} y2={y1(t)} />
         <text class="tick" x={M.left - 8} y={y1(t) + 4} text-anchor="end">{t}</text>
@@ -132,8 +154,8 @@
       <text class="tick" x={W - M.right} y={H - 2} text-anchor="end">Blockhöhe und Jahr</text>
 
       <!-- heute -->
-      <line class="today" x1={x(TODAY)} x2={x(TODAY)} y1={TOP1} y2={TOP2 + PANEL} />
-      <text class="today-label" x={x(TODAY) + 5} y={TOP1 + 12}>heute (2026)</text>
+      <line class="today" x1={x(today)} x2={x(today)} y1={TOP1} y2={TOP2 + PANEL} />
+      <text class="today-label" x={x(today) + 5} y={TOP1 + 12}>heute (≈ {todayYear})</text>
 
       <!-- aktuelle Position -->
       <line class="cross" x1={x(active)} x2={x(active)} y1={TOP1} y2={TOP2 + PANEL} />
@@ -143,17 +165,17 @@
   </div>
 
   <div class="below">
-    <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre.</p>
-    <button onclick={() => { pinned = TODAY; hover = null; }}>Zurücksetzen</button>
+    <p class="hint">Fahre über das Diagramm oder tippe hinein, um die Werte an einer Stelle zu sehen. Die Jahre sind eine Näherung: 210 000 Blöcke dauern etwa vier Jahre. Zum Zuschuss kommen die Gebühren der Transaktionen, sie sind hier nicht eingezeichnet.</p>
+    <button onclick={() => { pinned = today; hover = null; }}>Zurücksetzen</button>
   </div>
 
   <details>
-    <summary>Als Tabelle anzeigen (erste zehn Epochen)</summary>
+    <summary>Als Tabelle anzeigen (erste elf Epochen)</summary>
     <table>
-      <thead><tr><th>Epoche</th><th class="num">ab Block</th><th class="num">ab Jahr ≈</th><th class="num">Belohnung</th><th class="num">insgesamt am Ende</th></tr></thead>
+      <thead><tr><th>Epoche</th><th class="num">ab Block</th><th class="num">ab Jahr ≈</th><th class="num">Zuschuss</th><th class="num">insgesamt am Ende</th></tr></thead>
       <tbody>
         {#each eraRows as r (r.era)}
-          <tr><td>{r.era}</td><td class="num">{nf(r.first)}</td><td class="num">{r.year}</td><td class="num">{nf(r.reward, 8)} BTC</td><td class="num">{nf(r.supplyEnd, 0)} BTC</td></tr>
+          <tr><td>{r.era}</td><td class="num">{nf(r.first)}</td><td class="num">{r.year}</td><td class="num">{nf(r.reward, 8)} BTC{#if r.roundedDown}<br /><span class="lbl">abgerundet</span>{/if}</td><td class="num">{nf(r.supplyEnd, 0)} BTC</td></tr>
         {/each}
       </tbody>
     </table>

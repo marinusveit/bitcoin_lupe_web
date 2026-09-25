@@ -23,7 +23,8 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
 - **Links** `{ a, b, latencyTicks }`; Nachrichten `{ kind: 'tx' | 'block', payload, from, to, arrivesAt }`.
 - **Transaktion**: vereinfachtes UTXO-Modell aus `src/lib/transaction.ts`, sobald vorhanden; bis dahin eigenes
   Minimalmodell mit gleichen Feldern (`inputs[{txid, vout}]`, `outputs[{value, address}]`). `txid` = sha256d der
-  kanonischen JSON-Serialisierung (via `@noble/hashes`). Gebühr = Inputs minus Outputs. Coinbase hat keinen Input.
+  kanonischen JSON-Serialisierung (via `@noble/hashes`), angezeigt mit umgedrehter Byte-Reihenfolge wie bei
+  Bitcoin; die Merkle-Wurzel rechnet `src/lib/merkle.ts` (dieselbe Konvention wie Kapitel 2). Gebühr = Inputs minus Outputs. Coinbase hat keinen Input.
 - **Block** `{ height, prevHash, txs, merkleRoot, nonce, minerId, timestampTick, hash }`. `hash` = sha256d über
   `prevHash|merkleRoot|nonce|height`. Beim Fund sucht der Miner tatsächlich eine Nonce, deren Hash die
   Anzeige-Schwierigkeit erfüllt (Standard 12 führende Nullbits, damit sichtbar Nullen vorne stehen und die
@@ -36,7 +37,8 @@ gleichzeitiger Blockfund (Fork) und Double Spend mit Mehrheit der Rechenleistung
   es im Unterricht erlebt), plus Gebühren. Maximal `maxTxPerBlock` (Standard 5) Transaktionen, nach Gebühr sortiert.
 - **Konsens**: beste Kette = größte kumulierte Arbeit (bei gleicher Difficulty = Höhe), Gleichstand: zuerst
   gesehen gewinnt. Bei Kettenwechsel (Reorganisation) wandern Transaktionen verwaister Blöcke zurück in den
-  Mempool, sofern sie in der neuen Kette noch gültig sind.
+  Mempool, sofern sie in der neuen Kette noch gültig sind; geprüft wird in Blockreihenfolge gegen eine
+  Arbeitskopie der UTXO-Menge, deshalb kann der Mempool danach Ketten enthalten (Kind gibt Rückgeld des Elternteils aus).
 - **Validierung** (deutsche Fehlermeldungen): Tx: alle Inputs sind unverbrauchte UTXOs der besten Kette und
   nicht schon im Mempool ausgegeben, Summe Outputs ≤ Summe Inputs, Werte > 0. Block: prevHash bekannt,
   erste Tx ist Coinbase mit Wert ≤ subsidy + Gebühren, alle weiteren Tx gültig gegen die UTXO-Menge an dieser

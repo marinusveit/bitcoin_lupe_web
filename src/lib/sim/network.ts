@@ -103,7 +103,15 @@ export function receiveBlock(world: World, node: ChainNode, block: Block, from: 
   }
   const update = addBlock(node, block);
   if (!own) {
-    emit({ kind: 'block-accepted', text: `${label(node)} übernimmt ${blockLabel(block)}`, nodeId: node.id, blockHash: block.hash });
+    if (update.kind === 'none') {
+      // First-Seen-Regel: bei gleicher Arbeit bleibt der Knoten beim zuerst gesehenen Block.
+      const tie = node.work[block.hash] === node.work[node.tip];
+      const stays = tie ? 'bleibt beim zuerst gesehenen Block' : 'bleibt bei seiner Kette mit mehr Arbeit';
+      emit({ kind: 'block-side', text: `${label(node)} speichert ${blockLabel(block)} als Nebenzweig, ${stays}`, nodeId: node.id, blockHash: block.hash });
+    } else {
+      const text = update.kind === 'extend' ? `hängt ${blockLabel(block)} an seine Kette` : `übernimmt ${blockLabel(block)}`;
+      emit({ kind: 'block-accepted', text: `${label(node)} ${text}`, nodeId: node.id, blockHash: block.hash });
+    }
   }
   if (update.kind === 'reorg') {
     const n = update.discarded.length;
@@ -115,8 +123,10 @@ export function receiveBlock(world: World, node: ChainNode, block: Block, from: 
     });
   }
   if (update.kind !== 'none') {
+    const lostCoinbases = new Set(update.kind === 'reorg' ? update.discarded.map((b) => b.txs[0]!.txid) : []);
+    const droppedIds = new Set(update.dropped.map((t) => t.txid));
     for (const tx of update.dropped) {
-      emit({ kind: 'tx-dropped', text: `${label(node)} verwirft Transaktion ${shortHash(tx.txid)}: Coins sind schon ausgegeben`, nodeId: node.id, txid: tx.txid });
+      emit({ kind: 'tx-dropped', text: `${label(node)} verwirft Transaktion ${shortHash(tx.txid)}: ${dropReason(tx, update.kind === 'reorg', lostCoinbases, droppedIds)}`, nodeId: node.id, txid: tx.txid });
     }
   }
   broadcast(world, node, 'block', block, from);
@@ -128,6 +138,16 @@ export function receiveBlock(world: World, node: ChainNode, block: Block, from: 
     }
   }
   return true;
+}
+
+/** Grund, warum eine Transaktion nach einem Kettenwechsel nicht mehr gültig ist. */
+function dropReason(tx: Tx, reorg: boolean, lostCoinbases: Set<string>, droppedIds: Set<string>): string {
+  if (tx.inputs.some((i) => droppedIds.has(i.txid))) return 'Input stammt aus einer ebenfalls verworfenen Transaktion';
+  if (!reorg) return 'Coins sind schon ausgegeben';
+  if (tx.inputs.some((i) => lostCoinbases.has(i.txid))) {
+    return 'Input stammt aus der Coinbase eines verworfenen Blocks (bei Bitcoin wäre sie wegen der 100-Block-Reifefrist noch gar nicht ausgebbar)';
+  }
+  return 'Coins sind in der neuen Kette schon ausgegeben';
 }
 
 /** Stellt alle fälligen Nachrichten in Sende-Reihenfolge zu. */

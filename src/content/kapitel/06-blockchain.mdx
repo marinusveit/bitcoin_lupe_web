@@ -27,7 +27,7 @@ Ein Block (block) speichert eine begrenzte Anzahl von Transaktionen. Er besteht 
 - `version`: die Versionsnummer der Regeln, nach denen der Block gebaut ist.
 - `previous_block_id`: der Hashwert des vorherigen Blocks.
 - `merkle_root`: die Merkle-Wurzel aller Transaktionen im Body (Kapitel 2).
-- `time`: ein Zeitstempel. Er darf höchstens zwei Stunden in der Zukunft liegen und muss jünger sein als der mittlere Zeitstempel der letzten elf Blöcke.
+- `time`: ein Zeitstempel. Er darf höchstens zwei Stunden in der Zukunft liegen und muss jünger sein als der Median der letzten elf Zeitstempel (der mittlere Wert, wenn man sie sortiert).
 - `nBits`: eine kurze Schreibweise für das Target (siehe unten).
 - `nonce`: eine Zahl, die Miner frei verändern dürfen.
 
@@ -38,6 +38,8 @@ Die Block-ID ist der HASH256-Wert des Headers. Sie kennzeichnet den Block eindeu
 Jeder Block enthält die Block-ID seines Vorgängers. So entsteht eine Kette mit fester Reihenfolge. Daher kommt der Name Blockchain. Die Idee stammt aus einem Artikel von Haber und Stornetta über Zeitstempel für Dokumente. Im Whitepaper kommt das Wort „Blockchain“ noch gar nicht vor.
 
 Was passiert, wenn jemand eine alte Transaktion fälscht? Dann ändert sich die Merkle-Wurzel und damit die Block-ID. Der nächste Block zeigt aber noch auf die alte ID. Passt man ihn an, ändert sich auch seine ID. So pflanzt sich eine einzige Änderung bis zum Ende der Kette fort.
+
+In der Demo gilt ein Block als gültig, wenn sein Hash mit vier Nullen beginnt und sein Vorgänger gültig ist. Der Knopf „Block neu minen“ probiert so lange Zahlen (Nonces) durch, bis das klappt. Wie das genau funktioniert, zeigt der nächste Abschnitt.
 
 <Werkbank aufgabe="Ändere den Text in Block 2 und mine ihn neu. Sag vorher: Werden Block 3 und 4 danach gültig sein?" deutung="Nein. Die Demo passt den Zeiger von Block 3 an den neuen Hash von Block 2 an. Dadurch ändert sich auch der Hash von Block 3, und seine alte Nonce passt nicht mehr. Dasselbe gilt für Block 4. Wer einen Block ändert, muss ihn und alle folgenden neu minen.">
   <KettenDemo client:visible />
@@ -53,15 +55,17 @@ Ein Block ist nur gültig, wenn seine Block-ID höchstens so groß ist wie das T
 
 {/* KORRIGIERT gegenüber der Arbeit: Dort steht „kleiner als das Target“. Bitcoin Core lehnt einen Block nur ab, wenn der Hash größer als das Target ist (src/pow.cpp, CheckProofOfWork: `if (UintToArith256(hash) > bnTarget) return false;`), gültig ist also „kleiner oder gleich“. So prüft auch src/lib/block.ts (meetsTarget). */}
 
-Stell dir eine Lotterie vor. Jede Block-ID ist ein Los mit einer Zahl. Gewinnt nur ein Los unter einer sehr kleinen Grenze, braucht man viele Versuche. Weil alle Hashwerte gleich wahrscheinlich sind, ist die Gewinnchance der Anteil der Zahlen unterhalb des Targets:
+Stell dir eine Lotterie vor. Jede Block-ID ist ein Los mit einer Zahl. Gewinnt nur ein Los unter einer sehr kleinen Grenze, braucht man viele Versuche. Weil alle Hashwerte gleich wahrscheinlich sind, ist die Gewinnchance ungefähr der Anteil der Zahlen bis zum Target:
 
 $$
-P(\text{Block-ID} < \text{target}) = \frac{\text{target}}{2^{256}}
+P(\text{Block-ID} \le \text{target}) \approx \frac{\text{target}}{2^{256}}
 $$
 
 ### Der Mining-Prozess
 
-Der Miner berechnet die Block-ID seines Kandidatenblocks. Ist sie größer als das Target, erhöht er die Nonce um eins und rechnet neu. Durch den Lawineneffekt ergibt jede Nonce eine völlig neue Block-ID. Das wiederholt er, bis er Glück hat.
+Der Miner berechnet die Block-ID seines Kandidatenblocks. Ist sie größer als das Target, erhöht er die Nonce um eins und rechnet neu. Durch den Lawineneffekt ergibt jede Nonce eine völlig neue Block-ID. Das wiederholt er, bis er Glück hat. Das Nonce-Feld hat nur gut vier Milliarden Werte, und das reicht heute bei weitem nicht: Sind alle probiert, ändert der Miner den Zeitstempel oder eine Zahl in der ersten Transaktion des Blocks (Extranonce) und beginnt von vorn.
+
+{/* ERGÄNZT gegenüber der Arbeit (04_blockchain.tex Z. 153): Dort reicht die Nonce allein. Bei Schwierigkeit etwa 1,5·10^14 braucht ein Block im Mittel D·2^32 ≈ 6·10^23 Versuche, das Nonce-Feld hat 2^32 Werte. Bitcoin Core src/node/miner.cpp, IncrementExtraNonce. */}
 
 Wer mehr Rechenleistung hat, schafft mehr Versuche pro Sekunde. Er findet deshalb öfter einen gültigen Block. Das Target ist so gewählt, dass im ganzen Netz im Schnitt alle 10 Minuten ein Block gefunden wird.
 
@@ -127,7 +131,7 @@ Beispiel: Die letzten 2016 Blöcke kamen im Schnitt alle 8 statt alle 10 Minuten
 
 Warum rechnen Miner überhaupt? Die erste Transaktion jedes Blocks ist die Coinbase-Transaktion. Mit ihr zahlt sich der Miner eine Belohnung aus. Sie besteht aus zwei Teilen: dem Blockzuschuss (block subsidy) und den Gebühren (fees) aller Transaktionen im Block. Das deckt Strom und Rechenzeit und schafft einen Anreiz, das Netz sicher zu halten.
 
-Über den Blockzuschuss kommen neue Bitcoins in Umlauf. Am Anfang gab es 50 BTC pro Block. Alle 210.000 Blöcke halbiert sich der Zuschuss. Das nennt man Halving. Aktuell sind es 3,125 BTC.
+Über den Blockzuschuss kommen neue Bitcoins in Umlauf. Am Anfang gab es 50 BTC pro Block. Alle 210.000 Blöcke halbiert sich der Zuschuss. Das nennt man Halving. Seit April 2024 sind es 3,125 BTC.
 
 Dadurch ist die Menge der Bitcoins begrenzt, auf 21 Millionen BTC.
 
@@ -145,13 +149,13 @@ $$
 
 </details>
 
-Ganz erreicht wird diese Zahl nie. Die kleinste Einheit ist ein Satoshi, benannt nach dem Erfinder: $1 \text{ sat} = 10^{-8}$ BTC. Kleiner lässt sich der Zuschuss nicht teilen. Deshalb wird es höchstens 20.999.999,9769 BTC geben.
+Ganz erreicht wird diese Zahl nie. Die kleinste Einheit ist ein Satoshi, benannt nach dem Erfinder: $1 \text{ sat} = 10^{-8}$ BTC. Bei jeder Halbierung wird auf ganze Satoshi abgerundet. Ab dem Jahr 2048 geht dabei immer wieder ein Bruchteil verloren, zum ersten Mal ein halber Satoshi je Block. Deshalb wird es höchstens 20.999.999,9769 BTC geben.
 
-<Werkbank aufgabe="Fahre im Diagramm ganz nach rechts. Sag vorher: Wie viele Bitcoin gibt es dann, und wie hoch ist die Belohnung?" deutung="Die Belohnung halbiert sich alle 210.000 Blöcke. Deshalb wächst die Menge immer langsamer und erreicht 21 Millionen nie ganz.">
+<Werkbank aufgabe="Fahre im Diagramm ganz nach rechts. Sag vorher: Wie viele Bitcoin gibt es dann, und wie hoch ist der Zuschuss?" deutung="Der Zuschuss halbiert sich alle 210.000 Blöcke. Deshalb wächst die Menge immer langsamer und erreicht 21 Millionen nie ganz.">
   <HalvingDiagramm client:visible />
 </Werkbank>
 
-Miner nehmen meist die Transaktionen mit den höchsten Gebühren zuerst. Wer zu wenig Gebühr zahlt, muss lange warten. Irgendwann verwerfen die Knoten die Transaktion. Sinkt der Zuschuss gegen null, bleiben die Gebühren der wichtigste Anreiz für Miner.
+Miner nehmen meist die Transaktionen mit den höchsten Gebühren zuerst, genauer: mit der höchsten Gebühr pro Byte, denn große Transaktionen belegen mehr Platz im Block. Wer zu wenig Gebühr zahlt, muss lange warten. Irgendwann verwerfen die Knoten die Transaktion. Sinkt der Zuschuss gegen null, bleiben die Gebühren der wichtigste Anreiz für Miner.
 
 ## Konsens
 

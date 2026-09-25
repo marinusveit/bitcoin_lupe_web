@@ -142,15 +142,17 @@ export function addBlock(node: ChainState, block: Block): ChainUpdate {
   node.utxo = utxo;
   node.txIndex = txIndex;
   node.tip = block.hash;
+  // Blockreihenfolge, Eltern vor Kindern: Eine Transaktion darf das Rückgeld einer
+  // vorher zurückgelegten ausgeben (wie Bitcoin Core bei einer Reorganisation).
   const candidates = [...discarded.flatMap((b) => b.txs.filter((t) => !isCoinbase(t))), ...Object.values(node.mempool)];
   node.mempool = {};
-  const spent = new Set<string>();
+  const work: UtxoSet = { ...node.utxo };
   const dropped: Tx[] = [];
   for (const tx of candidates) {
     if (node.txIndex[tx.txid] || node.mempool[tx.txid]) continue;
-    if (validateTx(tx, node.utxo, spent) === null) {
+    if (validateTx(tx, work) === null) {
       node.mempool[tx.txid] = tx;
-      for (const i of tx.inputs) spent.add(outpointKey(i.txid, i.vout));
+      applyTx(work, tx);
     } else {
       dropped.push(tx);
     }
@@ -158,13 +160,26 @@ export function addBlock(node: ChainState, block: Block): ChainUpdate {
   return { kind: 'reorg', discarded, dropped };
 }
 
-/** Entfernt Mempool-Transaktionen, deren Inputs nicht mehr unverbraucht sind. */
+/**
+ * UTXO-Menge plus alle Outputs der Transaktionen `txs`, zum Nachschlagen von Beträgen und Gebühren.
+ * Nach einer Reorganisation kann der Mempool Ketten enthalten (ein Kind gibt Rückgeld seines Elternteils aus).
+ */
+export function withPendingOutputs(utxo: UtxoSet, txs: Tx[]): UtxoSet {
+  const view: UtxoSet = { ...utxo };
+  for (const tx of txs) tx.outputs.forEach((o, vout) => (view[outpointKey(tx.txid, vout)] = o));
+  return view;
+}
+
+/** Entfernt Mempool-Transaktionen, deren Inputs weder unverbraucht noch Outputs früherer Mempool-Transaktionen sind. */
 function pruneMempool(node: ChainState): Tx[] {
   const dropped: Tx[] = [];
+  const work: UtxoSet = { ...node.utxo };
   for (const tx of Object.values(node.mempool)) {
-    if (tx.inputs.some((i) => !node.utxo[outpointKey(i.txid, i.vout)])) {
+    if (tx.inputs.some((i) => !work[outpointKey(i.txid, i.vout)])) {
       delete node.mempool[tx.txid];
       dropped.push(tx);
+    } else {
+      applyTx(work, tx);
     }
   }
   return dropped;
@@ -182,18 +197,30 @@ export function selectTransactions(
   utxo: UtxoSet,
   max: number,
 ): { txs: Tx[]; fees: number } {
+  const view = withPendingOutputs(utxo, candidates);
   const withFee = candidates
-    .map((tx) => ({ tx, fee: txFee(tx, utxo) }))
+    .map((tx) => ({ tx, fee: txFee(tx, view) }))
     .sort((a, b) => b.fee - a.fee || (a.tx.txid < b.tx.txid ? -1 : 1));
   const work = { ...utxo };
   const txs: Tx[] = [];
   let fees = 0;
-  for (const { tx } of withFee) {
-    if (txs.length >= max) break;
-    if (validateTx(tx, work) !== null) continue;
-    fees += txFee(tx, work);
-    applyTx(work, tx);
-    txs.push(tx);
+  // Mehrere Durchläufe, damit ein Kind nach seinem Elternteil noch Platz findet.
+  let rest = withFee.map((c) => c.tx);
+  let progress = true;
+  while (progress && txs.length < max) {
+    progress = false;
+    const later: Tx[] = [];
+    for (const tx of rest) {
+      if (txs.length >= max || validateTx(tx, work) !== null) {
+        later.push(tx);
+        continue;
+      }
+      fees += txFee(tx, work);
+      applyTx(work, tx);
+      txs.push(tx);
+      progress = true;
+    }
+    rest = later;
   }
   return { txs, fees };
 }
@@ -210,12 +237,14 @@ export function balances(node: ChainState): Record<string, Balance> {
   const out: Record<string, Balance> = {};
   const get = (a: string): Balance => (out[a] ??= { confirmed: 0, unconfirmed: 0 });
   for (const o of Object.values(node.utxo)) get(o.address).confirmed += o.value;
+  const work: UtxoSet = { ...node.utxo };
   for (const tx of Object.values(node.mempool)) {
     for (const i of tx.inputs) {
-      const prev = node.utxo[outpointKey(i.txid, i.vout)];
+      const prev = work[outpointKey(i.txid, i.vout)];
       if (prev) get(prev.address).unconfirmed -= prev.value;
     }
     for (const o of tx.outputs) get(o.address).unconfirmed += o.value;
+    applyTx(work, tx);
   }
   return out;
 }

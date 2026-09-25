@@ -23,7 +23,7 @@ Eine Transaktion hat Eingänge (inputs) und Ausgänge (outputs). Jede Transaktio
 
 ## Outputs: verschlossene Kisten
 
-Stell dir einen Output als Kiste vor, in der eine bestimmte Menge Bitcoins liegt. Das Feld `Value` gibt an, wie viele es sind. Das Feld `ScriptPubKey` ist das Schloss der Kiste. Es legt fest, wer die Kiste öffnen darf.
+Stell dir einen Output als Kiste vor, in der eine bestimmte Menge Bitcoins liegt. Das Feld `Value` gibt an, wie viele es sind. Gespeichert wird der Betrag in Satoshi, der kleinsten Einheit: 1 BTC = 100.000.000 Satoshi. Das Feld `ScriptPubKey` ist das Schloss der Kiste. Es legt fest, wer die Kiste öffnen darf.
 
 Eine Transaktion kann mehrere Outputs haben. So kann man Bitcoins an mehrere Empfänger verteilen. Ein Output kann auch an einen selbst gehen. Das ist dann Rückgeld (Wechselgeld, change), falls man mehr Bitcoins hineingesteckt hat als nötig.
 
@@ -41,7 +41,9 @@ Man kann mehrere Inputs kombinieren, um einen größeren Betrag zu bezahlen.
 
 Bitcoins dürfen nicht zweimal ausgegeben werden. Das Problem heißt doppelte Ausgabe (double spending). Man könnte bei jeder neuen Transaktion alle früheren durchsuchen, ob der Output schon verwendet wurde. Das wäre sehr aufwendig.
 
-Deshalb speichert jeder Teilnehmer die UTXO-Menge (UTXO set). Das ist die Liste aller Outputs, die noch nicht ausgegeben wurden. Nach jeder Transaktion wird sie aktualisiert. Sie umfasst alle Bitcoins, die gerade im Umlauf sind.
+Deshalb speichert jeder Teilnehmer die UTXO-Menge (UTXO set). Das ist die Liste aller Outputs, die noch nicht ausgegeben wurden. Mit jedem neuen Block wird sie aktualisiert. Sie umfasst alle Bitcoins, die gerade im Umlauf sind.
+
+{/* PRÄZISIERT gegenüber der Arbeit (02_Transaktionen.tex Z. 46: „Jede Transaktion verändert sie“): Die UTXO-Menge ändert sich erst mit dem Block, unbestätigte Transaktionen liegen im Mempool (05_Bitcoin_Netzwerk.tex Z. 148). Review k4-01, 25.09.2026. */}
 
 <div class="callout merke">
 
@@ -77,7 +79,7 @@ Woher kommen die ersten Bitcoins? Jeder Block beginnt mit einer besonderen Trans
 
 ## Selbst ausprobieren
 
-In der Demo besitzt Alice am Anfang einen Output über 50 BTC aus einer Coinbase-Transaktion. Bei jedem Input steht „aus“ und dahinter TxID und Nummer, etwa `3f2a…:0`. Das sind genau die Felder `Previous TxID` und `Index` von oben: die frühere Transaktion und die Nummer des Outputs darin, gezählt ab 0. Das Rückgeld heißt in der Demo Wechselgeld.
+In der Demo besitzt Alice am Anfang einen Output über 50 BTC aus einer Coinbase-Transaktion. Bei jedem Input steht „aus“ und dahinter TxID und Nummer, etwa `3f2a…:0`. Das sind genau die Felder `Previous TxID` und `Index` von oben: die frühere Transaktion und die Nummer des Outputs darin, gezählt ab 0. Das Rückgeld heißt in der Demo Wechselgeld. Die Wartefrist von 100 Blöcken für Coinbase-Outputs lässt die Demo weg: Alice kann ihre 50 BTC sofort ausgeben.
 
 <Werkbank aufgabe="Schicke mit „Signieren und senden“ 10 BTC von Alice an Bob. Schätze vorher: Wie viele Outputs hat die Transaktion, und wie viele UTXOs besitzt Alice danach? Versuche dann, 45 BTC von Alice an Carol zu senden. Drücke zum Schluss „Denselben Output noch einmal ausgeben“: Was passiert?" deutung="Alices 50-BTC-Output wird ganz verbraucht. 10 BTC gehen an Bob, der Rest kommt als Rückgeld zu Alice zurück, und die kleine Differenz ist die Gebühr. Die 45 BTC scheitern, weil Alices UTXOs zusammen nicht mehr reichen. Die zweite Ausgabe desselben Outputs wird abgelehnt: Er steht nicht mehr in der UTXO-Menge. Genau so verhindert Bitcoin die doppelte Ausgabe.">
   <TransaktionsDemo client:visible />

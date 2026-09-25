@@ -1,5 +1,5 @@
 import { SATOSHI_PER_BTC } from '../block';
-import { sha256dHex } from '../hash';
+import { reverseHex, sha256dHex } from '../hash';
 import type { Tx, TxInput, TxOutput, UtxoSet } from './types';
 
 export { sha256dHex };
@@ -16,8 +16,9 @@ export function serializeTx(tx: Omit<Tx, 'txid'>): string {
   });
 }
 
+/** TxID in Anzeige-Reihenfolge wie bei Bitcoin: sha256d mit umgedrehter Byte-Reihenfolge. */
 export function computeTxid(tx: Omit<Tx, 'txid'>): string {
-  return sha256dHex(serializeTx(tx));
+  return reverseHex(sha256dHex(serializeTx(tx)));
 }
 
 export function makeTx(inputs: TxInput[], outputs: TxOutput[], coinbase?: string): Tx {
@@ -113,7 +114,7 @@ export function buildPayment(
   if (sum < amount + fee) {
     return {
       ok: false,
-      error: `Guthaben reicht nicht: verfügbar ${formatBtc(sum)}, nötig ${formatBtc(amount + fee)} (unbestätigte Beträge sind noch nicht ausgebbar)`,
+      error: `Guthaben reicht nicht: verfügbar ${formatBtc(sum)}, nötig ${formatBtc(amount + fee)} (unbestätigte Beträge sind in diesem Simulator erst ausgebbar, wenn die Zahlung in einem Block steht)`,
     };
   }
   const outputs: TxOutput[] = [{ value: amount, address: toAddress }];

@@ -205,6 +205,42 @@ describe('Konsens', () => {
     expect(walletBalance(world, 'carol')).toMatchObject({ confirmed: btcToSats(10), unconfirmed: btcToSats(3) });
   });
 
+  it('Reorganisation behält eine Zahlung aus unbestätigtem Rückgeld einer verworfenen Transaktion', () => {
+    const world = createWorld('fork', 2, NO_MINING);
+    const first = sendTransaction(world, 'alice', 'bob', btcToSats(5));
+    if (!first.ok) throw new Error(first.error);
+    run(world, 3);
+    forceBlock(world, 'm1');
+    run(world, 2);
+    const second = sendTransaction(world, 'alice', 'carol', btcToSats(1));
+    if (!second.ok) throw new Error(second.error);
+    run(world, 3);
+    const n1 = world.nodes.n1 as MinerNode;
+    const top = forceBlock(world, 'm1')[0]!.blockHash!;
+    const m1 = world.nodes.m1 as MinerNode;
+    expect(confirmations(m1, first.value)).toBe(2);
+    expect(confirmations(m1, second.value)).toBe(1);
+    // Konkurrenzzweig ab Genesis mit mehr Arbeit in der anderen Netzhälfte.
+    forceBlock(world, 'm2');
+    forceBlock(world, 'm2');
+    forceBlock(world, 'm2');
+    run(world, 60);
+    expect(n1.blocks[top]).toBeDefined();
+    expect(n1.blocks[n1.tip]!.height).toBe(3);
+    for (const node of [n1, m1]) {
+      expect(node.txIndex[first.value]).toBeUndefined();
+      expect(node.mempool[first.value]).toBeDefined();
+      expect(node.mempool[second.value]).toBeDefined();
+    }
+    expect(world.log.some((e) => e.kind === 'tx-dropped' && e.txid === second.value)).toBe(false);
+    const fee = world.params.defaultFee;
+    expect(walletBalance(world, 'alice')).toMatchObject({ confirmed: btcToSats(50), unconfirmed: -btcToSats(6) - 2 * fee });
+    forceBlock(world, 'm1');
+    run(world, 5);
+    expect(confirmations(n1, first.value)).toBe(1);
+    expect(confirmations(n1, second.value)).toBe(1);
+  });
+
   it('lehnt einen manipulierten Block mit deutscher Meldung ab', () => {
     const world = createWorld('normal', 1, NO_MINING);
     const hash = forceBlock(world, 'm1')[0]!.blockHash!;

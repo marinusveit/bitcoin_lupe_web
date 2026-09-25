@@ -132,7 +132,7 @@
       </div>
       <details>
         <summary>So steht sie in der Transaktion (DER)</summary>
-        <p class="hint">DER ist ein festes Format, in dem r und s mit Längenangaben hintereinander stehen.</p>
+        <p class="hint">DER ist ein festes Format, in dem r und s mit Längenangaben hintereinander stehen. In der Transaktion folgt dahinter noch ein Byte für den Sighash-Typ, meist 01.</p>
         <p class="hash der">{signatureDer}</p>
       </details>
     </section>

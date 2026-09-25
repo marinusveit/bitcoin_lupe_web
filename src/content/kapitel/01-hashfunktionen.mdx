@@ -51,7 +51,7 @@ Jede brauchbare Hashfunktion muss fünf Eigenschaften haben:
 
 Der Lawineneffekt (avalanche effect) ist besonders auffällig. Ändert man „Hochschule München“ zu „Hochschule Munchen“, fehlen nur zwei Punkte über dem u. Der neue Hashwert lautet aber `885bc1d5f370ea770b69fed36d6db76a05d859a65fe7291ced3a8422d2f1ceee`. Etwa die Hälfte der 256 Bits hat sich verändert.
 
-<Werkbank aufgabe="Ändere in Text B einen Buchstaben und sag vorher, wie viele der 256 Bits sich wohl ändern. Drücke dann mehrmals „Ein Zeichen ändern“ und beobachte die Prozentzahl und den Mittelwert." deutung="Jedes Mal kippt etwa die Hälfte der Bits, egal wie klein die Änderung ist. Deshalb verrät ein ähnlicher Hash nichts über einen ähnlichen Text, und Raten in kleinen Schritten hilft nicht weiter.">
+<Werkbank aufgabe="Ändere in Text B einen Buchstaben und sag vorher, wie viele der 256 Bits sich wohl ändern. Drücke dann mehrmals „Ein Zeichen von Text A ändern“ und beobachte die Prozentzahl und den Mittelwert." deutung="Jedes Mal kippt etwa die Hälfte der Bits, egal wie klein die Änderung ist. Deshalb verrät ein ähnlicher Hash nichts über einen ähnlichen Text, und Raten in kleinen Schritten hilft nicht weiter.">
   <LawinenDemo client:visible />
 </Werkbank>
 
@@ -63,7 +63,7 @@ Für Sicherheit reichen diese fünf Eigenschaften nicht. Eine kryptografische Ha
 
 ### Wie groß ist 2 hoch 256?
 
-Warum kann man nicht einfach alle Möglichkeiten durchprobieren? Ein Hashwert mit 256 Bit kann $2^{256}$ verschiedene Werte annehmen. Das ist ungefähr eine 1 mit 77 Nullen. Selbst einer der schnellsten Supercomputer der Welt bräuchte, um alle diese Hashwerte durchzuprobieren, viel länger, als das Universum alt ist. Alle Hashwerte durchzuprobieren ist also praktisch unmöglich.
+Warum kann man nicht einfach alle Möglichkeiten durchprobieren? Um zu einem Hashwert ein passendes Urbild zu finden, bleibt nur Raten: Eingabe wählen, Hash berechnen, vergleichen. Ein Hashwert mit 256 Bit kann $2^{256}$ verschiedene Werte annehmen, man bräuchte also im Mittel etwa so viele Versuche. Das ist ungefähr eine 1 mit 77 Nullen. Selbst einer der schnellsten Supercomputer der Welt bräuchte für so viele Versuche viel länger, als das Universum alt ist. Ein Urbild durch Ausprobieren zu finden ist also praktisch unmöglich.
 
 <details class="vertiefung">
 <summary>Vertiefung: Die Rechnung zu 2 hoch 256</summary>
@@ -106,7 +106,7 @@ Eine Kollision (collision) liegt vor, wenn zwei verschiedene Nachrichten denselb
 
 **Schwache Kollisionsresistenz (second preimage resistance):** Gegeben ist eine Nachricht. Es soll praktisch unmöglich sein, eine andere Nachricht mit demselben Hashwert zu finden. Der einzige Weg ist Ausprobieren (brute force). Wegen der Größe von $2^{256}$ dauert das viel zu lange.
 
-**Starke Kollisionsresistenz (collision resistance):** Es soll praktisch unmöglich sein, überhaupt irgendein Paar verschiedener Nachrichten mit gleichem Hashwert zu finden. Diesmal sind beide Nachrichten frei wählbar.
+**Starke Kollisionsresistenz (collision resistance):** Es soll praktisch unmöglich sein, überhaupt irgendein Paar verschiedener Nachrichten mit gleichem Hashwert zu finden. Diesmal sind beide Nachrichten frei wählbar. Deshalb reichen etwa $2^{128}$ Versuche statt $2^{256}$. Das kennt man vom Geburtstagsparadox: Schon bei 23 Personen haben mit über 50 % Wahrscheinlichkeit zwei am selben Tag Geburtstag, und 23 ist ungefähr die Wurzel aus 365. Genauso reicht bei $2^{256}$ Hashwerten etwa die Wurzel, also $2^{128}$. Auch das ist noch unvorstellbar groß.
 
 Diese Eigenschaft ist am schwersten zu erreichen. Sie wird meist als erste gebrochen. Dann gilt die Hashfunktion als unsicher.
 

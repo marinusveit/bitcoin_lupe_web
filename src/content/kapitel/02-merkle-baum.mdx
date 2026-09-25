@@ -40,7 +40,7 @@ Was passiert, wenn auf einer Ebene eine ungerade Zahl von Knoten steht? Dann wir
      TxID1          TxID2                    TxID3
 ```
 
-<Werkbank aufgabe="Klicke auf Tx 3 und sieh dir den Beweis an. Ändere dann in Tx 3 einen Buchstaben. Sag vorher: Welche Kästchen ändern sich mit, und gilt der Beweis noch? Füge danach eine fünfte Transaktion hinzu: Wo taucht ein gestrichelter, verdoppelter Knoten auf?" deutung="Eine Änderung in einem Blatt ändert jeden Knoten auf dem Weg nach oben bis zur Wurzel. Die Wurzel im Block-Header passt dann nicht mehr, und der Beweis scheitert. Bei einer ungeraden Zahl von Knoten wird der letzte verdoppelt, genau wie TxID3 im Bild oben.">
+<Werkbank id="merkle-demo" aufgabe="Ändere in Tx 3 einen Buchstaben. Sag vorher: Welche Kästchen ändern sich mit? Füge danach eine fünfte Transaktion hinzu: Wo taucht ein gestrichelter, verdoppelter Knoten auf?" deutung="Eine Änderung in einem Blatt ändert jeden Knoten auf dem Weg nach oben bis zur Wurzel. Die Wurzel im Block-Header passt dann nicht mehr. Bei einer ungeraden Zahl von Knoten wird der letzte verdoppelt, genau wie TxID3 im Bild oben.">
   <MerkleDemo client:visible />
 </Werkbank>
 
@@ -70,7 +70,7 @@ Ein Beispiel mit 8 Transaktionen. Wir wollen prüfen, ob die Transaktion $Tx_5$ 
 
 Der Merkle-Proof besteht hier also aus nur drei Hashwerten. Die anderen sieben Transaktionen selbst braucht man nicht.
 
-Probiere es oben in der Demo aus: Füge Transaktionen hinzu, bis es acht sind, und klicke auf Tx 5. Die Demo zeigt dieselben drei Beweis-Hashes.
+[Scrolle zur Demo zurück](#merkle-demo): Füge Transaktionen hinzu, bis es acht sind, und klicke auf Tx 5. Die Demo zeigt dieselben drei Beweis-Hashes.
 
 <div class="callout achtung">
 
@@ -95,7 +95,7 @@ $$
 \text{Anzahl Hashwerte} = \text{Höhe des Baums} - 1
 $$
 
-Mit jeder Ebene verdoppelt sich die Zahl der Blätter. Deshalb wächst die Höhe nur mit dem Logarithmus zur Basis 2. Der Logarithmus $\log_2$ beantwortet die Frage „2 hoch wie viel ergibt diese Zahl?“. Die Klammern $\lceil \ \rceil$ bedeuten Aufrunden:
+Jede zusätzliche Ebene verdoppelt, wie viele Blätter der Baum tragen kann. Deshalb wächst die Höhe nur mit dem Logarithmus zur Basis 2. Der Logarithmus $\log_2$ beantwortet die Frage „2 hoch wie viel ergibt diese Zahl?“. Die Klammern $\lceil \ \rceil$ bedeuten Aufrunden:
 
 $$
 \text{Höhe des Baums} = \lceil \log_2(\text{Anzahl Transaktionen}) \rceil + 1

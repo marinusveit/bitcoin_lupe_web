@@ -14,6 +14,8 @@ let runId = 0;
 function mine(header: BlockHeader, chunkSize: number, startNonce: number, target: bigint | undefined, id: number): void {
   let nonce = startNonce;
   let total = 0;
+  // Zeit ab dem ersten Hash messen, damit das Laden des Workers die Rate nicht verfälscht.
+  const t0 = performance.now();
   const zeroHist = new Array<number>(17).fill(0);
   const step = (): void => {
     if (id !== runId) return;
@@ -22,12 +24,13 @@ function mine(header: BlockHeader, chunkSize: number, startNonce: number, target
     nonce = r.nextNonce;
     r.zeroHist.forEach((c, z) => (zeroHist[z]! += c));
     const hist = [...zeroHist];
+    const elapsedMs = performance.now() - t0;
     if (r.found) {
-      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce, zeroHist: hist });
+      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: hist });
     } else if (r.exhausted) {
-      scope.postMessage({ type: 'exhausted', iterations: total, hash: r.hash, nonce: r.nonce, zeroHist: hist });
+      scope.postMessage({ type: 'exhausted', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: hist });
     } else {
-      scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce, zeroHist: hist });
+      scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs, zeroHist: hist });
       setTimeout(step, 0);
     }
   };
@@ -38,16 +41,18 @@ function mine(header: BlockHeader, chunkSize: number, startNonce: number, target
 function mineText(prefix: string, zeros: number, chunkSize: number, startNonce: number, id: number): void {
   let nonce = startNonce;
   let total = 0;
+  const t0 = performance.now();
   const step = (): void => {
     if (id !== runId) return;
     const r = mineTextChunk(prefix, zeros, { maxIterations: chunkSize, startNonce: nonce });
     total += r.iterations;
     nonce = r.nextNonce;
+    const elapsedMs = performance.now() - t0;
     if (r.found) {
-      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce });
+      scope.postMessage({ type: 'found', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs });
       return;
     }
-    scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce });
+    scope.postMessage({ type: 'progress', iterations: total, hash: r.hash, nonce: r.nonce, elapsedMs });
     setTimeout(step, 0);
   };
   step();

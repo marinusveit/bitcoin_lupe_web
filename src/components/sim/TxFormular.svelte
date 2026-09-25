@@ -120,7 +120,7 @@
       <span class="verfuegbar">
         verfügbar: {formatBtc(available)}
         {#if incoming > 0}
-          <span class="unbestaetigt">(+{formatBtc(incoming)} unbestätigt, zählt erst nach dem nächsten Block)</span>
+          <span class="unbestaetigt">(+{formatBtc(incoming)} unbestätigt; in diesem Simulator erst ausgebbar, wenn die Zahlung in einem Block steht)</span>
         {/if}
       </span>
     {/if}

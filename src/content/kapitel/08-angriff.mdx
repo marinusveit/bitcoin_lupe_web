@@ -39,7 +39,7 @@ Diesen Angriff kannst du im [Simulator mit dem Szenario „Double Spend (51 %)�
 
 </div>
 
-Der Angreifer ist an dieselben Konsensregeln gebunden wie alle anderen. Er kann nur eigene Transaktionen rückgängig machen und so bereits ausgegebene Bitcoins zurückholen. Außerdem kann er fremde Transaktionen aus seinen Blöcken heraushalten, solange er die Mehrheit hat.
+Der Angreifer ist an dieselben Konsensregeln gebunden wie alle anderen. Er kann nur eigene Transaktionen rückgängig machen und so bereits ausgegebene Bitcoins zurückholen. Außerdem kann er fremde Transaktionen blockieren: Er nimmt sie nicht in seine Blöcke auf und hängt nichts an Blöcke anderer an, die sie enthalten. Weil seine Kette schneller wächst, bleiben sie draußen. Verhindern kann er nur, dass sie bestätigt werden, nicht, dass sie im Netz verschickt werden.
 
 ## Die Aufholjagd
 
@@ -96,7 +96,7 @@ $$
 \end{aligned}
 $$
 
-Wie viele Blöcke der Angreifer in der Zeit schafft, folgt einer Poisson-Verteilung. Sie beschreibt zufällige Ereignisse, die mit einer festen Rate auftreten. Im Mittel schafft der Angreifer $\lambda = z \cdot \frac{q}{p}$ Blöcke. Die Wahrscheinlichkeit für genau $k$ Blöcke ist:
+Nakamoto nimmt an, dass die Ehrlichen für ihre $z$ Blöcke genau die durchschnittliche Zeit brauchen. Dann ist die Zahl der Blöcke, die der Angreifer in dieser Zeit schafft, Poisson-verteilt. Die Poisson-Verteilung beschreibt zufällige Ereignisse, die mit einer festen Rate auftreten. Im Mittel schafft der Angreifer $\lambda = z \cdot \frac{q}{p}$ Blöcke. Die Wahrscheinlichkeit für genau $k$ Blöcke ist:
 
 $$
 P_\lambda(k) = \frac{\lambda^k}{k!}\, e^{-\lambda}
@@ -119,7 +119,7 @@ $$
 
 </details>
 
-Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), der Angreifer hat 10 Prozent der Rechenleistung ($q = 0{,}1$). Seine Erfolgschance beträgt dann etwa 1,3 Prozent. Bei $z = 5$ sind es noch knapp 0,1 Prozent. Nakamotos Formel ist eine Näherung, die das Risiko ab $z = 2$ etwas unterschätzt: Eine genauere Rechnung von Rosenfeld ergibt für $q = 0{,}1$ und $z = 3$ rund 1,7 statt 1,3 Prozent.
+Ein Beispiel wie in der Abbildung oben: Drei Blöcke sind angehängt ($z = 3$), der Angreifer hat 10 Prozent der Rechenleistung ($q = 0{,}1$). Seine Erfolgschance beträgt dann etwa 1,3 Prozent. Bei $z = 5$ sind es noch knapp 0,1 Prozent. Nakamotos Formel ist eine Näherung, die das Risiko für $q = 0{,}1$ ab $z = 2$ etwas unterschätzt: Eine genauere Rechnung von Rosenfeld ergibt für $q = 0{,}1$ und $z = 3$ rund 1,7 statt 1,3 Prozent.
 
 {/* KORRIGIERT gegenüber der Arbeit: Dort stehen für q = 0,1 und z = 3 „0,35 %“. Die Formel ergibt 1,32 % (so auch die Tabelle im Whitepaper, Abschnitt 11); 0,35 % ist der Wert für z = 4. Auch die Kurvendaten in der Abbildung der Arbeit sind um einen Block verschoben. ERGÄNZT: Der Wert für z = 5 (0,09 %) ist nachgerechnet und steht nicht in der Arbeit. */}
 
@@ -131,7 +131,7 @@ Ein Händler legt fest, welches Risiko er hinnimmt, zum Beispiel 0,1 Prozent, al
 
 ## Warum es trotzdem kaum passiert
 
-Mit weniger als der Hälfte der Rechenleistung kann ein Angriff nur mit viel Glück gelingen. Mit mehr als der Hälfte gelingt er auf lange Sicht sicher. Alte Blöcke umzuschreiben dauert aber sehr lange. Man müsste die Arbeit vieler Jahre noch einmal leisten.
+Mit deutlich weniger als der Hälfte der Rechenleistung und einigen Bestätigungen gelingt ein Angriff nur mit viel Glück. Knapp unter der Hälfte muss der Händler dagegen sehr lange warten. Mit mehr als der Hälfte gelingt er auf lange Sicht sicher. Alte Blöcke umzuschreiben dauert aber sehr lange. Man müsste die Arbeit vieler Jahre noch einmal leisten.
 
 Beobachtet wurde ein solcher Angriff auf Bitcoin bisher nicht. Ein Grund: Ehrlich zu minen lohnt sich mehr. Ein erfolgreicher Angriff würde das Vertrauen in Bitcoin beschädigen. Der Kurs würde fallen, und die erbeuteten Bitcoins wären weniger wert.
 

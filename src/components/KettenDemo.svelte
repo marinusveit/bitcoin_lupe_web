@@ -103,16 +103,14 @@
       {@const c = chain[i]!}
       {@const z = leadingZeros(c.hash)}
       {#if i > 0}
-        <!-- Verbinder: der Hash des Vorgängers fließt in das Feld „Zeigt auf“ dieses Blocks. -->
+        <!-- Verbinder: der Hash des Vorgängers fließt in das Feld „Zeigt auf“ dieses Blocks. Die Beschriftung
+             sagt, ob der Vorgänger gültig ist; der Zeiger selbst folgt in der Demo immer dessen Hash. -->
         <div class="link" class:broken={!c.prevValid} aria-hidden="true">
           <svg viewBox="0 0 60 40">
             <path class="line" d="M2 20 H44" />
             <path class="head" d="M40 12 L52 20 L40 28 Z" />
-            {#if !c.prevValid}
-              <path class="cross" d="M20 8 L36 32 M36 8 L20 32" />
-            {/if}
           </svg>
-          <span class="link-lbl">{c.prevValid ? 'Hash passt' : 'Hash geändert'}</span>
+          <span class="link-lbl">{c.prevValid ? 'Vorgänger gültig' : 'Vorgänger ungültig'}</span>
         </div>
       {/if}
       <div class="block" class:valid={c.valid} class:invalid={!c.valid} role="listitem">
@@ -166,14 +164,13 @@
   .count.ok { color: var(--ok); }
   /* Vier Blöcke und drei Verbinder in einer Reihe; schmal: untereinander mit gedrehten Pfeilen. */
   .chain { display: grid; gap: 0.3rem; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
-  .link { display: grid; place-items: center; align-content: center; gap: 0.2rem; width: 2.6rem; color: var(--ok); }
+  .link { display: grid; place-items: center; align-content: center; gap: 0.2rem; width: 3.4rem; color: var(--ok); }
   .link svg { width: 2.6rem; height: auto; display: block; }
   .link .line { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
   .link .head { fill: currentColor; }
-  .link .cross { fill: none; stroke: var(--danger); stroke-width: 3.5; stroke-linecap: round; }
   .link.broken { color: var(--danger); }
   .link.broken .line { stroke-dasharray: 5 5; }
-  .link-lbl { font-size: 0.7rem; text-align: center; line-height: 1.15; }
+  .link-lbl { font-size: 0.68rem; text-align: center; line-height: 1.15; width: 3.4rem; }
   .block { display: grid; gap: 0.55rem; align-content: start; padding: 0.8rem; border: 1px solid var(--border); border-top: 4px solid; border-radius: var(--radius); background: var(--bg-elevated); min-width: 0; }
   .field.prev, .field.own { padding: 0.4rem 0.5rem; border-radius: var(--radius-sm); background: var(--bg-muted); }
   .field.own { border-left: 3px solid var(--accent); }
